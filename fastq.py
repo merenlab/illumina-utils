@@ -13,15 +13,14 @@ import sys
 import stat
 import numpy
 
-def predict_file_length(f_path):
-    f_stat = os.stat(f_path)
-    f_size = f_stat[stat.ST_SIZE]
+def predict_file_length(file_pointer, file_path):
+    file_stat = os.stat(file_path)
+    file_size = file_stat[stat.ST_SIZE]
 
-    f = open(f_path)
-    line_length = len(''.join([f.readline() for c in range(0, 4)]))
-    f.close()
+    block_length = len(''.join([file_pointer.readline() for c in range(0, 4)]))
+    file_pointer.seek(0)
 
-    return f_size / line_length
+    return file_size / block_length
 
 def big_number_pretty_print(n):
     ret = []
@@ -31,10 +30,72 @@ def big_number_pretty_print(n):
         if (len(n) - i) % 3 == 0:
             ret.append(',')
     ret.reverse()
-    if ret[0] == ',':
-        return ''.join(ret[1:])
-    else:
-        return ''.join(ret)
+
+    return ''.join(ret[1:]) if ret[0] == ',' else ''.join(ret)
+
+class FastQEntry:
+    def __getattr__(self, key):
+        # on demand quality processing.
+        if key in ['Q_min', 'Q_mean', 'Q_std'] and self.Q_list is None:
+            self.process_Q_list()
+
+        return getattr(self, '_'.join(['process', key]))()
+    
+    def __init__(self, (header_line, sequence_line, optional_line, qual_scores_line), trim_to = 100):
+        self.is_valid = False
+
+        if not header_line:
+            return None
+
+        if not header_line.startswith('@') or not optional_line.startswith('+'):
+            # I'll see how stringent format checking should be. It might be a better
+            # idea to raise an error than returning False.
+            return None
+
+        header_fields = header_line[1:].split(':')
+
+        self.machine_name   = header_fields[0]
+        self.run_id         = header_fields[1]
+        self.flowcell_id    = header_fields[2]
+        self.lane_number    = header_fields[3]
+        self.tile_number    = header_fields[4]
+        self.x_coord        = header_fields[5]
+        if len(header_fields[6].split()):
+            self.y_coord    = header_fields[6].split()[0]
+            self.pair_no    = header_fields[6].split()[1]
+        else:
+            self.y_coord    = header_fields[6]
+            self.pair_no    = None
+        self.quality_passed = header_fields[7] == 'Y'
+        self.control_bits_on = header_fields[8]
+        self.index_sequence  = header_fields[9]
+
+        self.trim_to = trim_to
+
+        self.sequence    = sequence_line[0:self.trim_to]
+        self.qual_scores = qual_scores_line[0:self.trim_to]
+        self.optional    = optional_line[1:]
+
+        self.Q_list = None
+
+        self.is_valid = True
+
+    def process_Q_list(self):
+        self.Q_list = [ord(q) - 33 for q in self.qual_scores]
+        return self.Q_list
+    
+    def process_Q_min(self):
+        self.Q_min = numpy.min(self.Q_list)
+        return self.Q_min
+        
+    def process_Q_mean(self):
+        self.Q_mean = numpy.mean(self.Q_list)
+        return self.Q_mean
+
+    def process_Q_std(self):
+        self.Q_std  = numpy.std(self.Q_list)
+        return self.Q_std
+
 
 class SequenceSource:
     """
@@ -43,64 +104,30 @@ class SequenceSource:
     ---------------------------------------------------------
     import fastq as u
     
-    fastq_entry = u.SequenceSource('/path/to/file.fastq', trim_to = 80)
+    fastq = u.SequenceSource('/path/to/file.fastq', trim_to = 80)
 
-    while fastq_entry.next(process_quals = True):
-        if fastq_entry.Q_mean > 20:
+    while fastq.next():
+        if fastq.entry.Q_mean > 20:
             # do something with fastq_entry
-            print fastq_entry.sequence       # <-- only if you are very bored
+            print fastq.entry.sequence       # <-- only if you are very bored
     ---------------------------------------------------------
     """
-    def __init__(self, f_path, trim_to = 100):
+    def __init__(self, f_path):
         self.pos = 0
-        self.trim_to = trim_to
 
         self.file_pointer = open(f_path)
-        self.file_length = predict_file_length(f_path)
+        self.file_length = predict_file_length(self.file_pointer, f_path)
 
         self.percent_step = self.file_length / 1000
         self.percent_read = None
         self.p_available = False
         self.percent_counter = 0
 
-    def next(self, process_quals = False):
-        header, sequence, optional, qual_scores = [self.file_pointer.readline().strip() for _ in range(0, 4)]
+    def next(self, trim_to = 100):
+        self.entry = FastQEntry([self.file_pointer.readline().strip() for _ in range(0, 4)], trim_to)
        
-        if not header:
+        if not self.entry.is_valid:
             return False
-
-        if not header.startswith('@') or not optional.startswith('+'):
-            # I'll see how stringent format checking should be. It might be a better
-            # idea to raise an error than returning False.
-            return False
-
-        fields = header[1:].split(':')
-
-        self.machine_name   = fields[0]
-        self.run_id         = fields[1]
-        self.flowcell_id    = fields[2]
-        self.lane_number    = fields[3]
-        self.tile_number    = fields[4]
-        self.x_coord        = fields[5]
-        if len(fields[6].split()):
-            self.y_coord    = fields[6].split()[0]
-            self.pair_no    = fields[6].split()[1]
-        else:
-            self.y_coord    = fields[6]
-            self.pair_no    = None
-        self.quality_passed = fields[7] == 'Y'
-        self.control_bits_on = fields[8]
-        self.index_sequence  = fields[9]
-
-        self.sequence    = sequence[0:self.trim_to]
-        self.qual_scores = qual_scores[0:self.trim_to]
-        self.optional    = optional[1:]
-
-        self.Q_list = [ord(q) - 33 for q in self.qual_scores] if process_quals else None
-        # FIXME: not all of these are always necessary. some smarts is required here.
-        self.Q_min  = numpy.min(self.Q_list) if process_quals else None
-        self.Q_mean = numpy.mean(self.Q_list) if process_quals else None
-        self.Q_std  = numpy.std(self.Q_list) if process_quals else None
 
         self.pos += 1
 
