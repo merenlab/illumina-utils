@@ -7,6 +7,22 @@
 # fastq.py -- this file is supposed to be a common library to read/write fastq entries and
 # process qual scores that might be required for various operations.
 #
+#
+# Example usages of this library:
+#
+#    (trim every read to 75 and then filter the ones that have
+#     mean PHRED qual score above Q20 into another file).
+#    ---------------------------------------------------------
+#    import fastq as u
+#    
+#    input  = u.FastQSource('/path/to/file.fastq')
+#    output = u.FastQOutput('/path/to/output.fastq')
+#
+#    while input.next(trim_to = 75):
+#        if input.entry.Q_mean > 20:
+#            output.store(input.entry)
+#    ---------------------------------------------------------
+#
 
 import os
 import sys
@@ -41,7 +57,7 @@ class FastQEntry:
 
         return getattr(self, '_'.join(['process', key]))()
     
-    def __init__(self, (header_line, sequence_line, optional_line, qual_scores_line), trim_to = 100):
+    def __init__(self, (header_line, sequence_line, optional_line, qual_scores_line), trim_to = 150):
         self.is_valid = False
 
         if not header_line:
@@ -96,34 +112,48 @@ class FastQEntry:
         self.Q_std  = numpy.std(self.Q_list)
         return self.Q_std
 
+class FastQOutput:
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.file_pointer = open(file_path, 'w')
 
-class SequenceSource:
+    def store(self, e):
+        header_line = ':'.join([e.machine_name, e.run_id, e.flowcell_id, 
+                                e.lane_number, e.tile_number, e.x_coord,
+                                e.y_coord + ' ' + e.pair_no if e.pair_no else e.y_coord,
+                                'Y' if e.quality_passed else 'N', e.control_bits_on, e.index_sequence])
+
+        self.file_pointer.write('@' + header_line + '\n')
+        self.file_pointer.write(e.sequence + '\n')
+        self.file_pointer.write('+' + e.optional + '\n')
+        self.file_pointer.write(e.qual_scores + '\n')
+
+
+class FastQSource:
     """
-    Class to iterate entries in a fastq file. An example usage:
+    Class to iterate entries in a fastq file.
 
     ---------------------------------------------------------
     import fastq as u
     
-    fastq = u.SequenceSource('/path/to/file.fastq', trim_to = 80)
+    input  = u.FastQSource('/path/to/file.fastq')
 
-    while fastq.next():
-        if fastq.entry.Q_mean > 20:
-            # do something with fastq_entry
-            print fastq.entry.sequence       # <-- only if you are very bored
+    while input.next(trim_to = 75):
+        print input.entry.Q_max, input.entry.sequence
     ---------------------------------------------------------
     """
-    def __init__(self, f_path):
+    def __init__(self, file_path):
         self.pos = 0
 
-        self.file_pointer = open(f_path)
-        self.file_length = predict_file_length(self.file_pointer, f_path)
+        self.file_pointer = open(file_path)
+        self.file_length = predict_file_length(self.file_pointer, file_path)
 
         self.percent_step = self.file_length / 1000
         self.percent_read = None
         self.p_available = False
         self.percent_counter = 0
 
-    def next(self, trim_to = 100):
+    def next(self, trim_to = 150):
         self.entry = FastQEntry([self.file_pointer.readline().strip() for _ in range(0, 4)], trim_to)
        
         if not self.entry.is_valid:
