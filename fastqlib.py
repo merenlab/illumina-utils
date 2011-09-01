@@ -27,6 +27,7 @@
 import os
 import sys
 import stat
+import gzip
 import numpy
 
 def predict_file_length(file_pointer, file_path):
@@ -113,9 +114,15 @@ class FastQEntry:
         return self.Q_std
 
 class FastQOutput:
-    def __init__(self, file_path):
+    def __init__(self, file_path, compressed = False):
         self.file_path = file_path
-        self.file_pointer = open(file_path, 'w')
+        
+        self.compressed = compressed
+        
+        if self.compressed:
+            self.file_pointer = gzip.open(file_path, 'w')
+        else:
+            self.file_pointer = open(file_path, 'w')
 
     def store(self, e):
         header_line = ':'.join([e.machine_name, e.run_id, e.flowcell_id, 
@@ -142,13 +149,19 @@ class FastQSource:
         print input.entry.Q_max, input.entry.sequence
     ---------------------------------------------------------
     """
-    def __init__(self, file_path):
+    def __init__(self, file_path, compressed = False):
         self.pos = 0
 
-        self.file_pointer = open(file_path)
-        self.file_length = predict_file_length(self.file_pointer, file_path)
+        self.compressed = compressed
 
-        self.percent_step = self.file_length / 1000
+        if self.compressed:
+            self.file_pointer = gzip.open(file_path)
+            self.file_length = None
+        else:
+            self.file_pointer = open(file_path)
+            self.file_length = predict_file_length(self.file_pointer, file_path)
+
+        self.percent_step = 1000
         self.percent_read = None
         self.p_available = False
         self.percent_counter = 0
@@ -163,7 +176,10 @@ class FastQSource:
 
         if self.pos == 1 or self.pos % 1000 == 0:
             self.p_available = True
-            self.percent_read = self.pos * 100 / self.file_length
+            if self.file_length:
+                self.percent_read = self.pos * 100 / self.file_length
+            else:
+                self.percent_read = None
 
         return True
 
@@ -175,7 +191,11 @@ class FastQSource:
         self.file_pointer.close()
 
     def print_percentage(self):
-        sys.stderr.write('\r%.2d%% -- (approximate number of entries have been processed so far: %s)' % (self.percent_read, big_number_pretty_print(self.pos)))
+        if self.percent_read:
+            sys.stderr.write('\r%.2d%% -- (approximate number of entries have been processed so far: %s)' % (self.percent_read, big_number_pretty_print(self.pos)))
+        else:
+            sys.stderr.write('\r(approximate number of entries have been processed so far: %s)' % (big_number_pretty_print(self.pos)))
+        
         sys.stderr.flush()
         self.p_available = False
 
