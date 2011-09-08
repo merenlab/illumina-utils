@@ -10,7 +10,7 @@ def main(input_file_path, output_file_path, trim_to, compressed):
     while input.next(trim_to = trim_to):
         if input.p_available:
             input.print_percentage()
-        output.store(input.entry)
+        output.store_entry(input.entry)
 
     sys.stderr.write('\n')
     return

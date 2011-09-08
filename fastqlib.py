@@ -20,7 +20,7 @@
 #
 #    while input.next(trim_to = 75):
 #        if input.entry.Q_mean > 20:
-#            output.store(input.entry)
+#            output.store_entry(input.entry)
 #    ---------------------------------------------------------
 #
 
@@ -113,7 +113,8 @@ class FastQEntry:
         self.Q_std  = numpy.std(self.Q_list)
         return self.Q_std
 
-class FastQOutput:
+
+class FileOutput(object):
     def __init__(self, file_path, compressed = False):
         self.file_path = file_path
         
@@ -124,7 +125,18 @@ class FastQOutput:
         else:
             self.file_pointer = open(file_path, 'w')
 
-    def store(self, e):
+    def write(self, c):
+        self.file_pointer.write(c)
+
+    def close(self):
+        self.file_pointer.close()
+
+
+class FastQOutput(FileOutput):
+    def __init__(self, file_path, compressed = False):
+        super(FastQOutput, self).__init__(file_path, compressed)
+
+    def store_entry(self, e):
         header_line = ':'.join([e.machine_name, e.run_id, e.flowcell_id, 
                                 e.lane_number, e.tile_number, e.x_coord,
                                 e.y_coord + ' ' + e.pair_no if e.pair_no else e.y_coord,
@@ -198,4 +210,7 @@ class FastQSource:
         
         sys.stderr.flush()
         self.p_available = False
+    
+    def close(self):
+        self.file_pointer.close()
 
