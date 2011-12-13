@@ -48,8 +48,14 @@ if __name__ == '__main__':
             output_file_path = args.output
     else:
         if compressed:
-            output_file_path = input_file_path[:-3] + '-FASTA-%d.gz' % args.number_of_sequences
+            if args.number_of_sequences > 0:
+                output_file_path = input_file_path[:-3] + '-FASTA-%d.gz' % args.number_of_sequences
+            else:
+                output_file_path = input_file_path[:-3] + '-FASTA.gz'
         else:
-            output_file_path = input_file_path + '-FASTA-%d' % args.number_of_sequences
+            if args.number_of_sequences > 0:
+                output_file_path = input_file_path + '-FASTA-%d' % args.number_of_sequences
+            else:
+                output_file_path = input_file_path + '-FASTA'
 
     sys.exit(main(input_file_path, output_file_path, args.number_of_sequences, compressed))
