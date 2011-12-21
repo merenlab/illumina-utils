@@ -195,7 +195,11 @@ def visualize_qual_stats_dict(D, dest, title):
         if D['1'].has_key(tile):
             plt.fill_between(range(0, 101), [42 for _ in range(0, 101)], y2 = 0, color = colors(D['1'][tile]['count'][0] / m), alpha = 0.2)
             subplots[tile].plot(D['1'][tile]['mean'], color = 'orange', lw = 2)
-            plt.fill_between(range(0, 101), [42 * (x / get_max_count(D, tile)) for x in D['1'][tile]['count']], y2 = 0, color = 'black', alpha = 0.08)
+            
+            read_number_percent_dropdown = [42 * (x / get_max_count(D, tile)) for x in D['1'][tile]['count']]
+            if not len(set(read_number_percent_dropdown)) <= 1:
+                plt.fill_between(range(0, 101), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
+
             plt.text(5, 2.5, '%s :: %s' % (tile, big_number_pretty_print(int(get_max_count(D, tile)))), alpha=0.5)
         else:
             plt.text(5, 2.5, '%s :: 0' % tile, alpha=0.5)
