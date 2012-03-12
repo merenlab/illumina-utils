@@ -124,8 +124,23 @@ def visualize_sequence_length_distribution(fasta_file_path, dest, title, max_seq
         plt.savefig(dest + '.png')
 
 
+class Gs:
+    def __init__(self, x, y):
+        self.grid = gridspec.GridSpec(x, y)
+        self.pointer = None
+        self.current = None
+    
+    def next(self, p = 1):
+        if self.pointer == None:
+            self.pointer = 0
+        else:
+            self.pointer += p
 
-def visualize_qual_stats_dict(D, dest, title):
+        self.current = self.grid[self.pointer:self.pointer + p]
+        return self.current
+
+
+def visualize_qual_stats_dict(D, dest, title, tiles_merged = True):
     """
     
     this how D looks like:
@@ -154,18 +169,23 @@ def visualize_qual_stats_dict(D, dest, title):
     
     """
     
-    def get_max_count(D, tile = None):
+    def get_max_count(D, p = 1, tile = None):
         if tile == None:
             return float(max([D['1'][x]['count'][0] for x in D['1'].keys()]))
         else:
             return float(max(D['1'][tile]['count']))
 
 
-    fig = plt.figure(figsize = (24, 16))
+    if tiles_merged:
+        fig = plt.figure(figsize = (24, 16))
+        gs = Gs(6, 8)
+    else:
+        fig = plt.figure(figsize = (30, 16))
+        gs = Gs(6, 40)
+    
     plt.rcParams.update({'axes.linewidth' : 0.9})
     plt.rc('grid', color='0.50', linestyle='-', linewidth=0.1)
     
-    gs = gridspec.GridSpec(6, 8)
     
     subplots = {}
     colors = cm.get_cmap('RdYlGn', lut=256)
@@ -176,39 +196,84 @@ def visualize_qual_stats_dict(D, dest, title):
              '2101', '2102', '2103', '2104', '2105', '2106', '2107', '2108', 
              '2201', '2202', '2203', '2204', '2205', '2206', '2207', '2208', 
              '2301', '2302', '2303', '2304', '2305', '2306', '2307', '2308']
-   
-    m = get_max_count(D)
-    
-    for i in range(0, len(tiles)):
-        tile = tiles[i]
+
+
+    if tiles_merged:
+        m = get_max_count(D)
         
-        subplots[tile] = plt.subplot(gs[i])
-        plt.grid(True)
-
-        plt.subplots_adjust(left=0.02, bottom = 0.03, top = 0.95, right = 0.98)
-  
-        plt.xticks(range(10, 101, 10), rotation=90, size='xx-small')
-        plt.ylim(ymin = 0, ymax = 42)
-        plt.xlim(xmin = 0, xmax = 100)
-        plt.yticks(range(5, 41, 5), size='xx-small')
-
-        if D['1'].has_key(tile):
-            plt.fill_between(range(0, 101), [42 for _ in range(0, 101)], y2 = 0, color = colors(D['1'][tile]['count'][0] / m), alpha = 0.2)
-            subplots[tile].plot(D['1'][tile]['mean'], color = 'orange', lw = 2)
+        for i in range(0, len(tiles)):
+            tile = tiles[i]
             
-            read_number_percent_dropdown = [42 * (x / get_max_count(D, tile)) for x in D['1'][tile]['count']]
-            if not len(set(read_number_percent_dropdown)) <= 1:
-                plt.fill_between(range(0, 101), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
+            subplots[tile] = plt.subplot(gs.next())
+            plt.grid(True)
 
-            plt.text(5, 2.5, '%s :: %s' % (tile, big_number_pretty_print(int(get_max_count(D, tile)))), alpha=0.5)
-        else:
-            plt.text(5, 2.5, '%s :: 0' % tile, alpha=0.5)
-            plt.fill_between(range(0, 101), [42 for _ in range(0, 101)], y2 = 0, color = colors(0 / m), alpha = 0.2)
-        if D['2'].has_key(tile):
-            subplots[tile].plot(D['2'][tile]['mean'], color = 'purple', lw = 2)
+            plt.subplots_adjust(left=0.02, bottom = 0.03, top = 0.95, right = 0.98)
+  
+            plt.xticks(range(10, 101, 10), rotation=90, size='xx-small')
+            plt.ylim(ymin = 0, ymax = 42)
+            plt.xlim(xmin = 0, xmax = 100)
+            plt.yticks(range(5, 41, 5), size='xx-small')
 
+            if D['1'].has_key(tile):
+                plt.fill_between(range(0, 101), [42 for _ in range(0, 101)], y2 = 0, color = colors(D['1'][tile]['count'][0] / m), alpha = 0.2)
+                subplots[tile].plot(D['1'][tile]['mean'], color = 'orange', lw = 2)
+                
+                read_number_percent_dropdown = [42 * (x / get_max_count(D, tile = tile)) for x in D['1'][tile]['count']]
+                if not len(set(read_number_percent_dropdown)) <= 1:
+                    plt.fill_between(range(0, 101), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
 
-    plt.figtext(0.5, 0.97, '%s (%s)' % (title, big_number_pretty_print(int(sum([D['1'][x]['count'][0] for x in D['1']])))), weight = 'black', size = 'xx-large', ha = 'center')
+                plt.text(5, 2.5, '%s :: %s' % (tile, big_number_pretty_print(int(get_max_count(D, tile = tile)))), alpha=0.5)
+            else:
+                plt.text(5, 2.5, '%s :: 0' % tile, alpha=0.5)
+                plt.fill_between(range(0, 101), [42 for _ in range(0, 101)], y2 = 0, color = colors(0 / m), alpha = 0.2)
+            if D['2'].has_key(tile):
+                subplots[tile].plot(D['2'][tile]['mean'], color = 'purple', lw = 2)
+
+        plt.figtext(0.5, 0.97, '%s (%s)' % (title, big_number_pretty_print(int(sum([D['1'][x]['count'][0] for x in D['1']])))), weight = 'black', size = 'xx-large', ha = 'center')
+    else:
+        m = {}
+        m['1'] = get_max_count(D, '1')
+        m['2'] = get_max_count(D, '2')
+   
+        for i in range(0, len(tiles)):
+            tile = tiles[i]
+           
+            for _pair, _color in [('1', 'orange'), ('2', 'purple'), (None, None)]:
+                if _pair:
+                    subplots[tile] = {_pair: plt.subplot(gs.next(2))}
+                else:
+                    gs.next(1)
+                    continue
+                
+                plt.grid(True)
+                plt.subplots_adjust(left=0.02, bottom = 0.03, top = 0.95, right = 0.98)
+  
+                plt.xticks(range(10, 101, 10), rotation=90, size='xx-small')
+                plt.ylim(ymin = 0, ymax = 42)
+                plt.xlim(xmin = 0, xmax = 100)
+                if _pair == '1':
+                    plt.yticks(range(5, 41, 5), size='xx-small')
+                else:
+                    plt.yticks(range(5, 41, 5), [])
+
+                if D[_pair].has_key(tile):
+                    plt.fill_between(range(0, 101), [42 for _ in range(0, 101)], y2 = 0, color = colors(D[_pair][tile]['count'][0] / m[_pair]), alpha = 0.2)
+                    subplots[tile][_pair].plot(D[_pair][tile]['mean'], color = _color, lw = 2)
+                    
+                    read_number_percent_dropdown = [42 * (x / get_max_count(D, _pair, tile)) for x in D[_pair][tile]['count']]
+                    if not len(set(read_number_percent_dropdown)) <= 1:
+                        plt.fill_between(range(0, 101), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
+
+                    plt.text(5, 2.5, '%s/%s :: %s' % (tile, _pair, big_number_pretty_print(int(get_max_count(D, _pair, tile)))), alpha=0.8, size = 'x-small')
+                else:
+                    sys.exit()
+                    plt.text(5, 2.5, '%s/%s :: 0' % (tile, _pair), alpha=0.8, size = 'x-small')
+                    plt.fill_between(range(0, 101), [42 for _ in range(0, 101)], y2 = 0, color = colors(0 / m[_pair]), alpha = 0.2)
+
+        Total = lambda p: big_number_pretty_print(int(sum([D[p][x]['count'][0] for x in D[p]])))
+
+        plt.figtext(0.5, 0.97, '%s (p1: %s; p2: %s)' % (title, Total('1'), Total('2')), weight = 'black', size = 'xx-large', ha = 'center')
+
 
     try:
         plt.savefig(dest + '.tiff')
