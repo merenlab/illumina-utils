@@ -18,7 +18,7 @@
 #    input  = u.FastQSource('/path/to/file.fastq')
 #    output = u.FastQOutput('/path/to/output.fastq')
 #
-#    while input.next(trim_to = 75):
+#    while input.next(trim_from = 5, trim_to = 75):
 #        if input.entry.Q_mean > 20:
 #            output.store_entry(input.entry)
 #    ---------------------------------------------------------
@@ -217,7 +217,7 @@ def visualize_qual_stats_dict(D, dest, title):
 
 
 def populate_tiles_qual_dict_from_input(input_1, input_2, tiles_dict = {'1': {}, '2': {}}):
-    while input_1.next() and input_2.next():
+    while input_1.next():
         if input_1.p_available:
             input_1.print_percentage()
     
@@ -225,22 +225,31 @@ def populate_tiles_qual_dict_from_input(input_1, input_2, tiles_dict = {'1': {},
             tiles_dict['1'][input_1.entry.tile_number] = []
             for i in range(0, 101):
                 tiles_dict['1'][input_1.entry.tile_number].append([])
+   
+        q1 = input_1.entry.process_Q_list()
+        
+        for i in range(0, len(q1)):
+            tiles_dict['1'][input_1.entry.tile_number][i].append(q1[i])
+    
+    sys.stderr.write('\n') 
+    
+    while input_2.next():
+        if input_2.p_available:
+            input_2.print_percentage()
 
         if not tiles_dict['2'].has_key(input_2.entry.tile_number):
             tiles_dict['2'][input_2.entry.tile_number] = []
             for i in range(0, 101):
                 tiles_dict['2'][input_2.entry.tile_number].append([])
-    
-        q1 = input_1.entry.process_Q_list()
+        
         q2 = input_2.entry.process_Q_list()
         
-        for i in range(0, len(q1)):
-            tiles_dict['1'][input_1.entry.tile_number][i].append(q1[i])
         for i in range(0, len(q2)):
             tiles_dict['2'][input_2.entry.tile_number][i].append(q2[i])
+    
     sys.stderr.write('\n') 
     return tiles_dict
-
+ 
 
 def predict_file_length(file_pointer, file_path):
     file_stat = os.stat(file_path)
@@ -280,7 +289,7 @@ class FastQEntry:
 
         return getattr(self, '_'.join(['process', key]))()
     
-    def __init__(self, (header_line, sequence_line, optional_line, qual_scores_line), trim_to = 150, raw = False):
+    def __init__(self, (header_line, sequence_line, optional_line, qual_scores_line), trim_from = 0, trim_to = 150, raw = False):
         self.is_valid = False
 
         if not header_line:
@@ -314,9 +323,10 @@ class FastQEntry:
             self.index_sequence  = header_fields[9]
 
         self.trim_to = trim_to
+        self.trim_from = trim_from
 
-        self.sequence    = sequence_line[0:self.trim_to]
-        self.qual_scores = qual_scores_line[0:self.trim_to]
+        self.sequence    = sequence_line[self.trim_from:self.trim_to]
+        self.qual_scores = qual_scores_line[self.trim_from:self.trim_to]
         self.optional    = optional_line[1:]
 
         self.Q_list = None
@@ -339,10 +349,11 @@ class FastQEntry:
         self.Q_std  = numpy.std(self.Q_list)
         return self.Q_std
 
-    def trim(self, trim_to = 150):
+    def trim(self, trim_from = 0, trim_to = 150):
         self.trim_to = trim_to
-        self.sequence    = self.sequence[0:self.trim_to]
-        self.qual_scores = self.qual_scores[0:self.trim_to]
+        self.trim_from = trim_from
+        self.sequence    = self.sequence[trim_from:self.trim_to]
+        self.qual_scores = self.qual_scores[trim_from:self.trim_to]
 
 
 class FileOutput(object):
@@ -374,12 +385,7 @@ class FastQOutput(FileOutput):
         super(FastQOutput, self).__init__(file_path, compressed)
 
     def store_entry(self, e):
-        header_line = ':'.join([e.machine_name, e.run_id, e.flowcell_id, 
-                                e.lane_number, e.tile_number, e.x_coord,
-                                e.y_coord + ' ' + e.pair_no if e.pair_no else e.y_coord,
-                                'Y' if e.quality_passed else 'N', e.control_bits_on, e.index_sequence])
-
-        self.file_pointer.write('@' + header_line + '\n')
+        self.file_pointer.write('@' + e.header_line + '\n')
         self.file_pointer.write(e.sequence + '\n')
         self.file_pointer.write('+' + e.optional + '\n')
         self.file_pointer.write(e.qual_scores + '\n')
@@ -417,8 +423,8 @@ class FastQSource:
         self.p_available = False
         self.percent_counter = 0
 
-    def next(self, trim_to = 150, raw = False):
-        self.entry = FastQEntry([self.file_pointer.readline().strip() for _ in range(0, 4)], trim_to, raw)
+    def next(self, trim_from = 0, trim_to = 150, raw = False):
+        self.entry = FastQEntry([self.file_pointer.readline().strip() for _ in range(0, 4)], trim_from, trim_to, raw)
        
         if not self.entry.is_valid:
             return False
@@ -441,11 +447,11 @@ class FastQSource:
     def close(self):
         self.file_pointer.close()
 
-    def print_percentage(self):
+    def print_percentage(self, prefix = ''):
         if self.percent_read:
-            sys.stderr.write('\r%.2d%% -- (approximate number of entries have been processed so far: %s)' % (self.percent_read, big_number_pretty_print(self.pos)))
+            sys.stderr.write('\r%s %.2d%% -- (approximate number of entries have been processed so far: %s)' % (prefix, self.percent_read, big_number_pretty_print(self.pos)))
         else:
-            sys.stderr.write('\r(approximate number of entries have been processed so far: %s)' % (big_number_pretty_print(self.pos)))
+            sys.stderr.write('\r%s (approximate number of entries have been processed so far: %s)' % (prefix, big_number_pretty_print(self.pos)))
         
         sys.stderr.flush()
         self.p_available = False
