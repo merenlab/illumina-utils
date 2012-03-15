@@ -168,12 +168,12 @@ def visualize_qual_stats_dict(D, dest, title, tiles_merged = True):
     title is the title to put on the figure.
     
     """
-    
-    def get_max_count(D, p = 1, tile = None):
+
+    def get_max_count(D, p = '1', tile = None):
         if tile == None:
-            return float(max([D['1'][x]['count'][0] for x in D['1'].keys()]))
+            return float(max([D[p][x]['count'][0] for x in D[p].keys()]))
         else:
-            return float(max(D['1'][tile]['count']))
+            return float(max(D[p][tile]['count']))
 
 
     if tiles_merged:
@@ -266,7 +266,6 @@ def visualize_qual_stats_dict(D, dest, title, tiles_merged = True):
 
                     plt.text(5, 2.5, '%s/%s :: %s' % (tile, _pair, big_number_pretty_print(int(get_max_count(D, _pair, tile)))), alpha=0.8, size = 'x-small')
                 else:
-                    sys.exit()
                     plt.text(5, 2.5, '%s/%s :: 0' % (tile, _pair), alpha=0.8, size = 'x-small')
                     plt.fill_between(range(0, 101), [42 for _ in range(0, 101)], y2 = 0, color = colors(0 / m[_pair]), alpha = 0.2)
 
