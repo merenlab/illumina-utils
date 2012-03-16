@@ -340,7 +340,6 @@ def big_number_pretty_print(n):
 
 class FastQEntry:
     def __getattr__(self, key):
-        print key
         # on demand quality processing.
         if key in ['__str__']:
             return None
