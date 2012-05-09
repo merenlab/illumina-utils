@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# v.120306
+# v.120403
 
 # Copyright (C) 2011, Marine Biological Laboratory
 #
@@ -94,7 +94,7 @@ class SequenceSource:
 
     def init_unique_hash(self):
         while self.next_regular():
-            hash = hashlib.sha1(self.seq).hexdigest()
+            hash = hashlib.sha1(self.seq.upper()).hexdigest()
             if hash in self.unique_hash_dict:
                 self.unique_hash_dict[hash]['ids'].append(self.id)
                 self.unique_hash_dict[hash]['count'] += 1
@@ -119,7 +119,7 @@ class SequenceSource:
 
     def next_unique(self):
         if self.unique:
-            if self.total_seq > 0 and self.pos < self.total_seq:
+            if self.total_unique > 0 and self.pos < self.total_unique:
                 hash_entry = self.unique_hash_dict[self.unique_hash_list[self.pos]]
                 
                 self.pos += 1
