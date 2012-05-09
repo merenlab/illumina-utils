@@ -37,9 +37,9 @@ conv_dict = {'A': 'T',
 NumberOfConflicts = lambda s: sum([True for n in s if n in conv_dict])
 ConflictPositions = lambda s: [i for i in range(0, len(s)) if s[i] in conv_dict]
 
-def merge_two_sequences(seq1, seq2):
+def merge_two_sequences(seq1, seq2, min_overlap_size):
     smallest, ind = sys.maxint, 0
-    for i in range(15, len(seq1)):
+    for i in range(min_overlap_size, len(seq1)):
         d = l.distance(seq1[-i:], seq2[:i])
         if d <= smallest:
             smallest = d
@@ -75,7 +75,7 @@ def complement(seq):
     return ''.join([conv_dict[n] for n in seq])
 
 
-def main(config, output_file_prefix, skip_qual_dicts = False):
+def main(config, output_file_prefix, skip_qual_dicts = False, min_overlap_size = 15):
    
     quality_dicts = {-1: {'1': {}, '2': {}}, 0: {'1': {}, '2': {}}, 1: {'1': {}, '2': {}}, 2: {'1': {}, '2': {}}, 3: {'1': {}, '2': {}}, 4: {'1': {}, '2': {}}, 5: {'1': {}, '2': {}}}
             
@@ -100,7 +100,7 @@ def main(config, output_file_prefix, skip_qual_dicts = False):
             if input_1.p_available: 
                 input_1.print_percentage('[Merging %d of %d]' % (index + 1, len(config.lane_1)))
 
-            beg, overlap, end, mismatches = merge_two_sequences(input_1.entry.sequence, reverse_complement(input_2.entry.sequence)[:-1])
+            beg, overlap, end, mismatches = merge_two_sequences(input_1.entry.sequence, reverse_complement(input_2.entry.sequence)[:-1], min_overlap_size)
 
             merged_sequence = '%s%s%s' % (beg, overlap, end)
 
@@ -115,7 +115,10 @@ def main(config, output_file_prefix, skip_qual_dicts = False):
 
             if not skip_qual_dicts:
                 ################ quality dicts associated stuff ####################
-                if len(merged_sequence) > 185:
+                
+                minimum_length = (len(input_1.entry.sequence) + len(input_2.entry.sequence)) - min_overlap_size
+                
+                if len(merged_sequence) > minimum_length or p > 0.3:
                     ind = -1
                 elif mismatches >= 5:
                     ind = 5
@@ -173,6 +176,8 @@ if __name__ == '__main__':
     parser.add_argument('output_file_prefix', metavar = 'OUTPUT_FILE_PREFIX',
                                         help = 'Output file prefix (which will be used as a prefix\
                                                 for files that appear in output directory)')
+    parser.add_argument('--min-overlap-size', metavar = 'MIN_OVERLAP_SIZE', default = 15, type = int,
+                                        help = 'Minimum number of nucleotides expected to overlap (default: 15)')
     parser.add_argument('--skip-qual-dicts', action = 'store_true', default = False,
                                         help = 'When set, qual ditcs will not be computed.')
 
@@ -187,4 +192,5 @@ if __name__ == '__main__':
         print
         sys.exit()
 
-    sys.exit(main(config, args.output_file_prefix, args.skip_qual_dicts))
+    sys.exit(main(config, args.output_file_prefix, args.skip_qual_dicts, args.min_overlap_size))
+
