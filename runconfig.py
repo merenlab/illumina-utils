@@ -35,6 +35,7 @@ class RunConfiguration:
         self.trim_to = int(config.get('execute', 'trim_to')) if config.has_option('execute', 'trim_to') else None
         self.min_base_q = int(config.get('execute', 'min_base_q')) if config.has_option('execute', 'min_base_q') else None
         self.ignore_bases = [int(l) for l in config.get('execute', 'ignore_bases').split(',')] if config.has_option('execute', 'ignore_bases') else None
+        self.eliminate_Ns = True if (config.get('execute', 'eliminate_Ns') if config.has_option('execute', 'eliminate_Ns') else None) == 'True' else None
 
 
         
@@ -58,6 +59,8 @@ class RunConfiguration:
                                        'required': 'Integer value between 1 and 40'},
                         'ignore_bases': {'test': lambda x: False not in [RepresentsInt(t) and int(t) > 0 and int(t) <= 100 for t in x.split(',')],
                                          'required': 'Comma separated integers between 1 and 100'}, 
+                        'eliminate_ns': {'test': lambda x: x in ['True', 'False'],
+                                         'required': 'True or False'}, 
             }
         }
 
@@ -90,8 +93,51 @@ class RunConfiguration:
 
 def main(config):
     #
-    # FIXME: You are here..
+    # FIXME
     #
+    # At this point, this is not the ideal main function at all. These are what I need:
+    #   - define an ordered list of filter functions for every sequence to go through,
+    #   - whatever filter is defined in config.execute, create a reduced set of filters,
+    #   - call them like a boss.
+    #
+    # but right now I am very lazy to start that part, so I will only implement eliminate_ns
+    # filter right below. but it needs to be carried in a module very soon.
+    #
+
+    errorstxt = open(os.path.join(config.output_directory, 'error_counts.txt'), 'w')
+
+    for index in range(0, len(config.lane_1)):
+        try:
+            input_1 = u.FastQSource(config.lane_1[index], compressed = True)
+            input_2 = u.FastQSource(config.lane_2[index], compressed = True)
+
+            output_1 = u.FastQOutput(os.path.join(config.output_directory, os.path.basename(config.lane_1[index][:-3])))
+            output_2 = u.FastQOutput(os.path.join(config.output_directory, os.path.basename(config.lane_2[index][:-3])))
+        except u.FastQLibError, e:
+            print "FastQLib is not happy.\n\n\t", e, "\n"
+            sys.exit()
+
+        total_number_of_reads = 0
+        ns_in_pair_2 = 0
+        ns_in_pair_1 = 0
+        
+        while input_1.next() and input_2.next():
+            if input_1.p_available:
+                input_1.print_percentage()
+            total_number_of_reads += 1
+            if 'N' in input_1.entry.sequence:
+                ns_in_pair_1 += 1
+            elif 'N' in input_2.entry.sequence:
+                ns_in_pair_2 += 1
+            else:
+                output_1.store_entry(input_1.entry)
+                output_2.store_entry(input_2.entry)
+
+        print
+        number_of_pairs_with_ns = ns_in_pair_1 + ns_in_pair_2
+        errorstxt.write('file name              : %s\ntotal number of reads  : %d\nnumber of pairs with ns: %d (%%%.2f)\nns in pair 1           : %d (%%%.2f)\nns in pair 2           : %d (%%%.2f)\n\n' % (os.path.basename(config.lane_1[index]), total_number_of_reads, number_of_pairs_with_ns, number_of_pairs_with_ns * 100.0 / total_number_of_reads, ns_in_pair_1, ns_in_pair_1 * 100.0 / number_of_pairs_with_ns, ns_in_pair_2, ns_in_pair_2 * 100.0 / number_of_pairs_with_ns))
+    errorstxt.close()
+    print
 
 
 if __name__ == '__main__':

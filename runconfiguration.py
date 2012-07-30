@@ -4,7 +4,6 @@ import os
 import sys
 import ConfigParser
 
-
 E = os.path.exists
 J = os.path.join
 
@@ -22,14 +21,15 @@ class RunConfiguration:
     def __init__(self, config):
         self.sanity_check(config)
 
+        self.project_name     = config.get('general', 'project_name').strip()
         self.researcher_email = config.get('general', 'researcher_email').strip()
         self.input_directory  = config.get('general', 'input_directory').strip()
         self.output_directory = config.get('general', 'output_directory').strip()
 
-        self.lane_1 = [os.path.join(self.input_directory, f.strip()) for f in config.get('files', 'lane_1').split(',')]
+        self.pair_1 = [os.path.join(self.input_directory, f.strip()) for f in config.get('files', 'pair_1').split(',')]
 
-        if config.has_option('files', 'lane_2'):
-            self.lane_2 = [os.path.join(self.input_directory, f.strip()) for f in config.get('files', 'lane_2').split(',')]
+        if config.has_option('files', 'pair_2'):
+            self.pair_2 = [os.path.join(self.input_directory, f.strip()) for f in config.get('files', 'pair_2').split(',')]
 
         self.trim_to = int(config.get('execute', 'trim_to')) if config.has_option('execute', 'trim_to') else None
         self.min_base_q = int(config.get('execute', 'min_base_q')) if config.has_option('execute', 'min_base_q') else None
@@ -41,14 +41,15 @@ class RunConfiguration:
     def sanity_check(self, config):
         config_template = {
             'general': {
+                        'project_name'    : {'mandatory': True},
                         'researcher_email': {'mandatory': True},
                         'input_directory': {'test': lambda x: os.path.exists(x), 'mandatory': True},  
                         'output_directory': {'test': lambda x: os.path.exists(x), 'mandatory': True},
             },
 
             'files': {
-                        'lane_1': {'test': lambda x: False not in [E(J(config.get('general', 'input_directory').strip(), t.strip())) for t in x.split(',')], 'mandatory': True},
-                        'lane_2': {'test': lambda x: False not in [E(J(config.get('general', 'input_directory').strip(), t.strip())) for t in x.split(',')]},
+                        'pair_1': {'test': lambda x: False not in [E(J(config.get('general', 'input_directory').strip(), t.strip())) for t in x.split(',')], 'mandatory': True},
+                        'pair_2': {'test': lambda x: False not in [E(J(config.get('general', 'input_directory').strip(), t.strip())) for t in x.split(',')]},
             },
 
             'execute': {
@@ -82,11 +83,11 @@ class RunConfiguration:
                     raise ConfigError, 'Missing mandatory option for section "%s": %s' % (section, option)
 
 
-        if config.has_option('files', 'lane_2'):
-            l1 = config.get('files', 'lane_1')
-            l2 = config.get('files', 'lane_2')
-            if len(l1.split(',')) != len(l2.split(',')):
-                raise ConfigError, 'For paired end setup, number of files has to match in lane_1 and lane_2.'
+        if config.has_option('files', 'pair_2'):
+            p1 = config.get('files', 'pair_1')
+            p2 = config.get('files', 'pair_2')
+            if len(p1.split(',')) != len(p2.split(',')):
+                raise ConfigError, 'For paired end setup, number of files has to match in pair_1 and pair_2.'
                     
 
 
