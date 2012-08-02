@@ -1,0 +1,260 @@
+#!/bin/env python
+# -*- coding: utf-8 -*-
+#
+#
+# This script takes an .ini file and analyzes overlapping V6 overlapped pairs to extract
+# perfect V6 reads (=after cleaning the primers, reverse-complement of second pair perfectly
+# matches to the first pair)
+#
+# This is how the expected .ini file looks like:
+#
+#-------8<-------8<-------8<-------8<-------8<-------8<-------8<-------8<-------8<------------
+#    [general]
+#    project_name = (project name)
+#    researcher_email = (your e-mail address)
+#    input_directory = (directory from which the input files will be read from)
+#    output_directory = (directory to store output)
+#    
+#    
+#    [files]
+#    pair_1 = (pair 1 files, comma separated)
+#    pair_2 = (pair 2 files, comma separated. must be ordered based on pair 1 files)
+#-------8<-------8<-------8<-------8<-------8<-------8<-------8<-------8<-------8<------------
+#
+# Any questions? Send an e-mail to meren@mbl.edu
+#
+
+import os
+import re
+import sys
+import copy
+import numpy
+import ConfigParser
+
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
+
+E = os.path.exists
+J = os.path.join
+
+import fastqlib as u
+from runconfiguration import RunConfiguration
+
+class ConfigError(Exception):
+    pass
+
+def RepresentsInt(s):
+    try: 
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+def stupid_write(fp, header, sequence, qual):
+    fp.write('@%s\n' % header)
+    fp.write('%s\n' % sequence)
+    fp.write('+\n')
+    fp.write('%s\n' % qual)
+
+def main(config):
+            
+    # reverse primer (first 10 character of 1046R-rc):
+    reverse_primer = re.compile('AGGTG.TGCA') 
+
+    # forward primers:
+    # 
+    # 967F-AQ    C    T A A    C    CG A    .    G    AACCT [CT] ACC
+    # 967F-UC3   A    T A C    G    CG A    [AG] G    AACCT T    ACC
+    # 967F-PP    C    . A C    G    CG A    A    G    AACCT T    A.C
+    # 967F-UC12* C    A A C    G    CG [AC] A    [AG] AACCT T    ACC
+    #  COMBINED: [CA] . A [AC] [CG] CG [AC] .    [AG] AACCT [CT] A.C
+
+    forward_primer = re.compile('[CA].A[AC][CG]CG[AC].[AG]AACCT[CT]A.C')
+                                   
+
+    def get_percent(x, y):
+        if y == 0:
+            return 0.0
+        else:
+            return x * 100.0 / y
+
+    def reverse_complement(seq):
+        conv_dict = {'A': 'T',
+                     'T': 'A',
+                     'C': 'G',
+                     'G': 'C',
+                     'N': 'N'}
+
+        return ''.join(reversed([conv_dict[n] for n in seq]))
+
+
+    #####################################################################################
+    # dealing with output file pointers..
+    #####################################################################################
+    
+    GetFilePath = lambda p: os.path.join(config.output_directory, config.project_name + '-' + p)
+    
+    errors_fp                 = open(GetFilePath('STATS.txt'), 'w')
+    reverse_primer_missing_fp = open(GetFilePath('RP_missing'), 'w')
+    forward_primer_missing_fp = open(GetFilePath('FP_missing'), 'w')
+    unmatching_reads_fp       = open(GetFilePath('UNMATCHING_reads'), 'w')
+    perfect_reads_p1_fastq_fp = open(GetFilePath('PERFECT_reads-R1.fastq'), 'w')
+    perfect_reads_p2_fastq_fp = open(GetFilePath('PERFECT_reads-R2.fastq'), 'w')
+    perfect_reads_fasta_fp    = open(GetFilePath('PERFECT_reads.fa'), 'w')
+
+    #####################################################################################
+    # some useful variables before we begin..
+    #####################################################################################
+   
+    number_of_pairs = 0
+    number_of_pairs_missing_rp = 0
+    number_of_pairs_missing_fp = 0
+    number_of_unmatched_pairs = 0
+    number_of_perfect_pairs = 0
+    number_of_perfect_pairs_with_Ns = 0
+
+    reverse_primer_found_locations_in_p1 = []
+    reverse_primer_found_locations_in_p2 = []
+    
+    forward_primer_found_locations_in_p1 = []
+    forward_primer_found_locations_in_p2 = []
+
+    #####################################################################################
+    # main loop per file listed in config:
+    #####################################################################################
+    COMPRESSED = lambda x: os.path.basename(config.pair_1[index]).endswith('.gz')
+    
+    for index in range(0, len(config.pair_1)):
+        try:
+            pair_1 = u.FastQSource(config.pair_1[index], compressed = True if COMPRESSED(config.pair_1[index]) else False)
+            pair_2 = u.FastQSource(config.pair_2[index], compressed = True if COMPRESSED(config.pair_2[index]) else False)
+
+        except u.FastQLibError, e:
+            print "FastQLib is not happy.\n\n\t", e, "\n"
+            sys.exit()
+
+
+        #####################################################################################
+        # main loop per read:
+        #####################################################################################
+       
+        while pair_1.next(raw = True) and pair_2.next(raw = True):
+            number_of_pairs += 1
+            h1, s1, q1 = pair_1.entry.header_line, pair_1.entry.sequence, pair_1.entry.qual_scores
+            h2, s2, q2 = pair_2.entry.header_line, reverse_complement(pair_2.entry.sequence), ''.join(reversed(pair_2.entry.qual_scores))
+
+            if pair_1.p_available:
+                pair_1.print_percentage()
+
+
+            #####################################################################################
+            # looking for reverse primer:
+            #####################################################################################
+
+            rp1 = reverse_primer.search(s1, 70)
+            rp2 = reverse_primer.search(s2, 70)
+
+            if (not rp1) or (not rp2):
+                # reverse primer wasn't there for at least one read
+                if (not rp1) and (not rp2):
+                    v = 0
+                elif not rp1:
+                    v = 1
+                else:
+                    v = 2
+
+                stupid_write(reverse_primer_missing_fp, h1 + (' missed in 1') if v == 1 else h1, s1, q1)
+                stupid_write(reverse_primer_missing_fp, h2 + (' missed in 2') if v == 2 else h2, s2, q2)
+
+                number_of_pairs_missing_rp += 1
+
+                continue
+
+            reverse_primer_found_locations_in_p1.append(rp1.start())
+            reverse_primer_found_locations_in_p2.append(rp2.start())
+
+            # strip reverse primers
+            s1, q1 = s1[:rp1.start()], q1[:rp1.start()]
+            s2, q2 = s2[:rp2.start()], q2[:rp2.start()]
+
+
+            #####################################################################################
+            # looking for forward primer
+            #####################################################################################
+
+            fp1 = forward_primer.search(s1, 0, 40)
+            fp2 = forward_primer.search(s2, 0, 40)
+            
+            if (not fp1) or (not fp2):
+                # reverse primer wasn't there for at least one read
+                if (not fp1) and (not fp2):
+                    v = 0
+                elif not fp1:
+                    v = 1
+                else:
+                    v = 2
+
+                stupid_write(forward_primer_missing_fp, h1 + (' missed in 1') if v == 1 else h1, s1, q1)
+                stupid_write(forward_primer_missing_fp, h2 + (' missed in 2') if v == 2 else h2, s2, q2)
+
+                number_of_pairs_missing_fp += 1
+
+                continue
+
+            # strip forward primers
+            s1, q1 = s1[fp1.end():], q1[fp1.end():]
+            s2, q2 = s2[fp2.end():], q2[fp2.end():]
+
+            #####################################################################################
+            # compare reads
+            #####################################################################################
+           
+            if s1 == s2:
+                perfect_reads_fasta_fp.write('>%s\n' % h1)
+                perfect_reads_fasta_fp.write('%s\n' % s1)
+                stupid_write(perfect_reads_p1_fastq_fp, h1, s1, q1)
+                stupid_write(perfect_reads_p2_fastq_fp, h2, s2, q2)
+                number_of_perfect_pairs += 1
+
+                if 'N' in s1:
+                    number_of_perfect_pairs_with_Ns += 1
+            else:
+                stupid_write(unmatching_reads_fp, h1, s1, q1)
+                stupid_write(unmatching_reads_fp, h2, s2, q2)
+                number_of_unmatched_pairs += 1
+
+
+    errors_fp.write('number of pairs              : %d\n' % (number_of_pairs))
+    errors_fp.write('pairs missing reverse primer : %d (%%%.2f of all pairs)\n' % (number_of_pairs_missing_rp, get_percent(number_of_pairs_missing_rp, number_of_pairs)))
+    errors_fp.write('pairs missing forward primer : %d (%%%.2f of all pairs)\n' % (number_of_pairs_missing_fp, get_percent(number_of_pairs_missing_fp, number_of_pairs)))
+    errors_fp.write('pairs that did not match     : %d (%%%.2f of all pairs)\n' % (number_of_unmatched_pairs, get_percent(number_of_unmatched_pairs, number_of_pairs)))
+    errors_fp.write('pairs matched perfectly      : %d (%%%.2f of all pairs)\n' % (number_of_perfect_pairs, get_percent(number_of_perfect_pairs, number_of_pairs)))
+    errors_fp.write('perfect pairs with Ns        : %d (%%%.2f of perfect pairs)\n' % (number_of_perfect_pairs_with_Ns, get_percent(number_of_perfect_pairs_with_Ns, number_of_perfect_pairs)))
+
+    print
+
+    errors_fp.close()
+    reverse_primer_missing_fp.close()
+    forward_primer_missing_fp.close()
+    unmatching_reads_fp.close()
+    perfect_reads_fasta_fp.close()
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Dealing with V6 perfect overlaps')
+    parser.add_argument('user_config', metavar = 'CONFIG_FILE',
+                                        help = 'User configuration to run. See the source code to\
+                                                see an example.')
+
+    args = parser.parse_args()
+    user_config = ConfigParser.ConfigParser()
+    user_config.read(args.user_config)
+
+    try: 
+        config = RunConfiguration(user_config)
+    except ConfigError, e:
+        print "There is something wrong with the config file. This is what we know: \n\n", e
+        print
+        sys.exit()
+
+    sys.exit(main(config))
