@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# v.120403
+# v.120530
 
 # Copyright (C) 2011, Marine Biological Laboratory
 #
@@ -64,7 +64,7 @@ class ReadFasta:
         self.fasta.close()
 
 
-class SequenceSource:
+class SequenceSource():
     def __init__(self, fasta_file_path, lazy_init = True, unique = False):
         self.fasta_file_path = fasta_file_path
         self.name = None
@@ -143,6 +143,7 @@ class SequenceSource:
             if not line:
                 if len(sequence):
                     self.seq = sequence
+                    self.pos += 1
                     return True
                 else:
                     return False
@@ -249,7 +250,68 @@ class SequenceSource:
     
         return
  
-  
+
+class QualSource:
+    def __init__(self, quals_file_path, lazy_init = True):
+        self.quals_file_path = quals_file_path
+        self.name = None
+        self.lazy_init = lazy_init
+        
+        self.pos = 0
+        self.id  = None
+        self.quals = None
+        self.quals_int = None
+        self.ids = []
+        
+        self.file_pointer = open(self.quals_file_path)
+        self.file_pointer.seek(0)
+        
+        if self.lazy_init:
+            self.total_quals = None
+        else:
+            self.total_quals = len([l for l in self.file_pointer.readlines() if l.startswith('>')])
+            self.reset()
+
+
+    def next(self):
+        self.id = self.file_pointer.readline()[1:].strip()
+        self.quals = None
+        self.quals_int = None
+
+        qualscores = ''
+        
+        while 1:
+            line = self.file_pointer.readline()
+            if not line:
+                if len(qualscores):
+                    self.quals = qualscores.strip()
+                    self.quals_int = [int(q) for q in self.quals.split()]
+                    self.pos += 1
+                    return True
+                else:
+                    return False
+            if line.startswith('>'):
+                self.file_pointer.seek(self.file_pointer.tell() - len(line))
+                break
+            qualscores += ' ' + line.strip()
+
+        self.quals = qualscores.strip()
+        self.quals_int = [int(q) for q in self.quals.split()]
+        self.pos += 1
+
+        return True
+
+    def close(self):
+        self.file_pointer.close()
+
+    def reset(self):
+        self.pos = 0
+        self.id  = None
+        self.quals = None
+        self.quals_int = None
+        self.ids = []
+        self.file_pointer.seek(0)
+
 
 if __name__ == '__main__':
     fasta = SequenceSource(sys.argv[1])
