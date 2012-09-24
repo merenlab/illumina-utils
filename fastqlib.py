@@ -352,7 +352,7 @@ class FastQEntry:
 
         return getattr(self, '_'.join(['process', key]))()
     
-    def __init__(self, (header_line, sequence_line, optional_line, qual_scores_line), trim_from = 0, trim_to = 150, raw = False):
+    def __init__(self, (header_line, sequence_line, optional_line, qual_scores_line), trim_from = 0, trim_to = sys.maxint, raw = False):
         self.is_valid = False
 
         if not header_line:
@@ -412,7 +412,7 @@ class FastQEntry:
         self.Q_std  = numpy.std(self.Q_list)
         return self.Q_std
 
-    def trim(self, trim_from = 0, trim_to = 150):
+    def trim(self, trim_from = 0, trim_to = sys.maxint):
         self.trim_to = trim_to
         self.trim_from = trim_from
         self.sequence    = self.sequence[trim_from:self.trim_to]
@@ -486,7 +486,7 @@ class FastQSource:
         self.p_available = False
         self.percent_counter = 0
 
-    def next(self, trim_from = 0, trim_to = 150, raw = False):
+    def next(self, trim_from = 0, trim_to = sys.maxint, raw = False):
         self.entry = FastQEntry([self.file_pointer.readline().strip() for _ in range(0, 4)], trim_from, trim_to, raw)
        
         if not self.entry.is_valid:
