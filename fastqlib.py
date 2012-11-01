@@ -30,10 +30,13 @@ import stat
 import gzip
 import numpy
 import cPickle
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import matplotlib.cm as cm
-
+try:
+    import matplotlib.pyplot as plt
+    import matplotlib.gridspec as gridspec
+    import matplotlib.cm as cm
+except:
+    print "No matplotlib found"
+    
 import fastalib as u
 
 class FastQLibError(Exception):
