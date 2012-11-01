@@ -91,8 +91,8 @@ def main(config, output_file_prefix, skip_qual_dicts = False, min_overlap_size =
     for index in range(0, len(config.pair_1)):
         try:
             F = lambda x: os.path.basename(x).split('.')[0]
-            input_1 = u.FastQSource(config.pair_1[index], compressed = True)
-            input_2 = u.FastQSource(config.pair_2[index], compressed = True)
+            input_1 = u.FastQSource(config.pair_1[index], compressed = config.pair_1[index].endswith('.gz'))
+            input_2 = u.FastQSource(config.pair_2[index], compressed = config.pair_2[index].endswith('.gz'))
 
         except u.FastQLibError, e:
             print "FastQLib is not happy.\n\n\t", e, "\n"
