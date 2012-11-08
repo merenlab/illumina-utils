@@ -55,20 +55,29 @@ def stupid_write(fp, header, sequence, qual):
     fp.write('+\n')
     fp.write('%s\n' % qual)
 
-def main(config):
-            
-    # reverse primer (first 10 character of 1046R-rc):
-    reverse_primer = re.compile('AGGTG.TGCA') 
+def main(config, archaea = False):
+    
+    if archaea:
+        # set archaeal V6 primers.
+        
+        forward_primer = re.compile('AATTGGA.TCAACGCCGG')
+        
+        #reverse_primer = re.compile('CG[A,G]C[A,G]GCCATG[C,T]ACC[A,T]C')
+        reverse_primer = re.compile('G[A,T]GGT[G,A]C')
+    else:
+        # set bacterial V6 primers.
+        # reverse primer (first 10 character of 1046R-rc):
+        reverse_primer = re.compile('AGGTG.TGCA') 
 
-    # forward primers:
-    # 
-    # 967F-AQ    C    T A A    C    CG A    .    G    AACCT [CT] ACC
-    # 967F-UC3   A    T A C    G    CG A    [AG] G    AACCT T    ACC
-    # 967F-PP    C    . A C    G    CG A    A    G    AACCT T    A.C
-    # 967F-UC12* C    A A C    G    CG [AC] A    [AG] AACCT T    ACC
-    #  COMBINED: [CA] . A [AC] [CG] CG [AC] .    [AG] AACCT [CT] A.C
+        # forward primers:
+        # 
+        # 967F-AQ    C    T A A    C    CG A    .    G    AACCT [CT] ACC
+        # 967F-UC3   A    T A C    G    CG A    [AG] G    AACCT T    ACC
+        # 967F-PP    C    . A C    G    CG A    A    G    AACCT T    A.C
+        # 967F-UC12* C    A A C    G    CG [AC] A    [AG] AACCT T    ACC
+        #  COMBINED: [CA] . A [AC] [CG] CG [AC] .    [AG] AACCT [CT] A.C
 
-    forward_primer = re.compile('[CA].A[AC][CG]CG[AC].[AG]AACCT[CT]A.C')
+        forward_primer = re.compile('[CA].A[AC][CG]CG[AC].[AG]AACCT[CT]A.C')
                                    
 
     def get_percent(x, y):
@@ -245,6 +254,9 @@ if __name__ == '__main__':
     parser.add_argument('user_config', metavar = 'CONFIG_FILE',
                                         help = 'User configuration to run. See the source code to\
                                                 see an example.')
+    parser.add_argument('--archaea', action = 'store_true', default = False,
+                                        help = 'When set, primers for arhacea is used instead of \
+                                                bacteria.')
 
     args = parser.parse_args()
     user_config = ConfigParser.ConfigParser()
@@ -257,4 +269,4 @@ if __name__ == '__main__':
         print
         sys.exit()
 
-    sys.exit(main(config))
+    sys.exit(main(config, archaea = args.archaea))
