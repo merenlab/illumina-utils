@@ -10,8 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
 import fastqlib as u
 
 def main(qual_dict, figure_dest, title = None, split_tiles = False):
-    plot_dict = u.compute_plot_dict_from_tiles_dict(qual_dict)
-    u.visualize_qual_stats_dict(plot_dict, figure_dest, title, split_tiles)
+    u.visualize_qual_stats_dict(qual_dict, figure_dest, title, split_tiles)
 
 if __name__ == '__main__':
     import argparse
