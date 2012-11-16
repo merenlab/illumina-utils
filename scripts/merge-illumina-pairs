@@ -31,6 +31,10 @@ import fastalib as f
 from runconfiguration import RunConfiguration
 from runconfiguration import ConfigError
 
+def colorize(sequence):
+    Green = lambda s: '\033[30m\033[42m' + s + '' + '\033[0m'
+    return Green(sequence)
+
 conv_dict = {'A': 'T',
              'T': 'A',
              'C': 'G',
@@ -42,7 +46,7 @@ bases_upper_case = set(conv_dict.keys())
 NumberOfConflicts = lambda s: sum([True for n in s if n in bases_upper_case])
 ConflictPositions = lambda s: [i for i in range(0, len(s)) if s[i] in bases_upper_case]
 
-def merge_two_sequences_fast(seq1, seq2, min_overlap_size = 10):
+def merge_two_sequences_fast(seq1, seq2, min_overlap_size = 10, debug = False):
     smallest, ind = sys.maxint, 0
     for i in range(min_overlap_size, len(seq1)):
         d = l.distance(seq1[-i:], seq2[:i])
@@ -67,10 +71,14 @@ def merge_two_sequences_fast(seq1, seq2, min_overlap_size = 10):
         else:
             overlap += overlap_1[i]
 
+    if debug:
+        print
+        print beg + colorize(overlap) + end
+
     return beg + overlap + end
 
 
-def merge_two_sequences(seq1, seq2):
+def merge_two_sequences(seq1, seq2, debug = False):
     temp_seq_1 = tempfile.NamedTemporaryFile(delete=False)
     temp_seq_1_path = temp_seq_1.name
     temp_seq_2 = tempfile.NamedTemporaryFile(delete=False)
@@ -93,6 +101,12 @@ def merge_two_sequences(seq1, seq2):
         os.remove(temp_seq_2_path)
         os.remove(temp_merge_path)
 
+        if debug:
+            overlap_beg = len(seq1) - (len(seq1) + len(seq2) - len(merged.seq))
+            overlap_end = overlap_beg + (len(seq1) + len(seq2) - len(merged.seq))
+            print
+            print ''.join([merged.seq[:overlap_beg], colorize(merged.seq[overlap_beg:overlap_end]), merged.seq[overlap_end:]])
+
         return merged.seq
     else:
         print 'Something went wrong while merging these: \n\n%s\n--\n%s\n\n' % (seq1, seq2)
@@ -111,7 +125,7 @@ def complement(seq):
     return ''.join([conv_dict[n] for n in seq])
 
 
-def main(config, output_file_prefix, compute_qual_dicts = False, pair_1_prefix = None, pair_2_prefix = None, min_overlap_size = 15, fast_merge = False):
+def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_size = 15, fast_merge = False, debug = False):
 
     actual_number_of_pairs = 0
     prefix_failed_in_pair_1_total = 0
@@ -124,16 +138,15 @@ def main(config, output_file_prefix, compute_qual_dicts = False, pair_1_prefix =
     num_mismatches_breakdown = {}
     num_mismatches_breakdown[0] = 0
 
-    if pair_1_prefix:
-        pair_1_prefix_compiled = re.compile(pair_1_prefix)
+    if config.pair_1_prefix:
+        pair_1_prefix_compiled = re.compile(config.pair_1_prefix)
     else:
         pair_1_prefix_compiled = None
     
-    if pair_2_prefix:
-        pair_2_prefix_compiled = re.compile(pair_2_prefix)
+    if config.pair_2_prefix:
+        pair_2_prefix_compiled = re.compile(config.pair_2_prefix)
     else:
         pair_2_prefix_compiled = None
-
 
     mean_quals_per_mismatch = {}
 
@@ -202,10 +215,10 @@ def main(config, output_file_prefix, compute_qual_dicts = False, pair_1_prefix =
             # merging..
             if fast_merge:
                 # uses Levenshtein distance.
-                merged_sequence = merge_two_sequences_fast(input_1.entry.sequence, reverse_complement(input_2.entry.sequence), min_overlap_size)
+                merged_sequence = merge_two_sequences_fast(input_1.entry.sequence, reverse_complement(input_2.entry.sequence), min_overlap_size, debug)
             else:
                 # uses EMBOSS 'merger'
-                merged_sequence = merge_two_sequences(input_1.entry.sequence, reverse_complement(input_2.entry.sequence))
+                merged_sequence = merge_two_sequences(input_1.entry.sequence, reverse_complement(input_2.entry.sequence), debug)
             
             number_of_mismatches = NumberOfConflicts(merged_sequence)
             len_overlap = (len(input_1.entry.sequence) + len(input_2.entry.sequence)) - len(merged_sequence)
@@ -218,12 +231,12 @@ def main(config, output_file_prefix, compute_qual_dicts = False, pair_1_prefix =
 
             p = 1.0 * number_of_mismatches / len_overlap
 
-            if p > 0.3:
-                failed.write_id('%s|o/m:%f|mismatches:%d' % (input_1.entry.header_line, p, number_of_mismatches))
+            if p > 0.3 or len_overlap < min_overlap_size:
+                failed.write_id('%s|o:%d|o/m:%f|mismatches:%d' % (input_1.entry.header_line, len_overlap, p, number_of_mismatches))
                 failed.write_seq(merged_sequence, split = False)
                 merge_failed_total += 1
             else:
-                output.write_id('%s|o/m:%f|mismatches:%d' % (input_1.entry.header_line, p, number_of_mismatches))
+                output.write_id('%s|o:%d|o/m:%f|mismatches:%d' % (input_1.entry.header_line, len_overlap, p, number_of_mismatches))
                 output.write_seq(merged_sequence, split = False)
                 merge_passed_total += 1
 
@@ -331,12 +344,8 @@ if __name__ == '__main__':
                                                 fast, but merger will give you more accurate\
                                                 results, since Levenshtein method cannot handle\
                                                 insertion or deletion errors well.')
-    parser.add_argument('--pair-1-prefix', type = str, default = None,
-                                        help = 'Regexp to be found at the beginning of pair 1\
-                                                and trimmed. If the regexp fails for a given pair,\
-                                                it will not be merged.')
-    parser.add_argument('--pair-2-prefix', type = str, default = None,
-                                        help = 'Same as --pair-1-prefix for pair 2')
+    parser.add_argument('--debug', action = 'store_true', default = False,
+                                        help = 'When set, debug messages will be printed')
 
     args = parser.parse_args()
     user_config = ConfigParser.ConfigParser()
@@ -356,7 +365,6 @@ if __name__ == '__main__':
     sys.exit(main(config,
                   args.output_file_prefix,
                   args.compute_qual_dicts,
-                  args.pair_1_prefix,
-                  args.pair_2_prefix,
                   args.min_overlap_size,
-                  args.fast_merge))
+                  args.fast_merge,
+                  args.debug))
