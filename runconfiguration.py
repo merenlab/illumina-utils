@@ -35,6 +35,9 @@ class RunConfiguration:
         self.min_base_q = int(config.get('execute', 'min_base_q')) if config.has_option('execute', 'min_base_q') else None
         self.ignore_bases = [int(l) for l in config.get('execute', 'ignore_bases').split(',')] if config.has_option('execute', 'ignore_bases') else None
         self.eliminate_Ns = True if (config.get('execute', 'eliminate_Ns') if config.has_option('execute', 'eliminate_Ns') else None) == 'True' else None
+        
+        self.pair_1_prefix = config.get('prefixes', 'pair_1_prefix') if config.has_option('prefixes', 'pair_1_prefix') else None
+        self.pair_2_prefix = config.get('prefixes', 'pair_2_prefix') if config.has_option('prefixes', 'pair_2_prefix') else None
 
 
         
@@ -51,6 +54,12 @@ class RunConfiguration:
                         'pair_1': {'test': lambda x: False not in [E(J(config.get('general', 'input_directory').strip(), t.strip())) for t in x.split(',')], 'mandatory': True},
                         'pair_2': {'test': lambda x: False not in [E(J(config.get('general', 'input_directory').strip(), t.strip())) for t in x.split(',')]},
             },
+
+            'prefixes': {
+                        'pair_1_prefix': {'test': lambda x: len(x) > 0},
+                        'pair_2_prefix': {'test': lambda x: len(x) > 0},
+            },
+
 
             'execute': {
                         'trim_to': {'test': lambda x: RepresentsInt(x) and int(x) > 0 and int(x) <= 100,
