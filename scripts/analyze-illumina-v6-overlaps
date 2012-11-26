@@ -60,10 +60,11 @@ def main(config, archaea = False):
     if archaea:
         # set archaeal V6 primers.
         
-        forward_primer = re.compile('AATTGGA.TCAACGCCGG')
+        #forward_primer = re.compile('AATTGGA.TCAACGCCGG')
+        # last 12 nts of the forward primer:
+        forward_primer = re.compile('A.TCAACGCCGG')
         
         #reverse_primer = re.compile('CG[A,G]C[A,G]GCCATG[C,T]ACC[A,T]C')
-        #reverse_primer = re.compile('G[A,T]GGT[G,A]C')
         # 6 nts of reverse primer:
         reverse_primer = re.compile('G[A,T]GGT[G,A]')
     else:
@@ -81,7 +82,9 @@ def main(config, archaea = False):
         # 967F-UC12* C    A A C    G    CG [AC] A    [AG] AACCT T    ACC
         #  COMBINED: [CA] . A [AC] [CG] CG [AC] .    [AG] AACCT [CT] A.C
 
-        forward_primer = re.compile('[CA].A[AC][CG]CG[AC].[AG]AACCT[CT]A.C')
+        #forward_primer = re.compile('A[AC][CG]CG[AC].[AG]AACCT[CT]A.C')
+        # last 10 nts of the forward primer
+        forward_primer = re.compile('[AG]AACCT[CT]A.C')
                                    
 
     def get_percent(x, y):
