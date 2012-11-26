@@ -63,11 +63,15 @@ def main(config, archaea = False):
         forward_primer = re.compile('AATTGGA.TCAACGCCGG')
         
         #reverse_primer = re.compile('CG[A,G]C[A,G]GCCATG[C,T]ACC[A,T]C')
-        reverse_primer = re.compile('G[A,T]GGT[G,A]C')
+        #reverse_primer = re.compile('G[A,T]GGT[G,A]C')
+        # 6 nts of reverse primer:
+        reverse_primer = re.compile('G[A,T]GGT[G,A]')
     else:
         # set bacterial V6 primers.
         # reverse primer (first 10 character of 1046R-rc):
-        reverse_primer = re.compile('AGGTG.TGCA') 
+        #reverse_primer = re.compile('AGGTG.TGCA') 
+        # 6 nts of reverse primer:
+        reverse_primer = re.compile('AGGTG.') 
 
         # forward primers:
         # 
