@@ -125,9 +125,10 @@ def complement(seq):
     return ''.join([conv_dict[n] for n in seq])
 
 
-def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_size = 15, fast_merge = False, debug = False):
+def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_size = 15, fast_merge = False, debug = False, ignore_Ns = False):
 
     actual_number_of_pairs = 0
+    pairs_eliminated_due_to_Ns = 0
     prefix_failed_in_pair_1_total = 0
     prefix_failed_in_pair_2_total = 0
     prefix_failed_in_both_pairs_total = 0
@@ -152,6 +153,7 @@ def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_siz
 
     output = f.FastaOutput(os.path.join(config.output_directory, output_file_prefix + '_MERGED' ))
     failed = f.FastaOutput(os.path.join(config.output_directory, output_file_prefix + '_FAILED' ))
+    withNs = f.FastaOutput(os.path.join(config.output_directory, output_file_prefix + '_FAILED_WITH_Ns' ))
     
     ########################################################################################################################
     # merging..
@@ -182,7 +184,6 @@ def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_siz
                                    ))
                 else:
                     input_1.print_percentage('[Merging %d of %d]' % (index + 1, len(config.pair_1)))
-
 
             # taking care of prefixes if there are any..
             if pair_1_prefix_compiled:
@@ -223,16 +224,22 @@ def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_siz
             number_of_mismatches = NumberOfConflicts(merged_sequence)
             len_overlap = (len(input_1.entry.sequence) + len(input_2.entry.sequence)) - len(merged_sequence)
            
+            p = 1.0 * number_of_mismatches / len_overlap
+
+            if not ignore_Ns:
+                if 'N' in merged_sequence or 'n' in merged_sequence:
+                    withNs.write_id('%s|o:%d|m/o:%f|mismatches:%d' % (input_1.entry.header_line, len_overlap, p, number_of_mismatches))
+                    withNs.write_seq(merged_sequence, split = False)
+                    pairs_eliminated_due_to_Ns += 1
+                    continue
             
             if not num_mismatches_breakdown.has_key(number_of_mismatches):
                 num_mismatches_breakdown[number_of_mismatches] = 1
             else:
                 num_mismatches_breakdown[number_of_mismatches] += 1
 
-            p = 1.0 * number_of_mismatches / len_overlap
-
             if p > 0.3 or len_overlap < min_overlap_size:
-                failed.write_id('%s|o:%d|o/m:%f|mismatches:%d' % (input_1.entry.header_line, len_overlap, p, number_of_mismatches))
+                failed.write_id('%s|o:%d|m/o:%f|mismatches:%d' % (input_1.entry.header_line, len_overlap, p, number_of_mismatches))
                 failed.write_seq(merged_sequence, split = False)
                 merge_failed_total += 1
             else:
@@ -266,6 +273,19 @@ def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_siz
                 if not tiles_dict['2'].has_key(tile_number):
                     tiles_dict['2'][tile_number] = {'mean': [0] * len(q2), 'std': [0] * len(q2), 'count': [0] * len(q2)}
 
+                # if there is a length varaition:
+                if len(q1) > len(tiles_dict['1'][tile_number]['mean']):
+                    diff = len(q1) - len(tiles_dict['1'][tile_number]['mean'])
+                    for attr in ['mean', 'std', 'count']:
+                        for d in range(0, diff):
+                            tiles_dict['1'][tile_number][attr].append(0)
+                if len(q2) > len(tiles_dict['2'][tile_number]['mean']):
+                    diff = len(q2) - len(tiles_dict['2'][tile_number]['mean'])
+                    for attr in ['mean', 'std', 'count']:
+                        for d in range(0, diff):
+                            tiles_dict['2'][tile_number][attr].append(0)
+
+
                 for i in range(0, len(q1)):
                     tiles_dict['1'][tile_number]['mean'][i] += q1[i]
                     tiles_dict['1'][tile_number]['count'][i] += 1
@@ -281,16 +301,18 @@ def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_siz
 
     output.close()
     failed.close()
+    withNs.close()
 
     stats = open(os.path.join(config.output_directory, output_file_prefix + '_STATS'), 'w')
-    stats.write('Number of pairs analyzed\t%d\n' % actual_number_of_pairs)
-    stats.write('Prefix failed in Pair 1 \t%d\n' % prefix_failed_in_pair_1_total)
-    stats.write('Prefix failed in Pair 2 \t%d\n' % prefix_failed_in_pair_2_total)
-    stats.write('Prefix failed in both   \t%d\n' % prefix_failed_in_both_pairs_total)
-    stats.write('Passed prefix total     \t%d\n' % passed_prefix_total)
-    stats.write('Failed prefix total     \t%d\n' % failed_prefix_total)
-    stats.write('Merged total            \t%d\n' % merge_passed_total)
-    stats.write('Merge failed total      \t%d\n' % merge_failed_total)
+    stats.write('Number of pairs analyzed  \t%d\n' % actual_number_of_pairs)
+    stats.write('Prefix failed in Pair 1   \t%d\n' % prefix_failed_in_pair_1_total)
+    stats.write('Prefix failed in Pair 2   \t%d\n' % prefix_failed_in_pair_2_total)
+    stats.write('Prefix failed in both     \t%d\n' % prefix_failed_in_both_pairs_total)
+    stats.write('Passed prefix total       \t%d\n' % passed_prefix_total)
+    stats.write('Failed prefix total       \t%d\n' % failed_prefix_total)
+    stats.write('Merged total              \t%d\n' % merge_passed_total)
+    stats.write('Merge failed total        \t%d\n' % merge_failed_total)
+    stats.write('Merge eliminated due to Ns\t%d\n' % pairs_eliminated_due_to_Ns)
     stats.write('\nMismatches breakdown:\n\n')
 
     for i in sorted(num_mismatches_breakdown.keys()):
@@ -346,6 +368,10 @@ if __name__ == '__main__':
                                                 insertion or deletion errors well.')
     parser.add_argument('--debug', action = 'store_true', default = False,
                                         help = 'When set, debug messages will be printed')
+    parser.add_argument('--ignore-Ns', action = 'store_true', default = False,
+                                        help = 'Merged sequences are being eliminated if they have\
+                                                any ambiguous bases. If this parameter is set\
+                                                merged pairs with Ns stay in the merged pairs bin.')
 
     args = parser.parse_args()
     user_config = ConfigParser.ConfigParser()
