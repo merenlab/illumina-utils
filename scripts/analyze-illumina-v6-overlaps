@@ -55,7 +55,7 @@ def stupid_write(fp, header, sequence, qual):
     fp.write('+\n')
     fp.write('%s\n' % qual)
 
-def main(config, archaea = False):
+def main(config, archaea = False, recover_ambiguous_bases = False):
     
     if archaea:
         # set archaeal V6 primers.
@@ -127,6 +127,8 @@ def main(config, archaea = False):
     number_of_unmatched_pairs = 0
     number_of_perfect_pairs = 0
     number_of_perfect_pairs_with_Ns = 0
+    number_of_recovered_ambiguous_bases_in_pair_1 = 0
+    number_of_recovered_ambiguous_bases_in_pair_2 = 0
 
     reverse_primer_found_locations_in_p1 = []
     reverse_primer_found_locations_in_p2 = []
@@ -223,7 +225,17 @@ def main(config, archaea = False):
             #####################################################################################
             # compare reads
             #####################################################################################
-           
+          
+            if recover_ambiguous_bases:
+                if 'N' in s1 and s1.count('N') == 1:
+                    pos = s1.find('N')
+                    s1 = s1[0:pos] + s2[pos] + s1[pos + 1:]
+                    number_of_recovered_ambiguous_bases_in_pair_1 += 1
+                if 'N' in s2 and s2.count('N') == 1:
+                    pos = s2.find('N')
+                    s2 = s2[0:pos] + s1[pos] + s2[pos + 1:]
+                    number_of_recovered_ambiguous_bases_in_pair_2 += 1
+
             if s1 == s2:
                 perfect_reads_fasta_fp.write('>%s\n' % h1)
                 perfect_reads_fasta_fp.write('%s\n' % s1)
@@ -239,12 +251,14 @@ def main(config, archaea = False):
                 number_of_unmatched_pairs += 1
 
 
-    errors_fp.write('number of pairs              : %d\n' % (number_of_pairs))
-    errors_fp.write('pairs missing reverse primer : %d (%%%.2f of all pairs)\n' % (number_of_pairs_missing_rp, get_percent(number_of_pairs_missing_rp, number_of_pairs)))
-    errors_fp.write('pairs missing forward primer : %d (%%%.2f of all pairs)\n' % (number_of_pairs_missing_fp, get_percent(number_of_pairs_missing_fp, number_of_pairs)))
-    errors_fp.write('pairs that did not match     : %d (%%%.2f of all pairs)\n' % (number_of_unmatched_pairs, get_percent(number_of_unmatched_pairs, number_of_pairs)))
-    errors_fp.write('pairs matched perfectly      : %d (%%%.2f of all pairs)\n' % (number_of_perfect_pairs, get_percent(number_of_perfect_pairs, number_of_pairs)))
-    errors_fp.write('perfect pairs with Ns        : %d (%%%.2f of perfect pairs)\n' % (number_of_perfect_pairs_with_Ns, get_percent(number_of_perfect_pairs_with_Ns, number_of_perfect_pairs)))
+    errors_fp.write('number of pairs               : %d\n' % (number_of_pairs))
+    errors_fp.write('pairs missing reverse primer  : %d (%%%.2f of all pairs)\n' % (number_of_pairs_missing_rp, get_percent(number_of_pairs_missing_rp, number_of_pairs)))
+    errors_fp.write('pairs missing forward primer  : %d (%%%.2f of all pairs)\n' % (number_of_pairs_missing_fp, get_percent(number_of_pairs_missing_fp, number_of_pairs)))
+    errors_fp.write('pairs that did not match      : %d (%%%.2f of all pairs)\n' % (number_of_unmatched_pairs, get_percent(number_of_unmatched_pairs, number_of_pairs)))
+    errors_fp.write('pairs matched perfectly       : %d (%%%.2f of all pairs)\n' % (number_of_perfect_pairs, get_percent(number_of_perfect_pairs, number_of_pairs)))
+    errors_fp.write('recovered ambiguous bases (p1): %d (%%%.2f of perfect pairs)\n' % (number_of_recovered_ambiguous_bases_in_pair_1, get_percent(number_of_recovered_ambiguous_bases_in_pair_1, number_of_perfect_pairs)))
+    errors_fp.write('recovered ambiguous bases (p2): %d (%%%.2f of perfect pairs)\n' % (number_of_recovered_ambiguous_bases_in_pair_2, get_percent(number_of_recovered_ambiguous_bases_in_pair_2, number_of_perfect_pairs)))
+    errors_fp.write('perfect pairs with Ns         : %d (%%%.2f of perfect pairs)\n' % (number_of_perfect_pairs_with_Ns, get_percent(number_of_perfect_pairs_with_Ns, number_of_perfect_pairs)))
 
     print
 
@@ -264,6 +278,17 @@ if __name__ == '__main__':
     parser.add_argument('--archaea', action = 'store_true', default = False,
                                         help = 'When set, primers for arhacea is used instead of \
                                                 bacteria.')
+    parser.add_argument('--recover-ambiguous-bases', action = 'store_true', default = False,
+                                        help = 'When set, the script would attempt to recover an ambiguous base\
+                                                from the other pair (only if there is only one N in the read). The idea\
+                                                here is to save more reads if there is a failed cycle during\
+                                                the sequencing, hoping that reads with low quality would present\
+                                                more than one ambiguous base, or would have mismatches at other positions even\
+                                                after the ambiguous base is recovered. Nevertheless, when this argument is set,\
+                                                the accuracy of the quality filtered reads would expected to decrease. This \
+                                                parameter does not recover ambiguous bases if they happen to occur in primer\
+                                                regions.')
+
 
     args = parser.parse_args()
     user_config = ConfigParser.ConfigParser()
@@ -276,4 +301,4 @@ if __name__ == '__main__':
         print
         sys.exit()
 
-    sys.exit(main(config, archaea = args.archaea))
+    sys.exit(main(config, archaea = args.archaea, recover_ambiguous_bases = args.recover_ambiguous_bases))
