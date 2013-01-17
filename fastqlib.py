@@ -43,6 +43,75 @@ class FastQLibError(Exception):
     pass
 
 
+class QualDict:
+    def __init__(self):
+        self.data = {}
+        self.entry_types = []
+        self.finalized = False
+
+    def update(self, pair_1, pair_2, entry_type = 'default'):
+        if entry_type not in self.entry_types:
+            self.entry_types.append(entry_type)
+            self.data[entry_type] = {}
+
+        tile_number = pair_1.entry.tile_number
+        tiles_dict = self.data[entry_type]
+
+        q1 = pair_1.entry.process_Q_list()
+        if pair_2:
+            q2 = pair_2.entry.process_Q_list()
+
+        if not tiles_dict.has_key('1'):
+            tiles_dict['1'] = {}
+        if not tiles_dict.has_key('2'):
+            tiles_dict['2'] = {}
+
+        if not tiles_dict['1'].has_key(tile_number):
+            tiles_dict['1'][tile_number] = {'mean': [0] * len(q1), 'std': [0] * len(q1), 'count': [0] * len(q1)}
+        if not tiles_dict['2'].has_key(tile_number):
+            tiles_dict['2'][tile_number] = {'mean': [0] * len(q2), 'std': [0] * len(q2), 'count': [0] * len(q2)}
+
+        tile_for_p1 = tiles_dict['1'][tile_number]
+        if pair_2:
+            tile_for_p2 = tiles_dict['2'][tile_number]
+
+        # take care of the length variation:
+        if len(q1) > len(tile_for_p1['mean']):
+            diff = len(q1) - len(tile_for_p1['mean'])
+            for attr in ['mean', 'std', 'count']:
+                for d in range(0, diff):
+                    tile_for_p1[attr].append(0)
+        if pair_2 and len(q2) > len(tile_for_p2['mean']):
+            diff = len(q2) - len(tile_for_p2['mean'])
+            for attr in ['mean', 'std', 'count']:
+                for d in range(0, diff):
+                    tile_for_p2[attr].append(0)
+
+        # update the tile
+        for i in range(0, len(q1)):
+            tile_for_p1['mean'][i] += q1[i]
+            tile_for_p1['count'][i] += 1
+        if pair_2:
+            for i in range(0, len(q2)):
+                tile_for_p2['mean'][i] += q2[i]
+                tile_for_p2['count'][i] += 1
+
+    def finalize(self):
+        for entry_type in self.entry_types:
+            for pair in ['1', '2']:
+                for tile_id in self.data[entry_type][pair]:
+                    tile = self.data[entry_type][pair][tile_id]
+                    for i in range(0, len(tile['mean'])):
+                        tile['mean'][i] = tile['mean'][i] * 1.0 / tile['count'][i]
+        self.finalized = True
+
+    def store_dict(self, output_file_path):
+        if not self.finalized:
+            self.finalize()
+
+        cPickle.dump(self.data, open(output_file_path, 'w'))
+
+
 def compute_plot_dict_from_tiles_dict(tiles_dict, plot_dict = {'1': {}, '2': {}}):
     for pair_no in ['1', '2']:
         for tile_no in tiles_dict[pair_no]:
