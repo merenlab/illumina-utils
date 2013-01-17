@@ -55,7 +55,7 @@ def stupid_write(fp, header, sequence, qual):
     fp.write('+\n')
     fp.write('%s\n' % qual)
 
-def main(config, archaea = False, recover_ambiguous_bases = False):
+def main(config, archaea = False, visualize_quality_curves = False, recover_ambiguous_bases = False):
     
     if archaea:
         # set archaeal V6 primers.
@@ -116,6 +116,9 @@ def main(config, archaea = False, recover_ambiguous_bases = False):
     perfect_reads_p1_fastq_fp = open(GetFilePath('PERFECT_reads-R1.fastq'), 'w')
     perfect_reads_p2_fastq_fp = open(GetFilePath('PERFECT_reads-R2.fastq'), 'w')
     perfect_reads_fasta_fp    = open(GetFilePath('PERFECT_reads.fa'), 'w')
+    
+    if visualize_quality_curves:
+        qual_dict_output_path = GetFilePath('Q_DICT.cPickle')
 
     #####################################################################################
     # some useful variables before we begin..
@@ -136,6 +139,9 @@ def main(config, archaea = False, recover_ambiguous_bases = False):
     forward_primer_found_locations_in_p1 = []
     forward_primer_found_locations_in_p2 = []
 
+    if visualize_quality_curves:
+        qual_dict = u.QualDict()
+
     #####################################################################################
     # main loop per file listed in config:
     #####################################################################################
@@ -155,7 +161,7 @@ def main(config, archaea = False, recover_ambiguous_bases = False):
         # main loop per read:
         #####################################################################################
        
-        while pair_1.next(raw = True) and pair_2.next(raw = True):
+        while pair_1.next() and pair_2.next():
             number_of_pairs += 1
             h1, s1, q1 = pair_1.entry.header_line, pair_1.entry.sequence, pair_1.entry.qual_scores
             h2, s2, q2 = pair_2.entry.header_line, reverse_complement(pair_2.entry.sequence), ''.join(reversed(pair_2.entry.qual_scores))
@@ -184,6 +190,9 @@ def main(config, archaea = False, recover_ambiguous_bases = False):
                 stupid_write(reverse_primer_missing_fp, h2 + (' missed in 2') if v == 2 else h2, s2, q2)
 
                 number_of_pairs_missing_rp += 1
+                
+                if visualize_quality_curves:
+                    qual_dict.update(pair_1, pair_2, 'Q_ERROR_RP')
 
                 continue
 
@@ -203,7 +212,7 @@ def main(config, archaea = False, recover_ambiguous_bases = False):
             fp2 = forward_primer.search(s2, 0, 40)
             
             if (not fp1) or (not fp2):
-                # reverse primer wasn't there for at least one read
+                # forward primer wasn't there for at least one read
                 if (not fp1) and (not fp2):
                     v = 0
                 elif not fp1:
@@ -216,6 +225,9 @@ def main(config, archaea = False, recover_ambiguous_bases = False):
 
                 number_of_pairs_missing_fp += 1
 
+                if visualize_quality_curves:
+                    qual_dict.update(pair_1, pair_2, 'Q_ERROR_FP')
+                
                 continue
 
             # strip forward primers
@@ -226,7 +238,7 @@ def main(config, archaea = False, recover_ambiguous_bases = False):
             # compare reads
             #####################################################################################
           
-            if recover_ambiguous_bases:
+            if recover_ambiguous_bases and len(s1) == len(s2):
                 if 'N' in s1 and s1.count('N') == 1:
                     pos = s1.find('N')
                     s1 = s1[0:pos] + s2[pos] + s1[pos + 1:]
@@ -243,12 +255,18 @@ def main(config, archaea = False, recover_ambiguous_bases = False):
                 stupid_write(perfect_reads_p2_fastq_fp, h2, s2, q2)
                 number_of_perfect_pairs += 1
 
+                if visualize_quality_curves:
+                    qual_dict.update(pair_1, pair_2, 'Q_PERFECT')
+
                 if 'N' in s1:
                     number_of_perfect_pairs_with_Ns += 1
             else:
                 stupid_write(unmatching_reads_fp, h1, s1, q1)
                 stupid_write(unmatching_reads_fp, h2, s2, q2)
                 number_of_unmatched_pairs += 1
+                
+                if visualize_quality_curves:
+                    qual_dict.update(pair_1, pair_2, 'Q_ERROR_MISMATCH')
 
 
     errors_fp.write('number of pairs               : %d\n' % (number_of_pairs))
@@ -261,6 +279,19 @@ def main(config, archaea = False, recover_ambiguous_bases = False):
     errors_fp.write('perfect pairs with Ns         : %d (%%%.2f of perfect pairs)\n' % (number_of_perfect_pairs_with_Ns, get_percent(number_of_perfect_pairs_with_Ns, number_of_perfect_pairs)))
 
     print
+
+    if visualize_quality_curves:
+        sys.stderr.write('\rQuality scores visualization in progress: ...')
+        sys.stderr.flush()
+        qual_dict.store_dict(qual_dict_output_path)
+
+        for entry_type in qual_dict.entry_types:
+            sys.stderr.write('\rQuality scores visualization in progress: %s' % entry_type)
+            sys.stderr.flush()
+            u.visualize_qual_stats_dict(qual_dict.data[entry_type], GetFilePath(entry_type),\
+                            title = 'Mean PHRED scores for pairs tagged as "%s"' % entry_type)
+        sys.stderr.write('\n')
+            
 
     errors_fp.close()
     reverse_primer_missing_fp.close()
@@ -278,6 +309,9 @@ if __name__ == '__main__':
     parser.add_argument('--archaea', action = 'store_true', default = False,
                                         help = 'When set, primers for arhacea is used instead of \
                                                 bacteria.')
+    parser.add_argument('--visualize-quality-curves', action = 'store_true', default = False,
+                                        help = 'When set, mean quality score for individual bases will be\
+                                                stored and visualized for each group of reads.')
     parser.add_argument('--recover-ambiguous-bases', action = 'store_true', default = False,
                                         help = 'When set, the script would attempt to recover an ambiguous base\
                                                 from the other pair (only if there is only one N in the read). The idea\
@@ -301,4 +335,7 @@ if __name__ == '__main__':
         print
         sys.exit()
 
-    sys.exit(main(config, archaea = args.archaea, recover_ambiguous_bases = args.recover_ambiguous_bases))
+    sys.exit(main(config,
+                  archaea = args.archaea,
+                  visualize_quality_curves = args.visualize_quality_curves,
+                  recover_ambiguous_bases = args.recover_ambiguous_bases))
