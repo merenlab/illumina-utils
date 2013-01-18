@@ -40,13 +40,31 @@ def load_cPickle_obj(obj_file_path):
     return obj
 
 
+class ReadIDTracker:
+    def __init__(self):
+        self.ids = {}
+        self.fates = set([])
+        
+    def update(self, pair_1, pair_2 = None, fate = 'unknown'):
+        if fate not in self.fates:
+            self.fates.add(fate)
+            self.ids[fate] = set([])
+
+        if pair_2:
+            self.ids[fate].add((pair_1.entry.header_line, pair_2.entry.header_line),)
+        else:
+            self.ids[fate].add((pair_1.entry.header_line),)
+
+    def store(self, output_file_path):
+        store_cPickle_obj(self.ids, output_file_path)
+
 class QualityScoresHandler:
     def __init__(self):
         self.data = {}
         self.entry_types = []
         self.finalized = False
 
-    def update(self, pair_1, pair_2, entry_type = 'default'):
+    def update(self, pair_1, pair_2 = None, entry_type = 'default'):
         if entry_type not in self.entry_types:
             self.entry_types.append(entry_type)
             self.data[entry_type] = {}

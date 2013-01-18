@@ -38,6 +38,7 @@ J = os.path.join
 
 import fastqlib as u
 from runconfiguration import RunConfiguration
+from helperfunctions import ReadIDTracker 
 from helperfunctions import QualityScoresHandler
 from helperfunctions import visualize_qual_stats_dict
 from helperfunctions import store_cPickle_obj
@@ -111,9 +112,10 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
     
     errors_fp                 = open(GetFilePath('STATS.txt'), 'w')
     perfect_reads_fasta_fp    = open(GetFilePath('PERFECT_reads.fa'), 'w')
+    id_tracker_output_path    = GetFilePath('READ_IDs.cPickle.z')
     
     if visualize_quality_curves:
-        qual_dict_output_path = GetFilePath('Q_DICT.cPickle')
+        qual_dict_output_path = GetFilePath('Q_DICT.cPickle.z')
 
     #####################################################################################
     # some useful variables before we begin..
@@ -136,6 +138,8 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
 
     if visualize_quality_curves:
         qual_dict = QualityScoresHandler()
+        
+    read_id_tracker = ReadIDTracker()
 
     #####################################################################################
     # main loop per file listed in config:
@@ -183,6 +187,7 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
 
                 number_of_pairs_missing_rp += 1
                 
+                read_id_tracker.update(pair_1, pair_2, 'Q_ERROR_RP')
                 if visualize_quality_curves:
                     qual_dict.update(pair_1, pair_2, 'Q_ERROR_RP')
 
@@ -214,6 +219,7 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
 
                 number_of_pairs_missing_fp += 1
 
+                read_id_tracker.update(pair_1, pair_2, 'Q_ERROR_FP')
                 if visualize_quality_curves:
                     qual_dict.update(pair_1, pair_2, 'Q_ERROR_FP')
                 
@@ -242,6 +248,7 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
                 perfect_reads_fasta_fp.write('%s\n' % s1)
                 number_of_perfect_pairs += 1
 
+                read_id_tracker.update(pair_1, pair_2, 'Q_PERFECT')
                 if visualize_quality_curves:
                     qual_dict.update(pair_1, pair_2, 'Q_PERFECT')
 
@@ -250,6 +257,7 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
             else:
                 number_of_unmatched_pairs += 1
                 
+                read_id_tracker.update(pair_1, pair_2, 'Q_ERROR_MISMATCH')
                 if visualize_quality_curves:
                     qual_dict.update(pair_1, pair_2, 'Q_ERROR_MISMATCH')
 
@@ -264,6 +272,12 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
     errors_fp.write('perfect pairs with Ns         : %d (%%%.2f of perfect pairs)\n' % (number_of_perfect_pairs_with_Ns, get_percent(number_of_perfect_pairs_with_Ns, number_of_perfect_pairs)))
 
     print
+
+    
+    sys.stderr.write('\rRead ID tracker dict is being stored ...')
+    sys.stderr.flush()
+    read_id_tracker.store(id_tracker_output_path)
+    sys.stderr.write('\n')
 
     if visualize_quality_curves:
         sys.stderr.write('\rQuality scores dict is being stored ...')
