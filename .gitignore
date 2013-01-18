@@ -10,3 +10,5 @@
 *~
 .project
 .pydevproject
+.settings
+*config.ini
