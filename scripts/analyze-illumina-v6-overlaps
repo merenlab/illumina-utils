@@ -46,6 +46,7 @@ from helperfunctions import load_cPickle_obj
 class ConfigError(Exception):
     pass
 
+
 def RepresentsInt(s):
     try: 
         int(s)
@@ -53,11 +54,6 @@ def RepresentsInt(s):
     except ValueError:
         return False
 
-def stupid_write(fp, header, sequence, qual):
-    fp.write('@%s\n' % header)
-    fp.write('%s\n' % sequence)
-    fp.write('+\n')
-    fp.write('%s\n' % qual)
 
 def main(config, archaea = False, visualize_quality_curves = False, recover_ambiguous_bases = False):
     
@@ -114,11 +110,6 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
     GetFilePath = lambda p: os.path.join(config.output_directory, config.project_name + '-' + p)
     
     errors_fp                 = open(GetFilePath('STATS.txt'), 'w')
-    reverse_primer_missing_fp = open(GetFilePath('RP_missing'), 'w')
-    forward_primer_missing_fp = open(GetFilePath('FP_missing'), 'w')
-    unmatching_reads_fp       = open(GetFilePath('UNMATCHING_reads'), 'w')
-    perfect_reads_p1_fastq_fp = open(GetFilePath('PERFECT_reads-R1.fastq'), 'w')
-    perfect_reads_p2_fastq_fp = open(GetFilePath('PERFECT_reads-R2.fastq'), 'w')
     perfect_reads_fasta_fp    = open(GetFilePath('PERFECT_reads.fa'), 'w')
     
     if visualize_quality_curves:
@@ -190,9 +181,6 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
                 else:
                     v = 2
 
-                stupid_write(reverse_primer_missing_fp, h1 + (' missed in 1') if v == 1 else h1, s1, q1)
-                stupid_write(reverse_primer_missing_fp, h2 + (' missed in 2') if v == 2 else h2, s2, q2)
-
                 number_of_pairs_missing_rp += 1
                 
                 if visualize_quality_curves:
@@ -224,9 +212,6 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
                 else:
                     v = 2
 
-                stupid_write(forward_primer_missing_fp, h1 + (' missed in 1') if v == 1 else h1, s1, q1)
-                stupid_write(forward_primer_missing_fp, h2 + (' missed in 2') if v == 2 else h2, s2, q2)
-
                 number_of_pairs_missing_fp += 1
 
                 if visualize_quality_curves:
@@ -255,8 +240,6 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
             if s1 == s2:
                 perfect_reads_fasta_fp.write('>%s\n' % h1)
                 perfect_reads_fasta_fp.write('%s\n' % s1)
-                stupid_write(perfect_reads_p1_fastq_fp, h1, s1, q1)
-                stupid_write(perfect_reads_p2_fastq_fp, h2, s2, q2)
                 number_of_perfect_pairs += 1
 
                 if visualize_quality_curves:
@@ -265,8 +248,6 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
                 if 'N' in s1:
                     number_of_perfect_pairs_with_Ns += 1
             else:
-                stupid_write(unmatching_reads_fp, h1, s1, q1)
-                stupid_write(unmatching_reads_fp, h2, s2, q2)
                 number_of_unmatched_pairs += 1
                 
                 if visualize_quality_curves:
@@ -297,9 +278,6 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
         sys.stderr.write('\n')
 
     errors_fp.close()
-    reverse_primer_missing_fp.close()
-    forward_primer_missing_fp.close()
-    unmatching_reads_fp.close()
     perfect_reads_fasta_fp.close()
 
 if __name__ == '__main__':
