@@ -50,7 +50,7 @@ class FastQEntry:
 
         return getattr(self, '_'.join(['process', key]))()
     
-    def __init__(self, (header_line, sequence_line, optional_line, qual_scores_line), trim_from = 0, trim_to = sys.maxint, raw = False):
+    def __init__(self, (header_line, sequence_line, optional_line, qual_scores_line), trim_from = 0, trim_to = sys.maxint, raw = False, CASAVA_version = 1.8):
         self.is_valid = False
 
         if not header_line:
@@ -61,6 +61,7 @@ class FastQEntry:
             # idea to raise an error than returning False.
             return None
 
+        self.CASAVA_version = CASAVA_version
 
         self.header_line = header_line[1:]
 
@@ -95,7 +96,11 @@ class FastQEntry:
         self.is_valid = True
 
     def process_Q_list(self):
-        self.Q_list = [ord(q) - 33 for q in self.qual_scores]
+        if self.CASAVA_version >= 1.8:
+            self.Q_list = [ord(q) - 33 for q in self.qual_scores]
+        if self.CASAVA_version < 1.8:
+            self.Q_list = [ord(q) - 64 for q in self.qual_scores]
+ 
         return self.Q_list
     
     def process_Q_min(self):
@@ -183,9 +188,12 @@ class FastQSource:
         self.percent_read = None
         self.p_available = False
         self.percent_counter = 0
+        
+        # FIXME: check for actual CASAVA version
+        self.CASAVA_version = 1.8
 
     def next(self, trim_from = 0, trim_to = sys.maxint, raw = False):
-        self.entry = FastQEntry([self.file_pointer.readline().strip() for _ in range(0, 4)], trim_from, trim_to, raw)
+        self.entry = FastQEntry([self.file_pointer.readline().strip() for _ in range(0, 4)], trim_from, trim_to, raw, CASAVA_version = self.CASAVA_version)
        
         if not self.entry.is_valid:
             return False
