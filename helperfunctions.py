@@ -109,6 +109,13 @@ class QualityScoresHandler:
         store_cPickle_obj(self.data, output_file_path)
 
 
+def quick_write(fp, header, sequence, qual):
+    fp.write('@%s\n' % header)
+    fp.write('%s\n' % sequence)
+    fp.write('+\n')
+    fp.write('%s\n' % qual)
+
+
 def compute_plot_dict_from_tiles_dict(tiles_dict, plot_dict = {'1': {}, '2': {}}):
     for pair_no in ['1', '2']:
         for tile_no in tiles_dict[pair_no]:
