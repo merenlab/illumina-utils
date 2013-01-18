@@ -38,6 +38,10 @@ J = os.path.join
 
 import fastqlib as u
 from runconfiguration import RunConfiguration
+from helperfunctions import QualityScoresHandler
+from helperfunctions import visualize_qual_stats_dict
+from helperfunctions import store_cPickle_obj
+from helperfunctions import load_cPickle_obj
 
 class ConfigError(Exception):
     pass
@@ -140,7 +144,7 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
     forward_primer_found_locations_in_p2 = []
 
     if visualize_quality_curves:
-        qual_dict = u.QualDict()
+        qual_dict = QualityScoresHandler()
 
     #####################################################################################
     # main loop per file listed in config:
@@ -281,17 +285,16 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
     print
 
     if visualize_quality_curves:
-        sys.stderr.write('\rQuality scores visualization in progress: ...')
+        sys.stderr.write('\rQuality scores dict is being stored ...')
         sys.stderr.flush()
         qual_dict.store_dict(qual_dict_output_path)
 
         for entry_type in qual_dict.entry_types:
-            sys.stderr.write('\rQuality scores visualization in progress: %s' % entry_type)
+            sys.stderr.write('\rQuality scores visualization in progress: %s%s' % (entry_type, ' ' * 20))
             sys.stderr.flush()
-            u.visualize_qual_stats_dict(qual_dict.data[entry_type], GetFilePath(entry_type),\
+            visualize_qual_stats_dict(qual_dict.data[entry_type], GetFilePath(entry_type),\
                             title = 'Mean PHRED scores for pairs tagged as "%s"' % entry_type)
         sys.stderr.write('\n')
-            
 
     errors_fp.close()
     reverse_primer_missing_fp.close()

@@ -30,6 +30,7 @@ import fastqlib as u
 import fastalib as f
 from runconfiguration import RunConfiguration
 from runconfiguration import ConfigError
+from helperfunctions import visualize_qual_stats_dict
 
 def colorize(sequence):
     Green = lambda s: '\033[30m\033[42m' + s + '' + '\033[0m'
@@ -337,7 +338,7 @@ def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_siz
         for ind in mean_quals_per_mismatch.keys():
             sys.stderr.write('\rVisualizing Qual Scores: %d of %d' % (mean_quals_per_mismatch.keys().index(ind) + 1, len(mean_quals_per_mismatch.keys())))
             sys.stderr.flush()
-            u.visualize_qual_stats_dict(mean_quals_per_mismatch[ind], os.path.join(config.output_directory, output_file_prefix + '_QUALS_%d_MISMATCH' % ind),\
+            visualize_qual_stats_dict(mean_quals_per_mismatch[ind], os.path.join(config.output_directory, output_file_prefix + '_QUALS_%d_MISMATCH' % ind),\
                                         title = 'Machine Reported Mean PHRED Scores for Pairs Merged with %d Mismatches' % ind if ind != 1 else \
                                                 'Machine Reported Mean PHRED Scores for Pairs Merged with 1 Mismatch')
         print
