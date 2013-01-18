@@ -1,0 +1,261 @@
+#!/bin/env python
+# -*- coding: utf-8 -*-
+#
+#
+# This script takes an .ini file and analyzes quality of reads based on q=30, p=0.75, r=3 and,
+# n=0, which are parameters described in this paper:
+#
+#         http://www.nature.com/nmeth/journal/v10/n1/full/nmeth.2276.html
+#
+# This is how the expected .ini file looks like:
+#
+#-------8<-------8<-------8<-------8<-------8<-------8<-------8<-------8<-------8<------------
+#    [general]
+#    project_name = (project name)
+#    researcher_email = (your e-mail address)
+#    input_directory = (directory from which the input files will be read from)
+#    output_directory = (directory to store output)
+#    
+#    
+#    [files]
+#    pair_1 = (pair 1 files, comma separated)
+#    pair_2 = (pair 2 files, comma separated. must be ordered based on pair 1 files)
+#-------8<-------8<-------8<-------8<-------8<-------8<-------8<-------8<-------8<------------
+#
+
+import os
+import sys
+import ConfigParser
+
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
+
+E = os.path.exists
+J = os.path.join
+
+import fastqlib as u
+from runconfiguration import RunConfiguration
+from helperfunctions import ReadIDTracker 
+from helperfunctions import QualityScoresHandler
+from helperfunctions import visualize_qual_stats_dict
+
+class ConfigError(Exception):
+    pass
+
+
+def RepresentsInt(s):
+    try: 
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+
+def IsHighQuality(sequence, quality, p, q, r, n):
+    # boolean list of 'base quality is higher than q':
+    bq = [True if _q > q else False for _q in quality]
+    trim_to = None
+
+    for offset in range(0, len(bq) - r + 1):
+        if set(bq[offset:offset + r]) == set([False]):
+            trim_to = offset
+            break
+    
+    if trim_to:
+        if trim_to * 1.0 / len(sequence) < p:
+            # Exclude Sequence
+            return (False, trim_to, 'FAILED_REASON_P')
+        else:
+            sequence = sequence[0:trim_to]
+    
+    if sequence.count('N') > n:
+        # Exclude Sequence
+        return (False, trim_to, 'FAILED_REASON_N')
+
+
+    # Accept sequence
+    return (True, trim_to, 'PASSED')
+
+
+def main(config, visualize_quality_curves = False, p = 0.75, q = 3, r = 3, n = 0):
+    
+    def get_percent(x, y):
+        if y == 0:
+            return 0.0
+        else:
+            return x * 100.0 / y
+
+
+    #####################################################################################
+    # dealing with output file pointers..
+    #####################################################################################
+    
+    GetFilePath = lambda p: os.path.join(config.output_directory, config.project_name + '-' + p)
+    
+    errors_fp                 = open(GetFilePath('STATS.txt'), 'w')
+    quality_passed_r1         = u.FastQOutput(GetFilePath('QUALITY_PASSED_R1.fa'))
+    quality_passed_r2         = u.FastQOutput(GetFilePath('QUALITY_PASSED_R2.fa'))
+    id_tracker_output_path    = GetFilePath('READ_IDs.cPickle.z')
+    
+    if visualize_quality_curves:
+        qual_dict_output_path = GetFilePath('Q_DICT.cPickle.z')
+
+
+    #####################################################################################
+    # some useful variables before we begin..
+    #####################################################################################
+   
+    number_of_pairs = 0
+    total_pairs_failed = 0
+    total_pairs_passed = 0
+    both_pairs_failed_qual = 0
+    only_pair_1_failed_qual = 0
+    only_pair_2_failed_qual = 0
+    number_of_pairs_trimmed = 0
+
+    if visualize_quality_curves:
+        qual_dict = QualityScoresHandler()
+        
+    read_id_tracker = ReadIDTracker()
+
+    #####################################################################################
+    # main loop per file listed in config:
+    #####################################################################################
+    COMPRESSED = lambda x: os.path.basename(config.pair_1[index]).endswith('.gz')
+    
+    for index in range(0, len(config.pair_1)):
+        try:
+            pair_1 = u.FastQSource(config.pair_1[index], compressed = True if COMPRESSED(config.pair_1[index]) else False)
+            pair_2 = u.FastQSource(config.pair_2[index], compressed = True if COMPRESSED(config.pair_2[index]) else False)
+
+        except u.FastQLibError, e:
+            print "FastQLib is not happy.\n\n\t", e, "\n"
+            sys.exit()
+
+
+        #####################################################################################
+        # main loop per read:
+        #####################################################################################
+       
+        while pair_1.next() and pair_2.next():
+            number_of_pairs += 1
+            s1, q1 = pair_1.entry.sequence, pair_1.entry.process_Q_list()
+            s2, q2 = pair_2.entry.sequence, pair_2.entry.process_Q_list()
+
+            if pair_1.p_available:
+                pair_1.print_percentage()
+
+            #####################################################################################
+            # compare reads
+            #####################################################################################           
+
+            p1_passed_qual, p1_trim_to, p1_fate = IsHighQuality(s1, q1, p, q, r, n)
+            p2_passed_qual, p2_trim_to, p2_fate = IsHighQuality(s2, q2, p, q, r, n)
+
+            if (not p1_passed_qual) or (not p2_passed_qual):
+                # either of these pairs failed quality check.
+                total_pairs_failed += 1
+                if (not p1_passed_qual) and p2_passed_qual:
+                    only_pair_1_failed_qual += 1
+                    fate = p1_fate
+                elif p1_passed_qual and (not p2_passed_qual):
+                    only_pair_2_failed_qual += 1
+                    read_id_tracker.update(pair_1, pair_2, p2_fate)
+                    fate = p2_fate
+                else:
+                    both_pairs_failed_qual += 1 
+                    fate = p1_fate
+                
+                read_id_tracker.update(pair_1, pair_2, fate)
+
+                if visualize_quality_curves:
+                    qual_dict.update(pair_1, pair_2, fate)
+
+            else:
+                total_pairs_passed += 1
+                
+                if p1_trim_to or p2_trim_to:
+                    # either of these pairs passed qual filtering with getting trimmed
+                    # we'll find out which one is shorter, and trim both
+                    number_of_pairs_trimmed += 1
+                    
+                    trim_to = p2_trim_to if p2_trim_to < p1_trim_to else p1_trim_to
+                    
+                    pair_1.entry.trim(trim_to = trim_to)
+                    pair_2.entry.trim(trim_to = trim_to)
+
+                read_id_tracker.update(pair_1, pair_2, p1_fate)
+
+                if visualize_quality_curves:
+                    qual_dict.update(pair_1, pair_2, p1_fate)
+                
+                quality_passed_r1.store_entry(pair_1.entry)
+                quality_passed_r2.store_entry(pair_2.entry)
+
+
+    errors_fp.write('number of pairs               : %d\n' % (number_of_pairs))
+    errors_fp.write('total pairs failed            : %d (%%%.2f of all pairs)\n' % (total_pairs_failed, get_percent(total_pairs_failed, number_of_pairs)))
+    errors_fp.write('total pairs passed            : %d (%%%.2f of all pairs)\n' % (total_pairs_passed, get_percent(total_pairs_passed, number_of_pairs)))
+    errors_fp.write('total passed pairs trimmed    : %d (%%%.2f of all passed pairs)\n' % (number_of_pairs_trimmed, get_percent(number_of_pairs_trimmed, total_pairs_passed)))
+    errors_fp.write('pairs failed due to pair_1    : %d (%%%.2f of all failed pairs)\n' % (only_pair_1_failed_qual, get_percent(only_pair_1_failed_qual, total_pairs_failed)))
+    errors_fp.write('pairs failed due to pair_2    : %d (%%%.2f of all failed pairs)\n' % (only_pair_2_failed_qual, get_percent(only_pair_2_failed_qual, total_pairs_failed)))
+    errors_fp.write('pairs failed due to both      : %d (%%%.2f of all failed pairs)\n' % (both_pairs_failed_qual, get_percent(both_pairs_failed_qual, total_pairs_failed)))
+
+    print
+    
+    sys.stderr.write('\rRead ID tracker dict is being stored ...')
+    sys.stderr.flush()
+    read_id_tracker.store(id_tracker_output_path)
+    sys.stderr.write('\n')
+
+    if visualize_quality_curves:
+        sys.stderr.write('\rQuality scores dict is being stored ...')
+        sys.stderr.flush()
+        qual_dict.store_dict(qual_dict_output_path)
+
+        for entry_type in qual_dict.entry_types:
+            sys.stderr.write('\rQuality scores visualization in progress: %s%s' % (entry_type, ' ' * 20))
+            sys.stderr.flush()
+            visualize_qual_stats_dict(qual_dict.data[entry_type], GetFilePath(entry_type),\
+                            title = 'Mean PHRED scores for pairs tagged as "%s"' % entry_type)
+        sys.stderr.write('\n')
+
+    errors_fp.close()
+    quality_passed_r1.close()
+    quality_passed_r2.close()
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Implementation of "http://www.nature.com/nmeth/journal/v10/n1/full/nmeth.2276.html"')
+    parser.add_argument('user_config', metavar = 'CONFIG_FILE',
+                                        help = 'User configuration to run. See the source code to\
+                                                see an example.')
+    parser.add_argument('-p', default = 0.75, type=float, metavar = 'FLOAT',
+                                        help = 'Minimal high-quality read length (default: %(default)s)')
+    parser.add_argument('-q', default = 3, type=int, metavar = 'INTEGER',
+                                        help = 'Maximum of consecutive low-quality calls (default: %(default)s)')
+    parser.add_argument('-r', default = 3, type=int, metavar = 'INTEGER',
+                                        help = 'maximum of ambiguous calls allowed (default: %(default)s)')
+    parser.add_argument('-n', default = 0, type=int, metavar = 'INTEGER',
+                                        help = 'Maximum of ambiguous calls allowed (default: %(default)s)')
+    parser.add_argument('--visualize-quality-curves', action = 'store_true', default = False,
+                                        help = 'When set, mean quality score for individual bases will be\
+                                                stored and visualized for each group of reads.')
+
+    args = parser.parse_args()
+    user_config = ConfigParser.ConfigParser()
+    user_config.read(args.user_config)
+
+    try: 
+        config = RunConfiguration(user_config)
+    except ConfigError, e:
+        print "There is something wrong with the config file. This is what we know: \n\n", e
+        print
+        sys.exit()
+
+    sys.exit(main(config,
+                  q = args.q,
+                  p = args.p,
+                  r = args.r,
+                  n = args.n,
+                  visualize_quality_curves = args.visualize_quality_curves))
