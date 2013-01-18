@@ -235,7 +235,7 @@ if __name__ == '__main__':
     parser.add_argument('-q', default = 3, type=int, metavar = 'INTEGER',
                                         help = 'Maximum of consecutive low-quality calls (default: %(default)s)')
     parser.add_argument('-r', default = 3, type=int, metavar = 'INTEGER',
-                                        help = 'maximum of ambiguous calls allowed (default: %(default)s)')
+                                        help = 'Maximum of consecutive low-quality calls (default: %(default)s)')
     parser.add_argument('-n', default = 0, type=int, metavar = 'INTEGER',
                                         help = 'Maximum of ambiguous calls allowed (default: %(default)s)')
     parser.add_argument('--visualize-quality-curves', action = 'store_true', default = False,
