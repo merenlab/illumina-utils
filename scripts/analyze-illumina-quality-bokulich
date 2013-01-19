@@ -110,7 +110,8 @@ def main(config, visualize_quality_curves = False, p = 0.75, q = 3, r = 3, n = 0
     both_pairs_failed_qual = 0
     only_pair_1_failed_qual = 0
     only_pair_2_failed_qual = 0
-    number_of_pairs_trimmed = 0
+    total_pair_1s_trimmed = 0
+    total_pair_2s_trimmed = 0
 
     if visualize_quality_curves:
         qual_dict = QualityScoresHandler()
@@ -174,15 +175,13 @@ def main(config, visualize_quality_curves = False, p = 0.75, q = 3, r = 3, n = 0
                 total_pairs_passed += 1
                 
                 if p1_trim_to or p2_trim_to:
-                    # either of these pairs passed qual filtering with getting trimmed
-                    # we'll find out which one is shorter, and trim both
-                    number_of_pairs_trimmed += 1
-                    
-                    trim_to = p2_trim_to if p2_trim_to < p1_trim_to else p1_trim_to
-                    
-                    pair_1.entry.trim(trim_to = trim_to)
-                    pair_2.entry.trim(trim_to = trim_to)
-
+                    if p1_trim_to:
+                        pair_1.entry.trim(trim_to = p1_trim_to)
+                        total_pair_1s_trimmed += 1
+                    if p2_trim_to:
+                        pair_2.entry.trim(trim_to = p2_trim_to)
+                        total_pair_2s_trimmed += 1
+                        
                 read_id_tracker.update(pair_1, pair_2, p1_fate)
 
                 if visualize_quality_curves:
@@ -192,13 +191,14 @@ def main(config, visualize_quality_curves = False, p = 0.75, q = 3, r = 3, n = 0
                 quality_passed_r2.store_entry(pair_2.entry)
 
 
-    errors_fp.write('number of pairs               : %d\n' % (number_of_pairs))
-    errors_fp.write('total pairs failed            : %d (%%%.2f of all pairs)\n' % (total_pairs_failed, get_percent(total_pairs_failed, number_of_pairs)))
+    errors_fp.write('number of pairs analyzed      : %d\n' % (number_of_pairs))
     errors_fp.write('total pairs passed            : %d (%%%.2f of all pairs)\n' % (total_pairs_passed, get_percent(total_pairs_passed, number_of_pairs)))
-    errors_fp.write('total passed pairs trimmed    : %d (%%%.2f of all passed pairs)\n' % (number_of_pairs_trimmed, get_percent(number_of_pairs_trimmed, total_pairs_passed)))
-    errors_fp.write('pairs failed due to pair_1    : %d (%%%.2f of all failed pairs)\n' % (only_pair_1_failed_qual, get_percent(only_pair_1_failed_qual, total_pairs_failed)))
-    errors_fp.write('pairs failed due to pair_2    : %d (%%%.2f of all failed pairs)\n' % (only_pair_2_failed_qual, get_percent(only_pair_2_failed_qual, total_pairs_failed)))
-    errors_fp.write('pairs failed due to both      : %d (%%%.2f of all failed pairs)\n' % (both_pairs_failed_qual, get_percent(both_pairs_failed_qual, total_pairs_failed)))
+    errors_fp.write('  total pair_1 trimmed        : %d (%%%.2f of all passed pairs)\n' % (total_pair_1s_trimmed, get_percent(total_pair_1s_trimmed, total_pairs_passed)))
+    errors_fp.write('  total pair_2 trimmed        : %d (%%%.2f of all passed pairs)\n' % (total_pair_2s_trimmed, get_percent(total_pair_2s_trimmed, total_pairs_passed)))
+    errors_fp.write('total pairs failed            : %d (%%%.2f of all pairs)\n' % (total_pairs_failed, get_percent(total_pairs_failed, number_of_pairs)))
+    errors_fp.write('  pairs failed due to pair_1  : %d (%%%.2f of all failed pairs)\n' % (only_pair_1_failed_qual, get_percent(only_pair_1_failed_qual, total_pairs_failed)))
+    errors_fp.write('  pairs failed due to pair_2  : %d (%%%.2f of all failed pairs)\n' % (only_pair_2_failed_qual, get_percent(only_pair_2_failed_qual, total_pairs_failed)))
+    errors_fp.write('  pairs failed due to both    : %d (%%%.2f of all failed pairs)\n' % (both_pairs_failed_qual, get_percent(both_pairs_failed_qual, total_pairs_failed)))
 
     print
     
@@ -233,7 +233,7 @@ if __name__ == '__main__':
     parser.add_argument('-p', default = 0.75, type=float, metavar = 'FLOAT',
                                         help = 'Minimal high-quality read length (default: %(default)s)')
     parser.add_argument('-q', default = 3, type=int, metavar = 'INTEGER',
-                                        help = 'Maximum of consecutive low-quality calls (default: %(default)s)')
+                                        help = 'Minimum PHRED score to identify low quality bases (default: %(default)s)')
     parser.add_argument('-r', default = 3, type=int, metavar = 'INTEGER',
                                         help = 'Maximum of consecutive low-quality calls (default: %(default)s)')
     parser.add_argument('-n', default = 0, type=int, metavar = 'INTEGER',
