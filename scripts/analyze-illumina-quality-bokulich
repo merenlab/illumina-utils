@@ -199,7 +199,11 @@ def main(config, visualize_quality_curves = False, p = 0.75, q = 3, r = 3, n = 0
     errors_fp.write('  pairs failed due to pair_1  : %d (%%%.2f of all failed pairs)\n' % (only_pair_1_failed_qual, get_percent(only_pair_1_failed_qual, total_pairs_failed)))
     errors_fp.write('  pairs failed due to pair_2  : %d (%%%.2f of all failed pairs)\n' % (only_pair_2_failed_qual, get_percent(only_pair_2_failed_qual, total_pairs_failed)))
     errors_fp.write('  pairs failed due to both    : %d (%%%.2f of all failed pairs)\n' % (both_pairs_failed_qual, get_percent(both_pairs_failed_qual, total_pairs_failed)))
-
+    for fate in [f for f in read_id_tracker.fates if f.startswith('FAILED')]:
+        errors_fp.write('  %s%s: %d (%%%.2f of all failed pairs)\n' % (fate,
+                                                                       (' ' * (28 - len(fate))),
+                                                                       len(read_id_tracker.ids[fate]),
+                                                                       get_percent(len(read_id_tracker.ids[fate]), total_pairs_failed)))
     print
     
     sys.stderr.write('\rRead ID tracker dict is being stored ...')
