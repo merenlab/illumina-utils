@@ -122,11 +122,14 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
     #####################################################################################
    
     number_of_pairs = 0
-    number_of_pairs_missing_rp = 0
-    number_of_pairs_missing_fp = 0
-    number_of_unmatched_pairs = 0
     number_of_perfect_pairs = 0
     number_of_perfect_pairs_with_Ns = 0
+    rp_failed_in_both = 0
+    rp_failed_in_pair_1 = 0
+    rp_failed_in_pair_2 = 0
+    fp_failed_in_both = 0
+    fp_failed_in_pair_1 = 0
+    fp_failed_in_pair_2 = 0
     number_of_recovered_ambiguous_bases_in_pair_1 = 0
     number_of_recovered_ambiguous_bases_in_pair_2 = 0
 
@@ -179,17 +182,15 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
             if (not rp1) or (not rp2):
                 # reverse primer wasn't there for at least one read
                 if (not rp1) and (not rp2):
-                    v = 0
+                    rp_failed_in_both += 1
                 elif not rp1:
-                    v = 1
+                    rp_failed_in_pair_1 += 1
                 else:
-                    v = 2
+                    rp_failed_in_pair_2 += 1
 
-                number_of_pairs_missing_rp += 1
-                
-                read_id_tracker.update(pair_1, pair_2, 'Q_ERROR_RP')
+                read_id_tracker.update(pair_1, pair_2, 'FAILED_RP')
                 if visualize_quality_curves:
-                    qual_dict.update(pair_1, pair_2, 'Q_ERROR_RP')
+                    qual_dict.update(pair_1, pair_2, 'FAILED_RP')
 
                 continue
 
@@ -211,17 +212,15 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
             if (not fp1) or (not fp2):
                 # forward primer wasn't there for at least one read
                 if (not fp1) and (not fp2):
-                    v = 0
+                    fp_failed_in_both += 1
                 elif not fp1:
-                    v = 1
+                    fp_failed_in_pair_1 += 1
                 else:
-                    v = 2
+                    fp_failed_in_pair_2 += 1
 
-                number_of_pairs_missing_fp += 1
-
-                read_id_tracker.update(pair_1, pair_2, 'Q_ERROR_FP')
+                read_id_tracker.update(pair_1, pair_2, 'FAILED_FP')
                 if visualize_quality_curves:
-                    qual_dict.update(pair_1, pair_2, 'Q_ERROR_FP')
+                    qual_dict.update(pair_1, pair_2, 'FAILED_FP')
                 
                 continue
 
@@ -248,28 +247,36 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
                 perfect_reads_fasta_fp.write('%s\n' % s1)
                 number_of_perfect_pairs += 1
 
-                read_id_tracker.update(pair_1, pair_2, 'Q_PERFECT')
+                read_id_tracker.update(pair_1, pair_2, 'PASSED')
                 if visualize_quality_curves:
-                    qual_dict.update(pair_1, pair_2, 'Q_PERFECT')
+                    qual_dict.update(pair_1, pair_2, 'PASSED')
 
                 if 'N' in s1:
                     number_of_perfect_pairs_with_Ns += 1
             else:
-                number_of_unmatched_pairs += 1
-                
-                read_id_tracker.update(pair_1, pair_2, 'Q_ERROR_MISMATCH')
+                read_id_tracker.update(pair_1, pair_2, 'FAILED_MISMATCH')
                 if visualize_quality_curves:
-                    qual_dict.update(pair_1, pair_2, 'Q_ERROR_MISMATCH')
+                    qual_dict.update(pair_1, pair_2, 'FAILED_MISMATCH')
 
 
-    errors_fp.write('number of pairs               : %d\n' % (number_of_pairs))
-    errors_fp.write('pairs missing reverse primer  : %d (%%%.2f of all pairs)\n' % (number_of_pairs_missing_rp, get_percent(number_of_pairs_missing_rp, number_of_pairs)))
-    errors_fp.write('pairs missing forward primer  : %d (%%%.2f of all pairs)\n' % (number_of_pairs_missing_fp, get_percent(number_of_pairs_missing_fp, number_of_pairs)))
-    errors_fp.write('pairs that did not match      : %d (%%%.2f of all pairs)\n' % (number_of_unmatched_pairs, get_percent(number_of_unmatched_pairs, number_of_pairs)))
-    errors_fp.write('pairs matched perfectly       : %d (%%%.2f of all pairs)\n' % (number_of_perfect_pairs, get_percent(number_of_perfect_pairs, number_of_pairs)))
-    errors_fp.write('recovered ambiguous bases (p1): %d (%%%.2f of perfect pairs)\n' % (number_of_recovered_ambiguous_bases_in_pair_1, get_percent(number_of_recovered_ambiguous_bases_in_pair_1, number_of_perfect_pairs)))
-    errors_fp.write('recovered ambiguous bases (p2): %d (%%%.2f of perfect pairs)\n' % (number_of_recovered_ambiguous_bases_in_pair_2, get_percent(number_of_recovered_ambiguous_bases_in_pair_2, number_of_perfect_pairs)))
-    errors_fp.write('perfect pairs with Ns         : %d (%%%.2f of perfect pairs)\n' % (number_of_perfect_pairs_with_Ns, get_percent(number_of_perfect_pairs_with_Ns, number_of_perfect_pairs)))
+    total_pairs_failed = number_of_pairs - number_of_perfect_pairs
+    errors_fp.write('number of pairs                 : %d\n' % (number_of_pairs))
+    errors_fp.write('total pairs passed              : %d (%%%.2f of all pairs)\n' % (number_of_perfect_pairs, get_percent(number_of_perfect_pairs, number_of_pairs)))
+    errors_fp.write('  perfect pairs with Ns         : %d (%%%.2f of perfect pairs)\n' % (number_of_perfect_pairs_with_Ns, get_percent(number_of_perfect_pairs_with_Ns, number_of_perfect_pairs)))
+    errors_fp.write('  recovered ambiguous bases (p1): %d (%%%.2f of perfect pairs)\n' % (number_of_recovered_ambiguous_bases_in_pair_1, get_percent(number_of_recovered_ambiguous_bases_in_pair_1, number_of_perfect_pairs)))
+    errors_fp.write('  recovered ambiguous bases (p2): %d (%%%.2f of perfect pairs)\n' % (number_of_recovered_ambiguous_bases_in_pair_2, get_percent(number_of_recovered_ambiguous_bases_in_pair_2, number_of_perfect_pairs)))
+    errors_fp.write('total pairs failed              : %d (%%%.2f of all pairs)\n' % (total_pairs_failed, get_percent(total_pairs_failed, number_of_pairs)))
+    errors_fp.write('  FP failed in both pairs       : %d (%%%.2f of all failed pairs)\n' % (fp_failed_in_both, get_percent(fp_failed_in_both, total_pairs_failed)))
+    errors_fp.write('  FP failed only in pair 1      : %d (%%%.2f of all failed pairs)\n' % (fp_failed_in_pair_1, get_percent(fp_failed_in_pair_1, total_pairs_failed)))
+    errors_fp.write('  FP failed only in pair 2      : %d (%%%.2f of all failed pairs)\n' % (fp_failed_in_pair_2, get_percent(fp_failed_in_pair_2, total_pairs_failed)))
+    errors_fp.write('  RP failed in both pairs       : %d (%%%.2f of all failed pairs)\n' % (rp_failed_in_both, get_percent(rp_failed_in_both, total_pairs_failed)))
+    errors_fp.write('  RP failed only in pair 1      : %d (%%%.2f of all failed pairs)\n' % (rp_failed_in_pair_1, get_percent(rp_failed_in_pair_1, total_pairs_failed)))
+    errors_fp.write('  RP failed only in pair 2      : %d (%%%.2f of all failed pairs)\n' % (rp_failed_in_pair_2, get_percent(rp_failed_in_pair_2, total_pairs_failed)))
+    for fate in [f for f in read_id_tracker.fates if f.startswith('FAILED')]:
+        errors_fp.write('  %s%s: %d (%%%.2f of all failed pairs)\n' % (fate,
+                                                                       (' ' * (30 - len(fate))),
+                                                                       len(read_id_tracker.ids[fate]),
+                                                                       get_percent(len(read_id_tracker.ids[fate]), total_pairs_failed)))
 
     print
 
