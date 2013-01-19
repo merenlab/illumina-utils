@@ -8,13 +8,13 @@ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
 import fastqlib as u
 
 def main(input_file_path, output_file_path, number_of_sequences = -1, compressed = False):
-    input = u.FastQSource(input_file_path, compressed)
+    fastq = u.FastQSource(input_file_path, compressed)
     output = u.FileOutput(output_file_path, compressed)
 
-    while input.next() and number_of_sequences:
-        if input.p_available:
-            input.print_percentage()
-        e = input.entry
+    while fastq.next() and number_of_sequences:
+        if fastq.p_available:
+            fastq.print_percentage()
+        e = fastq.entry
         output.write('>%s\n%s\n' % ('.'.join([e.machine_name,
                                               e.run_id,
                                               e.x_coord,
@@ -24,7 +24,7 @@ def main(input_file_path, output_file_path, number_of_sequences = -1, compressed
         number_of_sequences -= 1
 
     sys.stderr.write('\n')
-    input.close()
+    fastq.close()
     output.close()
     
     return
