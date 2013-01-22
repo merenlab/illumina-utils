@@ -62,7 +62,7 @@ def IsHighQuality(sequence, quality, p):
     
     trim_to = None if len(sequence) == trim_to else trim_to
 
-    if trim_to:
+    if trim_to is not None:
         if trim_to * 1.0 / len(sequence) < p:
             # Exclude Sequence
             return (False, trim_to, 'FAILED_REASON_P')

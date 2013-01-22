@@ -60,7 +60,7 @@ def IsHighQuality(sequence, quality, p, q, r, n):
             trim_to = offset
             break
     
-    if trim_to:
+    if trim_to is not None:
         if trim_to * 1.0 / len(sequence) < p:
             # Exclude Sequence
             return (False, trim_to, 'FAILED_REASON_P')

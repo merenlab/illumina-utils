@@ -1,0 +1,73 @@
+#!/bin/env python
+# -*- coding: utf-8 -*-
+
+#
+# when a list of ids and a fastq file provided, this script removes reads from fastq file
+# that have a matching id in the given ids list.
+#
+# if something seems to be wrong with it, please send an e-mail to meren@mbl.edu
+#
+
+import os
+import sys
+
+sys.path.append('/bioware/pythonmodules/illumina-utils')
+
+E = os.path.exists
+J = os.path.join
+
+import fastqlib as u
+
+def main(fastq_path, ids_path):
+    ids = set([id.strip() for id in open(ids_path)])
+    input = u.FastQSource(fastq_path)
+
+
+    for _id in ids:
+        if _id.startswith('@'):
+            try:
+                print "\n\n    Warning: IDs are not supposed to start with '@' character, if you are sure that is the case for your FASTQ file, press ENTER to continue. Otherwise press CTRL+C to quit, and fix your IDs file.\n"
+                raw_input()
+                break
+            except:
+                sys.exit()
+
+    removed = u.FastQOutput(fastq_path + '.removed')
+    survived = u.FastQOutput(fastq_path + '.survived')
+
+    number_of_reads_removed = 0
+
+    while input.next(raw = True):
+        if input.pos % 5000 == 0:
+            sys.stderr.write('\r[fastqlib:removing] Processed: %s, Removed: %s'\
+                    % (u.big_number_pretty_print(input.pos),
+                       u.big_number_pretty_print(number_of_reads_removed)))
+            sys.stderr.flush()
+
+        if input.entry.header_line in ids:
+            removed.store_entry(input.entry)
+            ids.remove(input.entry.header_line)
+            number_of_reads_removed += 1
+        else:
+            survived.store_entry(input.entry)
+
+    sys.stderr.write('\n\n')
+
+    print 'Total number of reads processed: %s' % u.big_number_pretty_print(input.pos)
+    print 'Number of reads removed        : %s' % u.big_number_pretty_print(number_of_reads_removed)
+    print 'FASTQ file for removed reads   : "%s"' % (fastq_path + '.removed')
+    print 'FASTQ file for surviving reads : "%s"' % (fastq_path + '.survived')
+    print
+
+if __name__ == '__main__':
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Remove reads from FASTQ File')
+    parser.add_argument('-i', '--input-fastq', required=True, metavar = 'FASTQ_FILE_PATH',
+                        help = 'Sequences file from which reads will be removed in FASTQ format')
+    parser.add_argument('-l', '--ids-file-path', required=True, metavar = 'IDS_FILE_PATH',
+                        help = 'Input file that contains the list of ids for removal')
+
+    args = parser.parse_args()
+
+    sys.exit(main(args.input_fastq, args.ids_file_path))
