@@ -100,8 +100,8 @@ def main(config, visualize_quality_curves = False, p = 0.75):
     GetFilePath = lambda p: os.path.join(config.output_directory, config.project_name + '-' + p)
     
     errors_fp                 = open(GetFilePath('STATS.txt'), 'w')
-    quality_passed_r1         = u.FastQOutput(GetFilePath('QUALITY_PASSED_R1.fa'))
-    quality_passed_r2         = u.FastQOutput(GetFilePath('QUALITY_PASSED_R2.fa'))
+    quality_passed_r1         = u.FastQOutput(GetFilePath('QUALITY_PASSED_R1.fastq'))
+    quality_passed_r2         = u.FastQOutput(GetFilePath('QUALITY_PASSED_R2.fastq'))
     id_tracker_output_path    = GetFilePath('READ_IDs.cPickle.z')
     
     if visualize_quality_curves:
