@@ -374,6 +374,77 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False):
         plt.savefig(dest + '.png')
 
 
+def visualize_qual_stats_dict_single(D, dest, title):
+    """
+    same as visualize_qual_stats_dict, but puts all tiles together. 
+    """
+
+
+    fig = plt.figure(figsize = (12, 8))
+    
+    plt.rcParams.update({'axes.linewidth' : 0.9})
+    plt.rc('grid', color='0.50', linestyle='-', linewidth=0.1)
+   
+    all_tiles = {'1': {'mean': [0] * 101, 'count': [0] * 101},
+                 '2': {'mean': [0] * 101, 'count': [0] * 101}
+                }
+
+    for i in range(0, 101):
+        means_p1 = []
+        counts_p1 = []
+        means_p2 = []
+        counts_p2 = []
+        for tile_id in D['1']:
+            tile = D['1'][tile_id]
+            means_p1.append(tile['mean'][i])
+            counts_p1.append(tile['count'][i])
+            if D.has_key('2') and D['2']:
+                tile = D['2'][tile_id]
+                means_p2.append(tile['mean'][i])
+                counts_p2.append(tile['count'][i])
+
+        all_tiles['1']['mean'][i] = numpy.mean(means_p1)
+        all_tiles['1']['count'][i] = sum(counts_p1)
+
+        if D.has_key('2') and D['2']:
+            all_tiles['2']['mean'][i] = numpy.mean(means_p2)
+            all_tiles['2']['count'][i] = sum(counts_p2)
+
+    colors = cm.get_cmap('RdYlGn', lut=256)
+
+    plt.grid(True)
+
+    plt.subplots_adjust(left=0.02, bottom = 0.03, top = 0.95, right = 0.98)
+  
+    plt.xticks(range(10, 101, 10), rotation=90, size='xx-small')
+    plt.ylim(ymin = 0, ymax = 42)
+    plt.xlim(xmin = 0, xmax = 100)
+    plt.yticks(range(5, 41, 5), size='xx-small')
+
+    plt.fill_between(range(0, 101), [42 for _ in range(0, 101)], y2 = 0, color = colors(0), alpha = 0.2)
+    plt.plot(all_tiles['1']['mean'], color = 'orange', lw = 6)
+    
+    read_number_percent_dropdown = [42 * (x / all_tiles['1']['count'][0]) for x in all_tiles['1']['count']]
+    if not len(set(read_number_percent_dropdown)) <= 1:
+        plt.fill_between(range(0, 101), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
+
+        plt.text(5, 2.5, '%s' % big_number_pretty_print(all_tiles['1']['count'][0]), alpha=0.5)
+    else:
+        plt.text(5, 2.5, '%s' % big_number_pretty_print(all_tiles['1']['count'][0]), alpha=0.5)
+
+    if all_tiles.has_key('2') and all_tiles['2']:
+        plt.plot(all_tiles['2']['mean'], color = 'purple', lw = 6)
+
+    plt.figtext(0.5, 0.97, '%s' % (title), weight = 'black', size = 'xx-large', ha = 'center')
+
+    try:
+        plt.savefig(dest + '.tiff')
+    except:
+        plt.savefig(dest + '.png')
+
+    return (all_tiles['1']['mean'], all_tiles['2']['mean'])
+
+
 def populate_tiles_qual_dict_from_input(input_1, input_2, tiles_dict = {'1': {}, '2': {}}):
     while input_1.next():
         if input_1.p_available:
