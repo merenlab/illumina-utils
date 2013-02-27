@@ -253,7 +253,7 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False):
         }
    
     there are two entries per pair, for each pair there are N tiles, for ever tile,
-    there are mean, std and count entries, in each of those, there are 101 items,
+    there are mean, std and count entries, in each of those, there are X items,
     where nth item corresponds to the mean of all values at nth location of the
     given tile.
 
@@ -262,6 +262,21 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False):
     title is the title to put on the figure.
     
     """
+
+    # lets find out how many cycles were there. it is going to be about 101 for
+    # hiseq runs, and 251 in miseq runs, but these values may change from run to
+    # run. although all lanes are expected to have the identical number of cycles
+    # the following code makes sure that the number_of_cycles variable holds the
+    # longest one if there is a variation between the number of cycles between
+    # lanes
+    number_of_cycles = 0
+    for pair in ['1', '2']:
+        if not D.has_key(pair):
+            continue
+        for tile in D[pair]:
+            if len(D[pair][tile]['mean']) > number_of_cycles:
+                number_of_cycles = len(D[pair][tile]['mean'])
+
 
     def get_max_count(D, p = '1', tile = None):
         if tile == None:
@@ -310,26 +325,26 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False):
                 plt.grid(True)
                 plt.subplots_adjust(left=0.02, bottom = 0.03, top = 0.95, right = 0.98)
   
-                plt.xticks(range(10, 101, 10), rotation=90, size='xx-small')
+                plt.xticks(range(number_of_cycles / 10, number_of_cycles, number_of_cycles / 10), rotation=90, size='xx-small')
                 plt.ylim(ymin = 0, ymax = 42)
-                plt.xlim(xmin = 0, xmax = 100)
+                plt.xlim(xmin = 0, xmax = number_of_cycles - 1)
                 if _pair == '1':
                     plt.yticks(range(5, 41, 5), size='xx-small')
                 else:
                     plt.yticks(range(5, 41, 5), [])
 
                 if D[_pair].has_key(tile):
-                    plt.fill_between(range(0, 101), [42 for _ in range(0, 101)], y2 = 0, color = colors(D[_pair][tile]['count'][0] / m[_pair]), alpha = 0.2)
+                    plt.fill_between(range(0, number_of_cycles), [42 for _ in range(0, number_of_cycles)], y2 = 0, color = colors(D[_pair][tile]['count'][0] / m[_pair]), alpha = 0.2)
                     subplots[tile][_pair].plot(D[_pair][tile]['mean'], color = _color, lw = 2)
                     
                     read_number_percent_dropdown = [42 * (x / get_max_count(D, _pair, tile)) for x in D[_pair][tile]['count']]
                     if not len(set(read_number_percent_dropdown)) <= 1:
-                        plt.fill_between(range(0, 101), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
+                        plt.fill_between(range(0, number_of_cycles), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
 
                     plt.text(5, 2.5, '%s/%s :: %s' % (tile, _pair, big_number_pretty_print(int(get_max_count(D, _pair, tile)))), alpha=0.8, size = 'x-small')
                 else:
                     plt.text(5, 2.5, '%s/%s :: 0' % (tile, _pair), alpha=0.8, size = 'x-small')
-                    plt.fill_between(range(0, 101), [42 for _ in range(0, 101)], y2 = 0, color = colors(0 / m[_pair]), alpha = 0.2)
+                    plt.fill_between(range(0, number_of_cycles), [42 for _ in range(0, number_of_cycles)], y2 = 0, color = colors(0 / m[_pair]), alpha = 0.2)
 
         Total = lambda p: big_number_pretty_print(int(sum([D[p][x]['count'][0] for x in D[p]])))
 
@@ -346,23 +361,23 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False):
 
             plt.subplots_adjust(left=0.02, bottom = 0.03, top = 0.95, right = 0.98)
   
-            plt.xticks(range(10, 101, 10), rotation=90, size='xx-small')
+            plt.xticks(range(number_of_cycles / 10, number_of_cycles, number_of_cycles / 10), rotation=90, size='xx-small')
             plt.ylim(ymin = 0, ymax = 42)
-            plt.xlim(xmin = 0, xmax = 100)
+            plt.xlim(xmin = 0, xmax = number_of_cycles - 1)
             plt.yticks(range(5, 41, 5), size='xx-small')
 
             if D['1'].has_key(tile):
-                plt.fill_between(range(0, 101), [42 for _ in range(0, 101)], y2 = 0, color = colors(D['1'][tile]['count'][0] / m), alpha = 0.2)
+                plt.fill_between(range(0, number_of_cycles), [42 for _ in range(0, number_of_cycles)], y2 = 0, color = colors(D['1'][tile]['count'][0] / m), alpha = 0.2)
                 subplots[tile].plot(D['1'][tile]['mean'], color = 'orange', lw = 2)
                 
                 read_number_percent_dropdown = [42 * (x / get_max_count(D, tile = tile)) for x in D['1'][tile]['count']]
                 if not len(set(read_number_percent_dropdown)) <= 1:
-                    plt.fill_between(range(0, 101), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
+                    plt.fill_between(range(0, number_of_cycles), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
 
                 plt.text(5, 2.5, '%s :: %s' % (tile, big_number_pretty_print(int(get_max_count(D, tile = tile)))), alpha=0.5)
             else:
                 plt.text(5, 2.5, '%s :: 0' % tile, alpha=0.5)
-                plt.fill_between(range(0, 101), [42 for _ in range(0, 101)], y2 = 0, color = colors(0 / m), alpha = 0.2)
+                plt.fill_between(range(0, number_of_cycles), [42 for _ in range(0, number_of_cycles)], y2 = 0, color = colors(0 / m), alpha = 0.2)
             if D['2'].has_key(tile):
                 subplots[tile].plot(D['2'][tile]['mean'], color = 'purple', lw = 2)
 
@@ -379,17 +394,31 @@ def visualize_qual_stats_dict_single(D, dest, title):
     same as visualize_qual_stats_dict, but puts all tiles together. 
     """
 
+    # first find out how many cycles were there. it is going to be about 101 for
+    # hiseq runs, and 251 in miseq runs, but these values may change from run to
+    # run. although all lanes are expected to have the identical number of cycles
+    # the following code makes sure that the number_of_cycles variable holds the
+    # longest one if there is a variation between the number of cycles between
+    # lanes
+    number_of_cycles = 0
+    for pair in ['1', '2']:
+        if not D.has_key(pair):
+            continue
+        for tile in D[pair]:
+            if len(D[pair][tile]['mean']) > number_of_cycles:
+                number_of_cycles = len(D[pair][tile]['mean'])
+ 
 
     fig = plt.figure(figsize = (12, 8))
     
     plt.rcParams.update({'axes.linewidth' : 0.9})
     plt.rc('grid', color='0.50', linestyle='-', linewidth=0.1)
    
-    all_tiles = {'1': {'mean': [0] * 101, 'count': [0] * 101},
-                 '2': {'mean': [0] * 101, 'count': [0] * 101}
+    all_tiles = {'1': {'mean': [0] * number_of_cycles, 'count': [0] * number_of_cycles},
+                 '2': {'mean': [0] * number_of_cycles, 'count': [0] * number_of_cycles}
                 }
 
-    for i in range(0, 101):
+    for i in range(0, number_of_cycles):
         means_p1 = []
         counts_p1 = []
         means_p2 = []
@@ -416,17 +445,17 @@ def visualize_qual_stats_dict_single(D, dest, title):
 
     plt.subplots_adjust(left=0.02, bottom = 0.03, top = 0.95, right = 0.98)
   
-    plt.xticks(range(10, 101, 10), rotation=90, size='xx-small')
+    plt.xticks(range(number_of_cycles / 10, number_of_cycles, number_of_cycles / 10), rotation=90, size='xx-small')
     plt.ylim(ymin = 0, ymax = 42)
-    plt.xlim(xmin = 0, xmax = 100)
+    plt.xlim(xmin = 0, xmax = number_of_cycles - 1)
     plt.yticks(range(5, 41, 5), size='xx-small')
 
-    plt.fill_between(range(0, 101), [42 for _ in range(0, 101)], y2 = 0, color = colors(0), alpha = 0.2)
+    plt.fill_between(range(0, number_of_cycles), [42 for _ in range(0, number_of_cycles)], y2 = 0, color = colors(0), alpha = 0.2)
     plt.plot(all_tiles['1']['mean'], color = 'orange', lw = 6)
     
     read_number_percent_dropdown = [42 * (x / all_tiles['1']['count'][0]) for x in all_tiles['1']['count']]
     if not len(set(read_number_percent_dropdown)) <= 1:
-        plt.fill_between(range(0, 101), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
+        plt.fill_between(range(0, number_of_cycles), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
 
         plt.text(5, 2.5, '%s' % big_number_pretty_print(all_tiles['1']['count'][0]), alpha=0.5)
     else:
