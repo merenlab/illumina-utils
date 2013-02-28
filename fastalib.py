@@ -10,7 +10,6 @@
 #
 # Please read the docs/COPYING file.
 
-import os
 import sys
 import numpy
 import hashlib
