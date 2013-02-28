@@ -27,6 +27,14 @@ except:
 
 import fastalib as u
 
+
+conv_dict = {'A': 'T',
+             'T': 'A',
+             'C': 'G',
+             'G': 'C',
+             'N': 'N'}
+
+
 def store_cPickle_obj(obj, output_file_path):
     f = gzip.open(output_file_path, 'wb')
     cPickle.dump(obj, f)
@@ -38,6 +46,18 @@ def load_cPickle_obj(obj_file_path):
     obj = cPickle.load(f)
     f.close()
     return obj
+
+def reverse_complement(seq):
+    return ''.join(reversed([conv_dict[n] for n in seq]))
+
+
+def reverse(seq):
+    return ''.join(reversed(seq))
+
+
+def complement(seq):
+    return ''.join([conv_dict[n] for n in seq])
+
 
 
 class ReadIDTracker:
