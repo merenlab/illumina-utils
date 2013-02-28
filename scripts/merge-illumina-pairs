@@ -1,4 +1,4 @@
-#!/bin/env python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import re
@@ -323,6 +323,20 @@ def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_siz
     stats.write('Work directory              \t%s\n' % os.getcwd())
 
     stats.close()
+
+
+    num_mismatches_breakdown_table = open(os.path.join(config.output_directory, output_file_prefix + '_MISMATCHES_BREAKDOWN'), 'w')
+    num_mismatches_breakdown_table.write('%s\t%s\n' % ('num_mismatch', 'count'))
+    
+    for i in range(0, max(num_mismatches_breakdown.keys())):
+        count = 0
+        if num_mismatches_breakdown.has_key(i):
+            count = num_mismatches_breakdown[i]
+            
+        num_mismatches_breakdown_table.write('%d\t%d\n' % (i, count))
+
+    num_mismatches_breakdown_table.close()
+
 
     if compute_qual_dicts:
         ################ quality dicts associated stuff ####################
