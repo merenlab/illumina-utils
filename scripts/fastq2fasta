@@ -6,8 +6,9 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
 
 import fastqlib as u
+from helperfunctions import reverse_complement
 
-def main(input_file_path, output_file_path, number_of_sequences = -1, compressed = False):
+def main(input_file_path, output_file_path, number_of_sequences = -1, rev_comp = False, compressed = False):
     fastq = u.FastQSource(input_file_path, compressed)
     output = u.FileOutput(output_file_path, compressed)
 
@@ -20,7 +21,7 @@ def main(input_file_path, output_file_path, number_of_sequences = -1, compressed
                                               e.x_coord,
                                               e.y_coord,
                                               e.pair_no]),
-                                              e.sequence))
+                                              e.sequence if not rev_comp else reverse_complement(e.sequence)))
         number_of_sequences -= 1
 
     sys.stderr.write('\n')
@@ -33,12 +34,14 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(description='Convert FastQ to FASTA')
-    parser.add_argument('-i', '--input', required=True, metavar = 'INPUT',
+    parser.add_argument('input', metavar = 'INPUT',
                         help = 'FASTQ file to be converted')
     parser.add_argument('-n', '--number-of-sequences', type=int, default = -1,
                         metavar = 'NUMBER', help = 'Number of sequences to be converted')
     parser.add_argument('-o', '--output', help = 'FASTA output (default: [-i]-FASTA-[-n]')
-
+    parser.add_argument('-r', '--rev-comp', action = 'store_true', default = False,
+                            help = 'When set, during the conversion reads will be reverse\
+                                    complemented.')
     args = parser.parse_args()
 
     input_file_path = args.input
@@ -62,4 +65,4 @@ if __name__ == '__main__':
             else:
                 output_file_path = input_file_path + '-FASTA'
 
-    sys.exit(main(input_file_path, output_file_path, args.number_of_sequences, compressed))
+    sys.exit(main(input_file_path, output_file_path, args.number_of_sequences, args.rev_comp, compressed))
