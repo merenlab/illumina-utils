@@ -138,7 +138,8 @@ def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_siz
     merge_failed_total = 0
     merge_passed_total = 0
     num_mismatches_breakdown = {}
-    num_mismatches_breakdown[0] = 0
+    num_mismatches_breakdown['merge passed'] = {}
+    num_mismatches_breakdown['merge passed'][0] = 0
 
     if config.pair_1_prefix:
         pair_1_prefix_compiled = re.compile(config.pair_1_prefix)
@@ -156,6 +157,15 @@ def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_siz
     failed = f.FastaOutput(os.path.join(config.output_directory, output_file_prefix + '_FAILED' ))
     withNs = f.FastaOutput(os.path.join(config.output_directory, output_file_prefix + '_FAILED_WITH_Ns' ))
     
+    def record_num_mismatches(number_of_mismatches, merging_result = 'merged'):
+        if not num_mismatches_breakdown.has_key(merging_result):
+            num_mismatches_breakdown[merging_result] = {}
+              
+        if not num_mismatches_breakdown[merging_result].has_key(number_of_mismatches):
+            num_mismatches_breakdown[merging_result][number_of_mismatches] = 1
+        else:
+            num_mismatches_breakdown[merging_result][number_of_mismatches] += 1
+                    
     ########################################################################################################################
     # merging..
     ########################################################################################################################
@@ -181,7 +191,7 @@ def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_siz
                                 % (index + 1,
                                    len(config.pair_1),
                                    passed_prefix_total * 100.0 / actual_number_of_pairs,
-                                   num_mismatches_breakdown[0] * 100.0 / (passed_prefix_total or 1)
+                                   num_mismatches_breakdown['merge passed'][0] * 100.0 / (passed_prefix_total or 1)
                                    ))
                 else:
                     input_1.print_percentage('[Merging %d of %d]' % (index + 1, len(config.pair_1)))
@@ -231,21 +241,19 @@ def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_siz
                 if 'N' in merged_sequence or 'n' in merged_sequence:
                     withNs.write_id('%s|o:%d|m/o:%f|mismatches:%d' % (input_1.entry.header_line, len_overlap, p, number_of_mismatches))
                     withNs.write_seq(merged_sequence, split = False)
+                    record_num_mismatches(number_of_mismatches, 'merge failed due to N')
                     pairs_eliminated_due_to_Ns += 1
                     continue
-            
-            if not num_mismatches_breakdown.has_key(number_of_mismatches):
-                num_mismatches_breakdown[number_of_mismatches] = 1
-            else:
-                num_mismatches_breakdown[number_of_mismatches] += 1
 
             if p > 0.3 or len_overlap < min_overlap_size:
                 failed.write_id('%s|o:%d|m/o:%f|mismatches:%d' % (input_1.entry.header_line, len_overlap, p, number_of_mismatches))
                 failed.write_seq(merged_sequence, split = False)
+                record_num_mismatches(number_of_mismatches, 'merge failed due to m/o ratio')
                 merge_failed_total += 1
             else:
                 output.write_id('%s|o:%d|o/m:%f|mismatches:%d' % (input_1.entry.header_line, len_overlap, p, number_of_mismatches))
                 output.write_seq(merged_sequence, split = False)
+                record_num_mismatches(number_of_mismatches, 'merge passed')
                 merge_passed_total += 1
 
             if compute_qual_dicts:
@@ -316,24 +324,28 @@ def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_siz
     stats.write('Merge eliminated due to Ns\t%d\n' % pairs_eliminated_due_to_Ns)
     stats.write('\nMismatches breakdown:\n\n')
 
-    for i in sorted(num_mismatches_breakdown.keys()):
-        stats.write('%d\t%d\n' % (i, num_mismatches_breakdown[i]))
+    for i in sorted(num_mismatches_breakdown['merge passed'].keys()):
+        stats.write('%d\t%d\n' % (i, num_mismatches_breakdown['merge passed'][i]))
     
     stats.write('\n\nCommand line            \t%s\n' % ' '.join(sys.argv))
     stats.write('Work directory              \t%s\n' % os.getcwd())
 
     stats.close()
 
-
     num_mismatches_breakdown_table = open(os.path.join(config.output_directory, output_file_prefix + '_MISMATCHES_BREAKDOWN'), 'w')
-    num_mismatches_breakdown_table.write('%s\t%s\n' % ('num_mismatch', 'count'))
+    categories = num_mismatches_breakdown.keys()
+    num_mismatches_breakdown_table.write('%s\t%s\n' % ('num_mismatch', '\t'.join(categories)))
     
-    for i in range(0, max(num_mismatches_breakdown.keys())):
-        count = 0
-        if num_mismatches_breakdown.has_key(i):
-            count = num_mismatches_breakdown[i]
+    for i in range(0, max([max(num_mismatches_breakdown[x].keys()) for x in num_mismatches_breakdown])):
+        mismatch_counts = []
+        for category in categories:
+            count = 0
+            if num_mismatches_breakdown[category].has_key(i):
+                count = num_mismatches_breakdown[category][i]
             
-        num_mismatches_breakdown_table.write('%d\t%d\n' % (i, count))
+            mismatch_counts.append(count)
+            
+        num_mismatches_breakdown_table.write('%d\t%s\n' % (i, '\t'.join([str(x) for x in mismatch_counts])))
 
     num_mismatches_breakdown_table.close()
 
