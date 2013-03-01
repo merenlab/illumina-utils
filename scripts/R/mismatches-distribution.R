@@ -35,17 +35,22 @@ if(file.access(input_file) == -1){
 	stop(sprintf("Specified file '%s' does not exist", input_file))
 }
 
+input_file <- '/Users/meren/Desktop/MBL/illumina-utils/sample-files/merged/out_MISMATCHES_BREAKDOWN'
+
 # load data frame.
 df <- as.data.frame(read.csv(input_file, header=TRUE, sep="\t"))
 row.names <- df$samples
 col.names <- colnames(df)
 
+df <- melt(df,  id = 'num_mismatch', variable_name = 'bins')
+
 P <- function(){
-	p = ggplot(df, aes(x = num_mismatch, y = count))
+	p = ggplot(df, aes(x = num_mismatch, y = value, colour = bins, group = bins))
 	p <- p + geom_line()
 	p <- p + geom_point()
 	p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 7))
 	p <- p + theme(axis.text.y = element_text(size = 7))
+	p <- p + theme(legend.position = 'bottom')
 	p <- p + labs(x='Number of Mistmaches', y='Number of Pairs')
 	p <- p + ggtitle(options$title)
 	p <- p + coord_cartesian(xlim=c(-1, df$num_mismatch + 1))
