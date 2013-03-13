@@ -56,6 +56,22 @@ def RepresentsInt(s):
         return False
 
 
+def get_rp_match(seq, reverse_primer):
+    offset = 70
+    rp_match = None
+
+    while 1:
+        m = reverse_primer.search(seq, offset)
+                
+        if not m:
+            break
+        else:
+            rp_match = m
+            offset = m.start() + 1
+
+    return rp_match
+
+
 def main(config, archaea = False, visualize_quality_curves = False, recover_ambiguous_bases = False):
     
     if archaea:
@@ -176,8 +192,10 @@ def main(config, archaea = False, visualize_quality_curves = False, recover_ambi
             # looking for reverse primer:
             #####################################################################################
 
-            rp1 = reverse_primer.search(s1, 70)
-            rp2 = reverse_primer.search(s2, 70)
+
+            # find all instances of matching
+            rp1 = get_rp_match(s1, reverse_primer)
+            rp2 = get_rp_match(s2, reverse_primer)
 
             if (not rp1) or (not rp2):
                 # reverse primer wasn't there for at least one read
