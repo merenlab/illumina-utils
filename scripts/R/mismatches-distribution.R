@@ -8,7 +8,6 @@ suppressPackageStartupMessages(library(gtools))
 suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(optparse))
 
-
 #Êcommand line options
 option_list <- list(
 		make_option(c("-o", "--output_file_prefix"), default="unknown",
