@@ -1,5 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# Copyright (C) 2011, A. Murat Eren
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Please read the COPYING file.
+
 
 import re
 import os
@@ -11,7 +20,6 @@ import operator
 import subprocess
 import ConfigParser
 
-sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
 
 try:
     import Levenshtein as l
@@ -26,23 +34,17 @@ except:
     LEVENSHTEIN_FOUND = False 
 
 
-import fastqlib as u
-import fastalib as f
-from runconfiguration import RunConfiguration
-from runconfiguration import ConfigError
-from helperfunctions import visualize_qual_stats_dict
+import IlluminaUtils.lib.fastqlib as u
+import IlluminaUtils.lib.fastalib as f
+from IlluminaUtils.utils.runconfiguration import RunConfiguration
+from IlluminaUtils.utils.runconfiguration import ConfigError
+from IlluminaUtils.utils.helperfunctions import visualize_qual_stats_dict
+from IlluminaUtils.utils.helperfunctions import colorize
+from IlluminaUtils.utils.helperfunctions import conv_dict
 
-def colorize(sequence):
-    Green = lambda s: '\033[30m\033[42m' + s + '' + '\033[0m'
-    return Green(sequence)
-
-conv_dict = {'A': 'T',
-             'T': 'A',
-             'C': 'G',
-             'G': 'C',
-             'N': 'N'}
 
 bases_upper_case = set(conv_dict.keys())
+
 
 NumberOfConflicts = lambda s: sum([True for n in s if n in bases_upper_case])
 ConflictPositions = lambda s: [i for i in range(0, len(s)) if s[i] in bases_upper_case]

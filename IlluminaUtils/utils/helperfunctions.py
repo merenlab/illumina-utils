@@ -7,7 +7,7 @@
 # Software Foundation; either version 2 of the License, or (at your option)
 # any later version.
 #
-# Please read the docs/COPYING file.
+# Please read the COPYING file.
 #
 
 import os
@@ -25,7 +25,7 @@ except:
     print "No matplotlib found"
 
 
-import fastalib as u
+import IlluminaUtils.lib.fastalib as u
 
 
 conv_dict = {'A': 'T',
@@ -35,17 +35,24 @@ conv_dict = {'A': 'T',
              'N': 'N'}
 
 
+def colorize(sequence):
+    Green = lambda s: '\033[30m\033[42m' + s + '' + '\033[0m'
+    return Green(sequence)
+
+
 def store_cPickle_obj(obj, output_file_path):
     f = gzip.open(output_file_path, 'wb')
     cPickle.dump(obj, f)
     f.close()
     return True
 
+
 def load_cPickle_obj(obj_file_path):
     f = gzip.open(obj_file_path, 'rb')
     obj = cPickle.load(f)
     f.close()
     return obj
+
 
 def reverse_complement(seq):
     return ''.join(reversed([conv_dict[n] for n in seq]))

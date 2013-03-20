@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
 #
+# Copyright (C) 2011, A. Murat Eren
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Please read the COPYING file.
+#
+#
+#
 # Evolving Python utility library for Illumina stuff (for CASAVA 1.7+ pipeline).
 #
 # Questions, suggestions: A. Murat Eren <a.murat.eren / gmail>
@@ -22,15 +33,16 @@
 #        if input.entry.Q_mean > 20:
 #            output.store_entry(input.entry)
 #    ---------------------------------------------------------
-#
+
 
 import os
 import sys
 import gzip
 import numpy
 
-from helperfunctions import big_number_pretty_print
-from helperfunctions import predict_file_length
+from IlluminaUtils.utils.helperfunctions import big_number_pretty_print
+from IlluminaUtils.utils.helperfunctions import predict_file_length
+
 
 class FastQLibError(Exception):
     pass

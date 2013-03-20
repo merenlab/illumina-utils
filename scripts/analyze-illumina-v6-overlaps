@@ -1,7 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
+# Copyright (C) 2011, A. Murat Eren
 #
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Please read the COPYING file.
+
+
 # This script takes an .ini file and analyzes overlapping V6 overlapped pairs to extract
 # perfect V6 reads (=after cleaning the primers, reverse-complement of second pair perfectly
 # matches to the first pair)
@@ -31,18 +40,19 @@ import copy
 import numpy
 import ConfigParser
 
-sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
 
 E = os.path.exists
 J = os.path.join
 
-import fastqlib as u
-from runconfiguration import RunConfiguration
-from helperfunctions import ReadIDTracker 
-from helperfunctions import QualityScoresHandler
-from helperfunctions import visualize_qual_stats_dict
-from helperfunctions import store_cPickle_obj
-from helperfunctions import load_cPickle_obj
+
+import IlluminaUtils.lib.fastqlib as u
+from IlluminaUtils.utils.runconfiguration import RunConfiguration
+from IlluminaUtils.utils.helperfunctions import ReadIDTracker 
+from IlluminaUtils.utils.helperfunctions import QualityScoresHandler
+from IlluminaUtils.utils.helperfunctions import visualize_qual_stats_dict
+from IlluminaUtils.utils.helperfunctions import store_cPickle_obj
+from IlluminaUtils.utils.helperfunctions import load_cPickle_obj
+
 
 class ConfigError(Exception):
     pass

@@ -8,11 +8,13 @@
 # Software Foundation; either version 2 of the License, or (at your option)
 # any later version.
 #
-# Please read the docs/COPYING file.
+# Please read the COPYING file.
+
 
 import sys
 import numpy
 import hashlib
+
 
 class FastaOutput:
     def __init__(self, output_file_path):

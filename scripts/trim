@@ -1,11 +1,19 @@
 #!/usr/usr/bin/env python
 # -*- coding: utf-8 -*-
+# Copyright (C) 2011, A. Murat Eren
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Please read the COPYING file.
+
 import os
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
+import IlluminaUtils.lib.fastqlib as u
 
-import fastqlib as u
 
 def main(input_file_path, output_file_path, trim_to, compressed):
     input = u.FastQSource(input_file_path, compressed)
@@ -18,6 +26,7 @@ def main(input_file_path, output_file_path, trim_to, compressed):
 
     sys.stderr.write('\n')
     return
+
 
 if __name__ == '__main__':
     import argparse
