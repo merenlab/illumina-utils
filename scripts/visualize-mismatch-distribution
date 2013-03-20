@@ -8,7 +8,8 @@ suppressPackageStartupMessages(library(gtools))
 suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(optparse))
 
-#Êcommand line options
+
+# command line options
 option_list <- list(
 		make_option(c("-o", "--output_file_prefix"), default="unknown",
 				help = "Output file prefix for visualization files [default \"%default\"]"),
@@ -16,11 +17,13 @@ option_list <- list(
 				help="Title for the output figure [default '%default']")
 )
 
-parser <- OptionParser(usage = "%prog [options] input_file", option_list=option_list)
+parser <- OptionParser(usage = "visualize-mismatch-distribution [options] input_file", option_list=option_list,
+                        description="An R program to visualize the mismatch breakdown output of merge-illumina-pairs script")
+
 arguments <- parse_args(parser, positional_arguments = TRUE)
 options <- arguments$options
 
-#Êcheck if the positional argument is set
+# check if the positional argument is set
 if(length(arguments$args) != 1) {
 	cat("Incorrect number of required positional arguments\n\n")
 	print_help(parser)
@@ -58,7 +61,7 @@ P <- function(){
 }
 
 
-#Êdetermine the appropriate width for visualization
+# determine the appropriate width for visualization
 num_x_items <- length(row.names)
 pdf_w <- num_x_items / 4
 if(num_x_items < 40)
