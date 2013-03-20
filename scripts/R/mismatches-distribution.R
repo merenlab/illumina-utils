@@ -35,8 +35,6 @@ if(file.access(input_file) == -1){
 	stop(sprintf("Specified file '%s' does not exist", input_file))
 }
 
-input_file <- '/Users/meren/Desktop/MBL/illumina-utils/sample-files/merged/out_MISMATCHES_BREAKDOWN'
-
 # load data frame.
 df <- as.data.frame(read.csv(input_file, header=TRUE, sep="\t"))
 row.names <- df$samples
