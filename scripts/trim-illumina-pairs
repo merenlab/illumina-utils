@@ -15,11 +15,11 @@ import sys
 import IlluminaUtils.lib.fastqlib as u
 
 
-def main(input_file_path, output_file_path, trim_to, compressed):
+def main(input_file_path, output_file_path, trim_from, trim_to, compressed):
     input = u.FastQSource(input_file_path, compressed)
     output = u.FastQOutput(output_file_path, compressed)
 
-    while input.next(trim_to = trim_to):
+    while input.next(trim_from = trim_from, trim_to = trim_to, raw = True):
         if input.p_available:
             input.print_percentage()
         output.store_entry(input.entry)
@@ -32,9 +32,10 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(description='Trim Illumina reads')
-    parser.add_argument('-i', '--input', required=True, metavar = 'INPUT', help = 'FASTQ file to be trimmed')
-    parser.add_argument('-l', '--length', required=True, type=int, metavar = 'LENGTH', help = 'Expected length of trimmed sequences')
-    parser.add_argument('-o', '--output', help = 'Where trimmed sequences will be written (default: [-i]-TRIMMED-TO-[-l]')
+    parser.add_argument('input', metavar = 'FILE_PATH', help = 'FASTQ file to be trimmed')
+    parser.add_argument('output', metavar = 'FILE_PATH', help = 'Where trimmed sequences will be written (default: [-i]-TRIMMED-TO-[-l]')
+    parser.add_argument('-f', '--trim-from', type=int, metavar = 'INT', help = 'Trim from', default=0)
+    parser.add_argument('-t', '--trim-to', type=int, metavar = 'INT', help = 'Trim to', default=sys.maxint)
 
     args = parser.parse_args()
 
@@ -42,15 +43,9 @@ if __name__ == '__main__':
     
     compressed = input_file_path.endswith('.gz')
     
-    if args.output:
-        if compressed and not args.output.endswith('.gz'):
-            output_file_path = args.output + '.gz'
-        else:
-            output_file_path = args.output
+    if compressed and not args.output.endswith('.gz'):
+        output_file_path = args.output + '.gz'
     else:
-        if compressed:
-            output_file_path = input_file_path[:-3] + '-TRIMMED-TO-%d.gz' % args.length 
-        else:
-            output_file_path = input_file_path + '-TRIMMED-TO-%d' % args.length
+        output_file_path = args.output
 
-    sys.exit(main(input_file_path, output_file_path, args.length, compressed))
+    sys.exit(main(input_file_path, output_file_path, args.trim_from, args.trim_to, compressed))
