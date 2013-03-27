@@ -422,4 +422,5 @@ if __name__ == '__main__':
                   args.compute_qual_dicts,
                   args.min_overlap_size,
                   args.fast_merge,
-                  args.debug))
+                  args.debug,
+                  args.ignore_Ns))
