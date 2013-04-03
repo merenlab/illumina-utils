@@ -52,7 +52,7 @@ if __name__ == '__main__':
     parser.add_argument('input', metavar = 'FILE_PATH', help = 'FASTA file to be filtered')
     parser.add_argument('-o', '--output', type=str, default = None, metavar = 'FILE_PATH',
                         help = 'Where filtered reads will be written (default: [-i]-MAX-MISMATCH-[-m]')
-    parser.add_argument('-m', '--max-mismatches', type=int, metavar = 'INT', default=2,
+    parser.add_argument('-m', '--max-mismatches', type=int, metavar = 'INT', default=3,
                         help = 'Maximum number of mismatches allowed in the overlapped region')
 
     args = parser.parse_args()
