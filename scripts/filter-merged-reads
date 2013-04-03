@@ -1,0 +1,64 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# Copyright (C) 2011, A. Murat Eren
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Please read the COPYING file.
+
+import os
+import sys
+
+import IlluminaUtils.lib.fastalib as u
+from IlluminaUtils.utils.runconfiguration import ConfigError
+
+def main(input_file_path, output_file_path, max_mismatches):
+    input = u.SequenceSource(input_file_path)
+    output = u.FastaOutput(output_file_path)
+
+    num_passed = 0
+
+    while input.next():
+        if input.pos % 1000 == 0 or input.pos == 1:
+            sys.stderr.write('\rFiltering reads with max %d mismatches: %d [%d found]' % (max_mismatches, input.pos, num_passed))
+            sys.stderr.flush()
+
+        num_mismatches = sys.maxint
+        
+        try:
+            num_mismatches = int(input.id.split('mismatches:')[1].strip())
+        except:
+            print '\n\tError: Unexpected header format (expected to find "mismatches:" in the header, but failed).'
+            sys.exit(-1)
+        
+        if num_mismatches > max_mismatches:
+            continue
+        else:
+            num_passed += 1
+            output.store(input, split = False)
+
+    sys.stderr.write('\n')
+    output.close()
+    return
+
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Filter reads from a merged file based on maximum mismatches at the overlapped region')
+    parser.add_argument('input', metavar = 'FILE_PATH', help = 'FASTA file to be filtered')
+    parser.add_argument('-o', '--output', type=str, default = None, metavar = 'FILE_PATH',
+                        help = 'Where filtered reads will be written (default: [-i]-MAX-MISMATCH-[-m]')
+    parser.add_argument('-m', '--max-mismatches', type=int, metavar = 'INT', default=2,
+                        help = 'Maximum number of mismatches allowed in the overlapped region')
+
+    args = parser.parse_args()
+
+    input_file_path = args.input
+    max_mismatches = 0 if args.max_mismatches < 0 else args.max_mismatches
+    output_file_path = args.output if args.output else '%s-MAX-MISMATCH-%d' % (args.input, max_mismatches)
+
+    sys.exit(main(input_file_path, output_file_path, max_mismatches))
