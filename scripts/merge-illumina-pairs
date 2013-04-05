@@ -51,7 +51,7 @@ ConflictPositions = lambda s: [i for i in range(0, len(s)) if s[i] in bases_uppe
 
 def merge_two_sequences_fast(seq1, seq2, min_overlap_size = 10, debug = False):
     smallest, ind = sys.maxint, 0
-    for i in range(min_overlap_size, len(seq1)):
+    for i in range(min_overlap_size, min(len(seq1), len(seq2))):
         d = l.distance(seq1[-i:], seq2[:i])
         if d <= smallest:
             smallest = d
