@@ -399,6 +399,8 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False):
                 
                 read_number_percent_dropdown = [42 * (x / get_max_count(D, tile = tile)) for x in D['1'][tile]['count']]
                 if not len(set(read_number_percent_dropdown)) <= 1:
+                    if len(read_number_percent_dropdown) < number_of_cycles:
+                        read_number_percent_dropdown += [0] * (number_of_cycles - len(read_number_percent_dropdown)) 
                     plt.fill_between(range(0, number_of_cycles), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
 
                 plt.text(5, 2.5, '%s :: %s' % (tile, big_number_pretty_print(int(get_max_count(D, tile = tile)))), alpha=0.5)
