@@ -5,6 +5,7 @@ This is a small library and a bunch of clients to perform various operations on 
 
 In this README file you will find information about the following items:
 
+* Obtaining the source code. 
 * Config file format library requires.
 * Merging partially overlapping illumina pairs.
 * Quality filtering script for "Complete Overlap" approach which is described in a recently submitted manuscript (once the reference is available, this file will be updated).
@@ -17,6 +18,8 @@ You can get in touch with me via `meren at mbl dot edu`.
 # Contents
 
 - [Contents](#contents)
+- [Obtaining the Source Code](#obtaining-the-source-code)
+    - [Requirements](#requirements)
 - [Config File Format](#config-file-format)
     - [[general] section](#general-section)
     - [[files] section](#files-section)
@@ -33,6 +36,36 @@ You can get in touch with me via `meren at mbl dot edu`.
         - [Example STATS output:](#example-stats-output)
         - [Example PNG files](#example-png-files)
 - [Questions?](#questions)
+
+
+# Obtaining the Source Code
+
+You can create a copy of the codebase by simply installing `git` and running this command in your terminal window:
+
+     git clone git://github.com/meren/illumina-utils.git
+
+This will generate the `illumina-utils` directory within the directory from which you run this command. Or you can simply download the zipped codebase through your browser and unzip it. Although it is not mandatory, having `git` installed and learning how to use it have advantages such as being able to keep your copy updated by synchronizing it with the master repository by simply typing `git pull` in your terminal window. However, if you do not wish to use `git`, you can always reach the zipped archive file of the latest version of the codebase via this link:
+
+     https://github.com/meren/illumina-utils/archive/master.zip
+
+Once you have the codebase, you should update your `PYTHONPATH` and `PATH` environment variables for easy access to the scripts and required libraries. You can do it by adding the following two lines in your `.bashrc` file (it is a hidden file in your home directory, you can reach it by opening a terminal window and typing "nano ~/.bashrc"):
+
+     export PYTHONPATH=$PYTHONPATH:/path-to/illumina-utils/
+     export PATH=$PATH:/path-to/illumina-utils/scripts
+
+Please remember to replace _`path-to`_ place holder in the lines above with the actual path that points the where `illumina-utils` directory is on your file system.
+
+## Requirements
+
+In order to use this software package fully, you need following items available on your system:
+
+- [matplotlib](http://matplotlib.org/) (required for visualizations)
+- [python-Levenshtein](https://pypi.python.org/pypi/python-Levenshtein/) (required for fast merge of partially overlapping reads)
+- [EMBOSS](http://emboss.sourceforge.net/) (`merger` is a part of EMBOSS software distribution and it is used for alignment of partially overlapping reads (when `--fast-merge` option is not used))
+- [R](http://r-project.org) (required for visualizations today and will be used for statistical analyses)
+    - [ggplot2](http://ggplot2.org/) (the R module that needs to be installed for R requirement)
+
+
 
 # Config File Format
 
