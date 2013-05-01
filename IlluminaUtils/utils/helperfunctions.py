@@ -240,7 +240,7 @@ def visualize_sequence_length_distribution(fasta_file_path, dest, title, max_seq
 
 
     try:
-        plt.savefig(dest + '.tiff')
+        plt.savefig(dest + '.pdf')
     except:
         plt.savefig(dest + '.png')
 
