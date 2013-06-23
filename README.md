@@ -8,7 +8,7 @@ In this README file you will find information about the following items:
 * Obtaining the source code. 
 * Config file format library requires.
 * Merging partially overlapping illumina pairs.
-* Quality filtering script for "Complete Overlap" approach which is described in a recently submitted manuscript (once the reference is available, this file will be updated).
+* Quality filtering script for "Complete Overlap" approach described by [Eren _et al_](http://www.plosone.org/article/info:doi/10.1371/journal.pone.0066643).
 * Quality filtering script that uses the method described by [Minoche _et al_](http://genomebiology.com/2011/12/11/R112).
 * Quality filtering script that uses the method described by [Bokulich _et al_](http://www.nature.com/nmeth/journal/v10/n1/full/nmeth.2276.html).
 
