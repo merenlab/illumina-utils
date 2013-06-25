@@ -67,10 +67,7 @@ def merge_two_sequences_fast(seq1, seq2, min_overlap_size = 10, debug = False):
     for i in range(0, len(overlap_1)):
         if overlap_1[i] != overlap_2[i]:
             mismatches += 1
-            if reverse:
-                overlap += overlap_2[i].upper()
-            else:
-                overlap += overlap_1[i].upper()
+            overlap += overlap_1[i].upper()
         else:
             overlap += overlap_1[i]
 
