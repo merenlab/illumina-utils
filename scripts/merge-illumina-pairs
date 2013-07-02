@@ -26,7 +26,7 @@ try:
     LEVENSHTEIN_FOUND = True
 except:
     print '''
-    WARNING: --fast-merge parameter requires Levenshtein module, which seems to not installed on this machine. Here is a fast implementation of Levenshtein distance for Python:
+    WARNING: This script requires Levenshtein module, which seems to not installed on this machine. Here is a fast implementation of Levenshtein distance for Python:
 
         http://code.google.com/p/pylevenshtein/
 
@@ -125,7 +125,7 @@ def complement(seq):
     return ''.join([conv_dict[n] for n in seq])
 
 
-def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_size = 15, fast_merge = False, debug = False, ignore_Ns = False):
+def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_size = 15, slow_merge = False, debug = False, ignore_Ns = False):
 
     actual_number_of_pairs = 0
     pairs_eliminated_due_to_Ns = 0
@@ -224,12 +224,12 @@ def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_siz
                 passed_prefix_total += 1
 
             # merging..
-            if fast_merge:
-                # uses Levenshtein distance.
-                merged_sequence = merge_two_sequences_fast(input_1.entry.sequence, reverse_complement(input_2.entry.sequence), min_overlap_size, debug)
-            else:
+            if slow_merge:
                 # uses EMBOSS 'merger'
                 merged_sequence = merge_two_sequences(input_1.entry.sequence, reverse_complement(input_2.entry.sequence), debug)
+            else:
+                # uses Levenshtein distance.
+                merged_sequence = merge_two_sequences_fast(input_1.entry.sequence, reverse_complement(input_2.entry.sequence), min_overlap_size, debug)
             
             number_of_mismatches = NumberOfConflicts(merged_sequence)
             len_overlap = (len(input_1.entry.sequence) + len(input_2.entry.sequence)) - len(merged_sequence)
@@ -385,13 +385,14 @@ if __name__ == '__main__':
                                         help = 'When set, qual ditcs will be computed. May take a\
                                                 very long time for datasets with more than a\
                                                 million pairs.')
-    parser.add_argument('--fast-merge', action = 'store_true', default = False,
+    parser.add_argument('--slow-merge', action = 'store_true', default = False,
                                         help = 'When set, merging operation is performed using\
-                                                Levenshtein distance. Otherwise "merger" tool\
-                                                in EMBOSS package is being used. Levenshtein is\
-                                                fast, but merger will give you more accurate\
-                                                results, since Levenshtein method cannot handle\
-                                                insertion or deletion errors well.')
+                                                pairwise sequence alignment via "merger" tool\
+                                                in EMBOSS package. Otherwise, the default way \
+                                                of merging reads rely on Levenshtein distance, which\
+                                                is a very fast and quite accurate way of merging reads\
+                                                when insertion or deletion errors are not common in the\
+                                                dataset (which is mostly the case for Illumina data).')
     parser.add_argument('--debug', action = 'store_true', default = False,
                                         help = 'When set, debug messages will be printed')
     parser.add_argument('--ignore-Ns', action = 'store_true', default = False,
@@ -410,14 +411,18 @@ if __name__ == '__main__':
         print
         sys.exit()
 
-    if args.fast_merge and not LEVENSHTEIN_FOUND:
-        print "\n    WARNING: You declared --fast-merge, but there is no module for Levenshtein distance computation. Falling back to default.\n\n"
-        args.fast_merge = False
+    if (not args.slow_merge) and not LEVENSHTEIN_FOUND:
+        print """\n
+        ERROR: When the appropriate Python module for Levenshtein
+        distance is not present, you have to use --slow-merge
+        parameter. Please install the module (suggested), or
+        re-run the script with --slow-merge parameter.\n\n"""
+        sys.exit()
 
     sys.exit(main(config,
                   args.output_file_prefix,
                   args.compute_qual_dicts,
                   args.min_overlap_size,
-                  args.fast_merge,
+                  args.slow_merge,
                   args.debug,
                   args.ignore_Ns))
