@@ -41,6 +41,7 @@ from IlluminaUtils.utils.runconfiguration import ConfigError
 from IlluminaUtils.utils.helperfunctions import visualize_qual_stats_dict
 from IlluminaUtils.utils.helperfunctions import colorize
 from IlluminaUtils.utils.helperfunctions import conv_dict
+from IlluminaUtils.utils.helperfunctions import reverse_complement 
 
 
 bases_upper_case = set(conv_dict.keys())
@@ -49,325 +50,452 @@ bases_upper_case = set(conv_dict.keys())
 NumberOfConflicts = lambda s: sum([True for n in s if n in bases_upper_case])
 ConflictPositions = lambda s: [i for i in range(0, len(s)) if s[i] in bases_upper_case]
 
-def merge_two_sequences_fast(seq1, seq2, min_overlap_size = 10, debug = False):
-    smallest, ind = sys.maxint, 0
-    for i in range(min_overlap_size, min(len(seq1), len(seq2))):
-        d = l.distance(seq1[-i:], seq2[:i])
-        if d <= smallest:
-            smallest = d
-            ind = i
 
-    beg = seq1[0:len(seq1) - ind].lower()
-    overlap_1 = seq1[len(seq1) - ind:].lower()
-    overlap_2 = seq2[:ind].lower()
-    end = seq2[ind:].lower()
-    overlap = ''
+
+class MergerStats:
+    def __init__(self):
+        self.actual_number_of_pairs = 0
+        self.pairs_eliminated_due_to_Ns = 0
+        self.prefix_failed_in_pair_1_total = 0
+        self.prefix_failed_in_pair_2_total = 0
+        self.prefix_failed_in_both_pairs_total = 0
+        self.passed_prefix_total = 0
+        self.failed_prefix_total = 0
+        self.merge_failed_total = 0
+        self.merge_passed_total = 0
+        self.num_mismatches_breakdown = {}
+        self.num_mismatches_breakdown['merge passed'] = {}
+        self.num_mismatches_breakdown['merge passed'][0] = 0
+        self.total_number_of_mismatches = 0
+        self.num_mismatches_recovered_from_read_1 = 0
+        self.num_mismatches_recovered_from_read_2 = 0
+        self.num_mismatches_replaced_with_N = 0
+
+    def write_stats(self, output_file_path, merger_object):
+        stats = open(output_file_path, 'w')
+
+        stats.write('Number of pairs analyzed        \t%d\n' % self.actual_number_of_pairs)
+        stats.write('Prefix failed in read 1         \t%d\n' % self.prefix_failed_in_pair_1_total)
+        stats.write('Prefix failed in read 2         \t%d\n' % self.prefix_failed_in_pair_2_total)
+        stats.write('Prefix failed in both           \t%d\n' % self.prefix_failed_in_both_pairs_total)
+        stats.write('Passed prefix total             \t%d\n' % self.passed_prefix_total)
+        stats.write('Failed prefix total             \t%d\n' % self.failed_prefix_total)
+        stats.write('Merged total                    \t%d\n' % self.merge_passed_total)
+        stats.write('Merge failed total              \t%d\n' % self.merge_failed_total)
+        stats.write('Total number of mismatches      \t%d\n' % self.total_number_of_mismatches)
+        stats.write('Mismatches recovered from read 1\t%d\n' % self.num_mismatches_recovered_from_read_1)
+        stats.write('Mismatches recovered from read 2\t%d\n' % self.num_mismatches_recovered_from_read_2)
+        stats.write('Mismatches replaced with N      \t%d\n' % self.num_mismatches_replaced_with_N)
+        stats.write('Merge eliminated due to Ns      \t%d\n' % self.pairs_eliminated_due_to_Ns)
+        stats.write('\nMismatches breakdown:\n\n')
     
-    mismatches = 0
-    for i in range(0, len(overlap_1)):
-        if overlap_1[i] != overlap_2[i]:
-            mismatches += 1
-            overlap += overlap_1[i].upper()
-        else:
-            overlap += overlap_1[i]
-
-    if debug:
-        print
-        print beg + colorize(overlap) + end
-
-    return beg + overlap + end
-
-
-def merge_two_sequences(seq1, seq2, debug = False):
-    temp_seq_1 = tempfile.NamedTemporaryFile(delete=False)
-    temp_seq_1_path = temp_seq_1.name
-    temp_seq_2 = tempfile.NamedTemporaryFile(delete=False)
-    temp_seq_2_path = temp_seq_2.name
-    temp_merge_path = tempfile.NamedTemporaryFile(delete=False).name
+        for i in sorted(self.num_mismatches_breakdown['merge passed'].keys()):
+            stats.write('%d\t%d\n' % (i, self.num_mismatches_breakdown['merge passed'][i]))
+        
+        stats.write('\n\nCommand line            \t%s\n' % ' '.join(sys.argv))
+        stats.write('Work directory              \t%s\n' % os.getcwd())
+        stats.write('"p" value                   \t%f\n' % merger_object.p_value)
+        stats.write('Min overlap size            \t%s\n' % merger_object.min_overlap_size)
+        stats.write('Min Q-score for mismatches  \t%s\n' % merger_object.min_qual_score)
+        stats.write('Ns ignored?                 \t%s\n' % merger_object.ignore_Ns)
+        stats.write('Slow merge?                 \t%s\n' % merger_object.slow_merge)
     
-    temp_seq_1.write('>1\n' + seq1 + '\n')
-    temp_seq_2.write('>2\n' + seq2 + '\n')
+        stats.close()
+
+
+    def write_mismatches_breakdown_table(self, output_file_path):
+        num_mismatches_breakdown_table = open(output_file_path, 'w')
+        categories = self.num_mismatches_breakdown.keys()
+        num_mismatches_breakdown_table.write('%s\t%s\n' % ('num_mismatch', '\t'.join(categories)))
+        
+        for i in range(0, max([max(self.num_mismatches_breakdown[x].keys()) for x in self.num_mismatches_breakdown])):
+            mismatch_counts = []
+            for category in categories:
+                count = 0
+                if self.num_mismatches_breakdown[category].has_key(i):
+                    count = self.num_mismatches_breakdown[category][i]
+                
+                mismatch_counts.append(count)
+                
+            num_mismatches_breakdown_table.write('%d\t%s\n' % (i, '\t'.join([str(x) for x in mismatch_counts])))
     
-    temp_seq_1.close()
-    temp_seq_2.close()
-
-    merger_process = ['merger', temp_seq_1_path, temp_seq_2_path, '-outseq', temp_merge_path, '-gapopen', '25', '-outfile', '/dev/null']
-    if subprocess.call(merger_process, stderr=open('/dev/null', 'w')) == 0:
-        merged = f.SequenceSource(temp_merge_path)
-        merged.next()
-        merged.close()
-
-        os.remove(temp_seq_1_path)
-        os.remove(temp_seq_2_path)
-        os.remove(temp_merge_path)
-
-        if debug:
-            overlap_beg = len(seq1) - (len(seq1) + len(seq2) - len(merged.seq))
-            overlap_end = overlap_beg + (len(seq1) + len(seq2) - len(merged.seq))
-            print
-            print ''.join([merged.seq[:overlap_beg], colorize(merged.seq[overlap_beg:overlap_end]), merged.seq[overlap_end:]])
-
-        return merged.seq
-    else:
-        print 'Something went wrong while merging these: \n\n%s\n--\n%s\n\n' % (seq1, seq2)
-        sys.exit(-2)
-
-
-def reverse_complement(seq):
-    return ''.join(reversed([conv_dict[n] for n in seq]))
-
-
-def reverse(seq):
-    return ''.join(reversed(seq))
-
-
-def complement(seq):
-    return ''.join([conv_dict[n] for n in seq])
-
-
-def main(config, output_file_prefix, compute_qual_dicts = False, min_overlap_size = 15, slow_merge = False, debug = False, ignore_Ns = False):
-
-    actual_number_of_pairs = 0
-    pairs_eliminated_due_to_Ns = 0
-    prefix_failed_in_pair_1_total = 0
-    prefix_failed_in_pair_2_total = 0
-    prefix_failed_in_both_pairs_total = 0
-    passed_prefix_total = 0
-    failed_prefix_total = 0
-    merge_failed_total = 0
-    merge_passed_total = 0
-    num_mismatches_breakdown = {}
-    num_mismatches_breakdown['merge passed'] = {}
-    num_mismatches_breakdown['merge passed'][0] = 0
-
-    if config.pair_1_prefix:
-        pair_1_prefix_compiled = re.compile(config.pair_1_prefix)
-    else:
-        pair_1_prefix_compiled = None
+        num_mismatches_breakdown_table.close()
     
-    if config.pair_2_prefix:
-        pair_2_prefix_compiled = re.compile(config.pair_2_prefix)
-    else:
-        pair_2_prefix_compiled = None
-
-    mean_quals_per_mismatch = {}
-
-    output = f.FastaOutput(os.path.join(config.output_directory, output_file_prefix + '_MERGED' ))
-    failed = f.FastaOutput(os.path.join(config.output_directory, output_file_prefix + '_FAILED' ))
-    withNs = f.FastaOutput(os.path.join(config.output_directory, output_file_prefix + '_FAILED_WITH_Ns' ))
-    
-    def record_num_mismatches(number_of_mismatches, merging_result = 'merged'):
-        if not num_mismatches_breakdown.has_key(merging_result):
-            num_mismatches_breakdown[merging_result] = {}
-              
-        if not num_mismatches_breakdown[merging_result].has_key(number_of_mismatches):
-            num_mismatches_breakdown[merging_result][number_of_mismatches] = 1
-        else:
-            num_mismatches_breakdown[merging_result][number_of_mismatches] += 1
-                    
-    ########################################################################################################################
-    # merging..
-    ########################################################################################################################
-
-    #sys.stderr.write('POK: "Percent of all pairs that did present the prefix defined by the user\n"')
-    #sys.stderr.write('ZM : "Percent of all pairs that merged with 0 mismatch\n"')
-
-    for index in range(0, len(config.pair_1)):
-        try:
-            F = lambda x: os.path.basename(x).split('.')[0]
-            input_1 = u.FastQSource(config.pair_1[index], compressed = config.pair_1[index].endswith('.gz'))
-            input_2 = u.FastQSource(config.pair_2[index], compressed = config.pair_2[index].endswith('.gz'))
-
-        except u.FastQLibError, e:
-            print "FastQLib is not happy.\n\n\t", e, "\n"
-            sys.exit()
-
-        while input_1.next() and input_2.next():
-            actual_number_of_pairs += 1
-            if input_1.p_available:
-                if pair_1_prefix_compiled or pair_2_prefix_compiled:
-                    input_1.print_percentage('[Merging %d of %d] POK: %.1f%% :: ZM: %.1f%%' \
-                                % (index + 1,
-                                   len(config.pair_1),
-                                   passed_prefix_total * 100.0 / actual_number_of_pairs,
-                                   num_mismatches_breakdown['merge passed'][0] * 100.0 / (passed_prefix_total or 1)
-                                   ))
-                else:
-                    input_1.print_percentage('[Merging %d of %d]' % (index + 1, len(config.pair_1)))
-
-            # taking care of prefixes if there are any..
-            if pair_1_prefix_compiled:
-                pattern_1 = pair_1_prefix_compiled.search(input_1.entry.sequence)
-                if pattern_1:
-                    input_1.entry.trim(trim_from = pattern_1.end())
-                    
-            if pair_2_prefix_compiled:
-                pattern_2 = pair_2_prefix_compiled.search(input_2.entry.sequence)
-                if pattern_2:
-                    input_2.entry.trim(trim_from = pattern_2.end())
-
-            failed_prefix = False
-            
-            if pair_1_prefix_compiled and (not pattern_1):
-                failed_prefix = True
-                prefix_failed_in_pair_1_total += 1
-            if pair_2_prefix_compiled and (not pattern_2):
-                failed_prefix = True
-                prefix_failed_in_pair_2_total += 1
-            if (pair_1_prefix_compiled and (not pattern_1)) and (pair_2_prefix_compiled and (not pattern_2)):
-                prefix_failed_in_both_pairs_total += 1
-
-            if failed_prefix:
-                failed_prefix_total += 1
-                continue
-            if not failed_prefix:
-                passed_prefix_total += 1
-
-            # merging..
-            if slow_merge:
-                # uses EMBOSS 'merger'
-                merged_sequence = merge_two_sequences(input_1.entry.sequence, reverse_complement(input_2.entry.sequence), debug)
-            else:
-                # uses Levenshtein distance.
-                merged_sequence = merge_two_sequences_fast(input_1.entry.sequence, reverse_complement(input_2.entry.sequence), min_overlap_size, debug)
-            
-            number_of_mismatches = NumberOfConflicts(merged_sequence)
-            len_overlap = (len(input_1.entry.sequence) + len(input_2.entry.sequence)) - len(merged_sequence)
-           
-            p = 1.0 * number_of_mismatches / len_overlap
-
-            if not ignore_Ns:
-                if 'N' in merged_sequence or 'n' in merged_sequence:
-                    withNs.write_id('%s|o:%d|m/o:%f|mismatches:%d' % (input_1.entry.header_line, len_overlap, p, number_of_mismatches))
-                    withNs.write_seq(merged_sequence, split = False)
-                    record_num_mismatches(number_of_mismatches, 'merge failed due to N')
-                    pairs_eliminated_due_to_Ns += 1
-                    continue
-
-            if p > 0.3 or len_overlap < min_overlap_size:
-                failed.write_id('%s|o:%d|m/o:%f|mismatches:%d' % (input_1.entry.header_line, len_overlap, p, number_of_mismatches))
-                failed.write_seq(merged_sequence, split = False)
-                record_num_mismatches(number_of_mismatches, 'merge failed due to m/o ratio')
-                merge_failed_total += 1
-            else:
-                output.write_id('%s|o:%d|o/m:%f|mismatches:%d' % (input_1.entry.header_line, len_overlap, p, number_of_mismatches))
-                output.write_seq(merged_sequence, split = False)
-                record_num_mismatches(number_of_mismatches, 'merge passed')
-                merge_passed_total += 1
-
-            if compute_qual_dicts:
-                ################ quality dicts associated stuff ####################
-                q1 = input_1.entry.process_Q_list()
-                q2 = input_2.entry.process_Q_list()
-                tile_number = input_1.entry.tile_number
-              
-                if number_of_mismatches >= 10:
-                    ind = 10
-                else:
-                    ind = number_of_mismatches
-
-                if not mean_quals_per_mismatch.has_key(ind):
-                    mean_quals_per_mismatch[ind] = {}
-
-                tiles_dict = mean_quals_per_mismatch[ind]
-
-                if not tiles_dict.has_key('1'):
-                    tiles_dict['1'] = {}
-                if not tiles_dict.has_key('2'):
-                    tiles_dict['2'] = {}
-
-                if not tiles_dict['1'].has_key(tile_number):
-                    tiles_dict['1'][tile_number] = {'mean': [0] * len(q1), 'std': [0] * len(q1), 'count': [0] * len(q1)}
-                if not tiles_dict['2'].has_key(tile_number):
-                    tiles_dict['2'][tile_number] = {'mean': [0] * len(q2), 'std': [0] * len(q2), 'count': [0] * len(q2)}
-
-                # if there is a length varaition:
-                if len(q1) > len(tiles_dict['1'][tile_number]['mean']):
-                    diff = len(q1) - len(tiles_dict['1'][tile_number]['mean'])
-                    for attr in ['mean', 'std', 'count']:
-                        for d in range(0, diff):
-                            tiles_dict['1'][tile_number][attr].append(0)
-                if len(q2) > len(tiles_dict['2'][tile_number]['mean']):
-                    diff = len(q2) - len(tiles_dict['2'][tile_number]['mean'])
-                    for attr in ['mean', 'std', 'count']:
-                        for d in range(0, diff):
-                            tiles_dict['2'][tile_number][attr].append(0)
-
-
-                for i in range(0, len(q1)):
-                    tiles_dict['1'][tile_number]['mean'][i] += q1[i]
-                    tiles_dict['1'][tile_number]['count'][i] += 1
-                for i in range(0, len(q2)):
-                    tiles_dict['2'][tile_number]['mean'][i] += q2[i]
-                    tiles_dict['2'][tile_number]['count'][i] += 1
-                    
-                ################ / quality dicts associated stuff ####################
  
-        print
-        input_1.close()
-        input_2.close()
-
-    output.close()
-    failed.close()
-    withNs.close()
-
-    stats = open(os.path.join(config.output_directory, output_file_prefix + '_STATS'), 'w')
-    stats.write('Number of pairs analyzed  \t%d\n' % actual_number_of_pairs)
-    stats.write('Prefix failed in Pair 1   \t%d\n' % prefix_failed_in_pair_1_total)
-    stats.write('Prefix failed in Pair 2   \t%d\n' % prefix_failed_in_pair_2_total)
-    stats.write('Prefix failed in both     \t%d\n' % prefix_failed_in_both_pairs_total)
-    stats.write('Passed prefix total       \t%d\n' % passed_prefix_total)
-    stats.write('Failed prefix total       \t%d\n' % failed_prefix_total)
-    stats.write('Merged total              \t%d\n' % merge_passed_total)
-    stats.write('Merge failed total        \t%d\n' % merge_failed_total)
-    stats.write('Merge eliminated due to Ns\t%d\n' % pairs_eliminated_due_to_Ns)
-    stats.write('\nMismatches breakdown:\n\n')
-
-    for i in sorted(num_mismatches_breakdown['merge passed'].keys()):
-        stats.write('%d\t%d\n' % (i, num_mismatches_breakdown['merge passed'][i]))
+    def record_num_mismatches(self, number_of_mismatches, merging_result = 'merged'):
+        if not self.num_mismatches_breakdown.has_key(merging_result):
+            self.num_mismatches_breakdown[merging_result] = {}
+                  
+        if not self.num_mismatches_breakdown[merging_result].has_key(number_of_mismatches):
+            self.num_mismatches_breakdown[merging_result][number_of_mismatches] = 1
+        else:
+            self.num_mismatches_breakdown[merging_result][number_of_mismatches] += 1
+ 
     
-    stats.write('\n\nCommand line            \t%s\n' % ' '.join(sys.argv))
-    stats.write('Work directory              \t%s\n' % os.getcwd())
+    def process_recovery_dict(self, recovery_dict):
+        self.total_number_of_mismatches += sum(recovery_dict.values())
+        self.num_mismatches_recovered_from_read_1 += recovery_dict['read_1']
+        self.num_mismatches_recovered_from_read_2 += recovery_dict['read_2']
+        self.num_mismatches_replaced_with_N += recovery_dict['none']
+        
 
-    stats.close()
+class Merger:
+    def __init__(self, config, output_file_prefix):
+        self.config = config
+        self.output_file_prefix = output_file_prefix
+        self.compute_qual_dicts = False
+        self.p_value = 0.3
+        self.min_overlap_size = 15
+        self.min_qual_score = 10
+        self.slow_merge = False
+        self.debug = False
+        self.ignore_Ns = False 
 
-    num_mismatches_breakdown_table = open(os.path.join(config.output_directory, output_file_prefix + '_MISMATCHES_BREAKDOWN'), 'w')
-    categories = num_mismatches_breakdown.keys()
-    num_mismatches_breakdown_table.write('%s\t%s\n' % ('num_mismatch', '\t'.join(categories)))
+        if self.config.pair_1_prefix:
+            self.pair_1_prefix_compiled = re.compile(self.config.pair_1_prefix)
+        else:
+            self.pair_1_prefix_compiled = None
+        
+        if self.config.pair_2_prefix:
+            self.pair_2_prefix_compiled = re.compile(self.config.pair_2_prefix)
+        else:
+            self.pair_2_prefix_compiled = None
+
+        # used for visualization: 
+        self.mean_quals_per_mismatch = {}
+
+        self.output = f.FastaOutput(os.path.join(self.config.output_directory, self.output_file_prefix + '_MERGED' ))
+        self.failed = f.FastaOutput(os.path.join(self.config.output_directory, self.output_file_prefix + '_FAILED' ))
+        self.withNs = f.FastaOutput(os.path.join(self.config.output_directory, self.output_file_prefix + '_FAILED_WITH_Ns' ))
+
+        self.stats = MergerStats()
+
+
+    def run(self):                         
+        #sys.stderr.write('POK: "Percent of all pairs that did present the prefix defined by the user\n"')
+        #sys.stderr.write('ZM : "Percent of all pairs that merged with 0 mismatch\n"')
     
-    for i in range(0, max([max(num_mismatches_breakdown[x].keys()) for x in num_mismatches_breakdown])):
-        mismatch_counts = []
-        for category in categories:
-            count = 0
-            if num_mismatches_breakdown[category].has_key(i):
-                count = num_mismatches_breakdown[category][i]
-            
-            mismatch_counts.append(count)
-            
-        num_mismatches_breakdown_table.write('%d\t%s\n' % (i, '\t'.join([str(x) for x in mismatch_counts])))
+        for index in range(0, len(self.config.pair_1)):
+            try:
+                F = lambda x: os.path.basename(x).split('.')[0]
+                self.input_1 = u.FastQSource(self.config.pair_1[index], compressed = self.config.pair_1[index].endswith('.gz'))
+                self.input_2 = u.FastQSource(self.config.pair_2[index], compressed = self.config.pair_2[index].endswith('.gz'))
+    
+            except u.FastQLibError, e:
+                print "FastQLib is not happy.\n\n\t", e, "\n"
+                sys.exit()
+    
+            while self.input_1.next() and self.input_2.next():
+                self.stats.actual_number_of_pairs += 1
+                if self.input_1.p_available:
+                    if self.pair_1_prefix_compiled or self.pair_2_prefix_compiled:
+                        self.input_1.print_percentage('[Merging %d of %d] POK: %.1f%% :: ZM: %.1f%%' \
+                                    % (index + 1,
+                                       len(self.config.pair_1),
+                                       self.stats.passed_prefix_total * 100.0 / self.stats.actual_number_of_pairs,
+                                       self.stats.num_mismatches_breakdown['merge passed'][0] * 100.0 / (self.stats.passed_prefix_total or 1)
+                                       ))
+                    else:
+                        self.input_1.print_percentage('[Merging %d of %d]' % (index + 1, len(self.config.pair_1)))
+    
+                # taking care of prefixes if there are any..
+                if self.pair_1_prefix_compiled:
+                    pattern_1 = self.pair_1_prefix_compiled.search(self.input_1.entry.sequence)
+                    if pattern_1:
+                        self.input_1.entry.trim(trim_from = pattern_1.end())
+                        
+                if self.pair_2_prefix_compiled:
+                    pattern_2 = self.pair_2_prefix_compiled.search(self.input_2.entry.sequence)
+                    if pattern_2:
+                        self.input_2.entry.trim(trim_from = pattern_2.end())
+    
+                failed_prefix = False
+                
+                if self.pair_1_prefix_compiled and (not pattern_1):
+                    failed_prefix = True
+                    self.stats.prefix_failed_in_pair_1_total += 1
+                if self.pair_2_prefix_compiled and (not pattern_2):
+                    failed_prefix = True
+                    self.stats.prefix_failed_in_pair_2_total += 1
+                if (self.pair_1_prefix_compiled and (not pattern_1)) and (self.pair_2_prefix_compiled and (not pattern_2)):
+                    self.stats.prefix_failed_in_both_pairs_total += 1
+    
+                if failed_prefix:
+                    self.stats.failed_prefix_total += 1
+                    continue
+                if not failed_prefix:
+                    self.stats.passed_prefix_total += 1
+    
+    
+                number_of_mismatches, recovery_dict = None, {}
+                # merging..
+                if self.slow_merge:
+                    # uses EMBOSS 'merger'
+                    merged_sequence, number_of_mismatches, recovery_dict = self.merge_two_sequences()
+                else:
+                    # uses Levenshtein distance.
+                    merged_sequence, number_of_mismatches, recovery_dict = self.merge_two_sequences_fast()
+                
+                
+                # record the info in recovery dict
+                self.stats.process_recovery_dict(recovery_dict)
+               
+                # find out about 'p' 
+                len_overlap = (len(self.input_1.entry.sequence) + len(self.input_2.entry.sequence)) - len(merged_sequence)
+                p = 1.0 * number_of_mismatches / len_overlap
+    
+                # generate the header line
+                header_line = '%s|o:%d|m/o:%f|MR:%s|mismatches:%d' % (self.input_1.entry.header_line,
+                                                                      len_overlap,
+                                                                      p,
+                                                                      'n=%d;r1=%d;r2=%d' % (recovery_dict['none'],
+                                                                                            recovery_dict['read_1'],
+                                                                                            recovery_dict['read_2']),
+                                                                      number_of_mismatches)
+    
+                if not self.ignore_Ns:
+                    if 'N' in merged_sequence or 'n' in merged_sequence:
+                        self.withNs.write_id(header_line)
+                        self.withNs.write_seq(merged_sequence, split = False)
+                        self.stats.record_num_mismatches(number_of_mismatches, 'merge failed due to N')
+                        self.stats.pairs_eliminated_due_to_Ns += 1
+                        continue
+    
+                if p > self.p_value or len_overlap < self.min_overlap_size:
+                    self.failed.write_id(header_line)
+                    self.failed.write_seq(merged_sequence, split = False)
+                    self.stats.record_num_mismatches(number_of_mismatches, 'merge failed due to m/o ratio')
+                    self.stats.merge_failed_total += 1
+                else:
+                    self.output.write_id(header_line)
+                    self.output.write_seq(merged_sequence, split = False)
+                    self.stats.record_num_mismatches(number_of_mismatches, 'merge passed')
+                    self.stats.merge_passed_total += 1
 
-    num_mismatches_breakdown_table.close()
+
+                # FIXME: this is ridiculous. visualization of the Q-score curves associated
+                # part needs to be moved somewhere else.
+                if self.compute_qual_dicts:
+                    ################ quality dicts associated stuff ####################
+                    if not self.input_1.entry.Q_list:
+                        q1 = self.input_1.entry.process_Q_list()
+                        q2 = self.input_2.entry.process_Q_list()
+                    else:
+                        q1 = self.input_1.entry.Q_list
+                        q2 = self.input_2.entry.Q_list
+        
+                    tile_number = self.input_1.entry.tile_number
+                  
+                    if number_of_mismatches >= 10:
+                        ind = 10
+                    else:
+                        ind = number_of_mismatches
+    
+                    if not self.mean_quals_per_mismatch.has_key(ind):
+                        self.mean_quals_per_mismatch[ind] = {}
+    
+                    tiles_dict = self.mean_quals_per_mismatch[ind]
+    
+                    if not tiles_dict.has_key('1'):
+                        tiles_dict['1'] = {}
+                    if not tiles_dict.has_key('2'):
+                        tiles_dict['2'] = {}
+    
+                    if not tiles_dict['1'].has_key(tile_number):
+                        tiles_dict['1'][tile_number] = {'mean': [0] * len(q1), 'std': [0] * len(q1), 'count': [0] * len(q1)}
+                    if not tiles_dict['2'].has_key(tile_number):
+                        tiles_dict['2'][tile_number] = {'mean': [0] * len(q2), 'std': [0] * len(q2), 'count': [0] * len(q2)}
+    
+                    # if there is a length varaition:
+                    if len(q1) > len(tiles_dict['1'][tile_number]['mean']):
+                        diff = len(q1) - len(tiles_dict['1'][tile_number]['mean'])
+                        for attr in ['mean', 'std', 'count']:
+                            for d in range(0, diff):
+                                tiles_dict['1'][tile_number][attr].append(0)
+                    if len(q2) > len(tiles_dict['2'][tile_number]['mean']):
+                        diff = len(q2) - len(tiles_dict['2'][tile_number]['mean'])
+                        for attr in ['mean', 'std', 'count']:
+                            for d in range(0, diff):
+                                tiles_dict['2'][tile_number][attr].append(0)
+    
+    
+                    for i in range(0, len(q1)):
+                        tiles_dict['1'][tile_number]['mean'][i] += q1[i]
+                        tiles_dict['1'][tile_number]['count'][i] += 1
+                    for i in range(0, len(q2)):
+                        tiles_dict['2'][tile_number]['mean'][i] += q2[i]
+                        tiles_dict['2'][tile_number]['count'][i] += 1
+                        
+                    ################ / quality dicts associated stuff ####################
+     
+            print
+            self.input_1.close()
+            self.input_2.close()
+    
+        self.output.close()
+        self.failed.close()
+        self.withNs.close()
+    
+        self.stats.write_stats(os.path.join(self.config.output_directory, self.output_file_prefix + '_STATS'), self)
+        self.stats.write_mismatches_breakdown_table(os.path.join(self.config.output_directory, self.output_file_prefix + '_MISMATCHES_BREAKDOWN'))
+    
+   
+        if self.compute_qual_dicts:
+            ################ quality dicts associated stuff ####################
+            #finalizing mean_quals_per_mismatch dict:
+            for ind in self.mean_quals_per_mismatch.keys():
+                for pair in ['1', '2']:
+                    for tile in self.mean_quals_per_mismatch[ind][pair]:
+                        for i in range(0, len(self.mean_quals_per_mismatch[ind][pair][tile]['mean'])):
+                            self.mean_quals_per_mismatch[ind][pair][tile]['mean'][i] = self.mean_quals_per_mismatch[ind][pair][tile]['mean'][i] * 1.0 \
+                                                                                  / self.mean_quals_per_mismatch[ind][pair][tile]['count'][i]
+    
+            # visualizing quals
+            for ind in self.mean_quals_per_mismatch.keys():
+                sys.stderr.write('\rVisualizing Qual Scores: %d of %d' % (self.mean_quals_per_mismatch.keys().index(ind) + 1,
+                                                                          len(self.mean_quals_per_mismatch.keys())))
+                sys.stderr.flush()
+                visualize_qual_stats_dict(self.mean_quals_per_mismatch[ind], os.path.join(self.config.output_directory, self.output_file_prefix + '_QUALS_%d_MISMATCH' % ind),\
+                                            title = 'Machine Reported Mean PHRED Scores for Pairs Merged with %d Mismatches' % ind if ind != 1 else \
+                                                    'Machine Reported Mean PHRED Scores for Pairs Merged with 1 Mismatch')
+            print
+            ################ / quality dicts associated stuff ####################
+
+    def get_read_id_with_better_base_qual(self, base_index_in_read_1, base_index_in_reversed_read_2):
+        """when there is a disagreement regarding a base between pairs at the,
+           overlapped region, such as this one:
+           
+           read 1: AAAAAAAAAAAAAAAAAAAAAAAAAAAA
+           read 2:                AAAATAAAAAAAAAAAAAAAAAAAAAAAA
+                                      ^
+           
+           there can be two outcome for the merged sequence: we would either use
+           the base in read 1, in which case merged sequence would look like this:
+           
+                   AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+                                      ^
+           
+           or we would use the base in read 2 that would result with this one:
+           
+                   AAAAAAAAAAAAAAAAAAATAAAAAAAAAAAAAAAAAAAAAAAA
+                                      ^
+        
+        
+           this function takes both reads and returns the read id (1 or 2) that has
+           a higher quality score assigned by the sequencer for the base that is
+           in question. if the higher quality score is still lower than
+           min_qual_score parameter, 0 is returned as read id.
+           """
+
+        obj_read_1 = self.input_1.entry
+        obj_read_2 = self.input_2.entry
+
+        if not obj_read_1.Q_list:
+            obj_read_1.process_Q_list()
+            obj_read_2.process_Q_list()
+         
+        base_qual_in_read_1 = obj_read_1.Q_list[base_index_in_read_1]
+        base_qual_in_read_2 = obj_read_2.Q_list[::-1][base_index_in_reversed_read_2] 
+       
+        # if neither of the bases in question satisfies min_qual_score expectation,
+        # return 0. in this case dispute will resolve to an ambiguous base in the
+        # merged sequence 
+        if max([base_qual_in_read_1, base_qual_in_read_2]) < self.min_qual_score:
+            return 0
+        
+        if base_qual_in_read_1 >= base_qual_in_read_2:
+            return 1
+        else:
+            return 2
+    
+
+    def merge_two_sequences_fast(self):
+        obj_read_1 = self.input_1.entry
+        obj_read_2 = self.input_2.entry
+        
+        seq1 = obj_read_1.sequence
+        seq2 = reverse_complement(obj_read_2.sequence)
+    
+        smallest, ind = sys.maxint, 0
+        for i in range(self.min_overlap_size, min(len(seq1), len(seq2))):
+            d = l.distance(seq1[-i:], seq2[:i])
+            if d <= smallest:
+                smallest = d
+                ind = i
+    
+        overlap_starts_in_seq_1 = len(seq1) - ind
+        overlap_ends_in_seq_2 = ind
+    
+        beg = seq1[0:len(seq1) - ind].lower()
+        overlap_1 = seq1[overlap_starts_in_seq_1:].lower()
+        overlap_2 = seq2[:overlap_ends_in_seq_2].lower()
+        end = seq2[ind:].lower()
+        overlap = ''
+        
+        recovery_dict = {'none': 0, 'read_1': 0, 'read_2': 0}
+        for i in range(0, len(overlap_1)):
+            if overlap_1[i] != overlap_2[i]:
+                # MISMATCH FOUND!
+                
+                read_id_with_better_base_qual = self.get_read_id_with_better_base_qual(overlap_starts_in_seq_1 + i, i)
+                
+                if read_id_with_better_base_qual == 0:
+                    overlap += 'N'.upper()
+                    recovery_dict['none'] += 1
+                elif read_id_with_better_base_qual == 1:
+                    overlap += overlap_1[i].upper()
+                    recovery_dict['read_1'] += 1
+                elif read_id_with_better_base_qual == 2:
+                    overlap += overlap_2[i].upper()
+                    recovery_dict['read_2'] += 1
+            else:
+                overlap += overlap_1[i]
+    
+        if self.debug:
+            print
+            print beg + colorize(overlap) + end
+    
+        return ((beg + overlap + end), sum(recovery_dict.values()), recovery_dict)
 
 
-    if compute_qual_dicts:
-        ################ quality dicts associated stuff ####################
-        #finalizing mean_quals_per_mismatch dict:
-        for ind in mean_quals_per_mismatch.keys():
-            for pair in ['1', '2']:
-                for tile in mean_quals_per_mismatch[ind][pair]:
-                    for i in range(0, len(mean_quals_per_mismatch[ind][pair][tile]['mean'])):
-                        mean_quals_per_mismatch[ind][pair][tile]['mean'][i] = mean_quals_per_mismatch[ind][pair][tile]['mean'][i] * 1.0 \
-                                                                              / mean_quals_per_mismatch[ind][pair][tile]['count'][i]
+    def merge_two_sequences(self):
+        seq1 = obj_pair_1.sequence
+        seq2 = reverse_complement(obj_pair_2.sequence)
+    
+        temp_seq_1 = tempfile.NamedTemporaryFile(delete=False)
+        temp_seq_1_path = temp_seq_1.name
+        temp_seq_2 = tempfile.NamedTemporaryFile(delete=False)
+        temp_seq_2_path = temp_seq_2.name
+        temp_merge_path = tempfile.NamedTemporaryFile(delete=False).name
+        
+        temp_seq_1.write('>1\n' + seq1 + '\n')
+        temp_seq_2.write('>2\n' + seq2 + '\n')
+        
+        temp_seq_1.close()
+        temp_seq_2.close()
+    
+        merger_process = ['merger', temp_seq_1_path, temp_seq_2_path, '-outseq', temp_merge_path, '-gapopen', '25', '-outfile', '/dev/null']
+        if subprocess.call(merger_process, stderr=open('/dev/null', 'w')) == 0:
+            merged = f.SequenceSource(temp_merge_path)
+            merged.next()
+            merged.close()
+    
+            os.remove(temp_seq_1_path)
+            os.remove(temp_seq_2_path)
+            os.remove(temp_merge_path)
+    
+            if debug:
+                overlap_beg = len(seq1) - (len(seq1) + len(seq2) - len(merged.seq))
+                overlap_end = overlap_beg + (len(seq1) + len(seq2) - len(merged.seq))
+                print
+                print ''.join([merged.seq[:overlap_beg], colorize(merged.seq[overlap_beg:overlap_end]), merged.seq[overlap_end:]])
+    
+            return (merged.seq, NumberOfConflicts(merged.seq), {'none': 0, 'read_1': 0, 'read_2': 0})
+        else:
+            print 'Something went wrong while merging these: \n\n%s\n--\n%s\n\n' % (seq1, seq2)
+            sys.exit(-2)
 
-        # visualizing quals
-        for ind in mean_quals_per_mismatch.keys():
-            sys.stderr.write('\rVisualizing Qual Scores: %d of %d' % (mean_quals_per_mismatch.keys().index(ind) + 1, len(mean_quals_per_mismatch.keys())))
-            sys.stderr.flush()
-            visualize_qual_stats_dict(mean_quals_per_mismatch[ind], os.path.join(config.output_directory, output_file_prefix + '_QUALS_%d_MISMATCH' % ind),\
-                                        title = 'Machine Reported Mean PHRED Scores for Pairs Merged with %d Mismatches' % ind if ind != 1 else \
-                                                'Machine Reported Mean PHRED Scores for Pairs Merged with 1 Mismatch')
-        print
-        ################ / quality dicts associated stuff ####################
+
 
 
 if __name__ == '__main__':
@@ -379,8 +507,28 @@ if __name__ == '__main__':
     parser.add_argument('output_file_prefix', metavar = 'OUTPUT_FILE_PREFIX',
                                         help = 'Output file prefix (which will be used as a prefix\
                                                 for files that appear in output directory)')
-    parser.add_argument('--min-overlap-size', type = int, default = 15,
+    parser.add_argument('--min-overlap-size', type = int, default = 15, metavar = 'INT',
                                         help = 'Minimum expected overlap. Default is %(default)d.')
+    parser.add_argument('--min-qual-score', type = int, default = 10, metavar = 'INT',
+                                        help = 'Minimum Q-score for a base to overwrite a mismatch\
+                                                at the overlapped region. If there is a mismatch at\
+                                                the overlapped region, the base with higher quality\
+                                                is being used in the final sequence. Alternatively,\
+                                                if the Q-score of the base with higher quality is\
+                                                lower than the Q-score declared with this parameter,\
+                                                that base is being marked as an ambiguous base, which\
+                                                may result in the elimination of the merged sequence\
+                                                depending on the --ignore-Ns paranmeter. The default\
+                                                value is %(default)d.')
+    parser.add_argument('--p-value', type = float, default = 0.3, metavar = 'FLOAT',
+                                        help = 'Any merged sequence with P value below declared value\
+                                                with this parameter is discarded and stored in the\
+                                                failed merges file. P value is computed by dividing\
+                                                the number of mismatches at the overlapped region by\
+                                                the length of the overlapped region. So, if the length\
+                                                of the overlapped region is 30 nt long, and there are\
+                                                3 mismatches in the overlapped region, P would be\
+                                                3 / 30 = 0.1. The default value for P is %(default)f.')
     parser.add_argument('--compute-qual-dicts', action = 'store_true', default = False,
                                         help = 'When set, qual ditcs will be computed. May take a\
                                                 very long time for datasets with more than a\
@@ -401,6 +549,12 @@ if __name__ == '__main__':
                                                 merged pairs with Ns stay in the merged pairs bin.')
 
     args = parser.parse_args()
+    
+    if not os.path.exists(args.user_config):
+        print "Config file does not exist (at least not at '%s')." % args.user_config
+        print
+        sys.exit()
+    
     user_config = ConfigParser.ConfigParser()
     user_config.read(args.user_config)
 
@@ -419,10 +573,14 @@ if __name__ == '__main__':
         re-run the script with --slow-merge parameter.\n\n"""
         sys.exit()
 
-    sys.exit(main(config,
-                  args.output_file_prefix,
-                  args.compute_qual_dicts,
-                  args.min_overlap_size,
-                  args.slow_merge,
-                  args.debug,
-                  args.ignore_Ns))
+
+    merger = Merger(config, args.output_file_prefix)
+    merger.p_value = args.p_value
+    merger.min_overlap_size = args.min_overlap_size
+    merger.min_qual_score = args.min_qual_score
+    merger.compute_qual_dicts = args.compute_qual_dicts
+    merger.slow_merge = args.slow_merge
+    merger.debug = args.debug
+    merger.ignore_Ns = args.ignore_Ns
+
+    sys.exit(merger.run())
