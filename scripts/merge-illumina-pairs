@@ -56,6 +56,8 @@ class MergerStats:
     def __init__(self):
         self.actual_number_of_pairs = 0
         self.pairs_eliminated_due_to_Ns = 0
+        self.pairs_eliminated_due_to_P = 0
+        self.pairs_eliminated_due_to_Q30 = 0
         self.prefix_failed_in_pair_1_total = 0
         self.prefix_failed_in_pair_2_total = 0
         self.prefix_failed_in_both_pairs_total = 0
@@ -70,6 +72,9 @@ class MergerStats:
         self.num_mismatches_recovered_from_read_1 = 0
         self.num_mismatches_recovered_from_read_2 = 0
         self.num_mismatches_replaced_with_N = 0
+        self.num_Q30_fails_in_read_1 = 0
+        self.num_Q30_fails_in_read_2 = 0
+        self.num_Q30_fails_in_both = 0
 
     def write_stats(self, output_file_path, merger_object):
         stats = open(output_file_path, 'w')
@@ -82,11 +87,13 @@ class MergerStats:
         stats.write('Failed prefix total             \t%d\n' % self.failed_prefix_total)
         stats.write('Merged total                    \t%d\n' % self.merge_passed_total)
         stats.write('Merge failed total              \t%d\n' % self.merge_failed_total)
+        stats.write('Merge discarded due to P        \t%d\n' % self.pairs_eliminated_due_to_P)
+        stats.write('Merge discarded due to Ns       \t%d\n' % self.pairs_eliminated_due_to_Ns)
+        stats.write('Merge discarded due to Q30      \t%d\n' % self.pairs_eliminated_due_to_Q30)
         stats.write('Total number of mismatches      \t%d\n' % self.total_number_of_mismatches)
         stats.write('Mismatches recovered from read 1\t%d\n' % self.num_mismatches_recovered_from_read_1)
         stats.write('Mismatches recovered from read 2\t%d\n' % self.num_mismatches_recovered_from_read_2)
         stats.write('Mismatches replaced with N      \t%d\n' % self.num_mismatches_replaced_with_N)
-        stats.write('Merge eliminated due to Ns      \t%d\n' % self.pairs_eliminated_due_to_Ns)
         stats.write('\nMismatches breakdown:\n\n')
     
         for i in sorted(self.num_mismatches_breakdown['merge passed'].keys()):
@@ -98,6 +105,7 @@ class MergerStats:
         stats.write('Min overlap size            \t%s\n' % merger_object.min_overlap_size)
         stats.write('Min Q-score for mismatches  \t%s\n' % merger_object.min_qual_score)
         stats.write('Ns ignored?                 \t%s\n' % merger_object.ignore_Ns)
+        stats.write('Q30 enforced?               \t%s\n' % merger_object.enforce_Q30_check)
         stats.write('Slow merge?                 \t%s\n' % merger_object.slow_merge)
     
         stats.close()
@@ -140,16 +148,17 @@ class MergerStats:
         
 
 class Merger:
-    def __init__(self, config, output_file_prefix):
+    def __init__(self, config):
         self.config = config
-        self.output_file_prefix = output_file_prefix
+        self.output_file_prefix = None
         self.compute_qual_dicts = False
         self.p_value = 0.3
         self.min_overlap_size = 15
         self.min_qual_score = 10
         self.slow_merge = False
         self.debug = False
-        self.ignore_Ns = False 
+        self.ignore_Ns = False
+        self.enforce_Q30_check = False
 
         if self.config.pair_1_prefix:
             self.pair_1_prefix_compiled = re.compile(self.config.pair_1_prefix)
@@ -163,17 +172,15 @@ class Merger:
 
         # used for visualization: 
         self.mean_quals_per_mismatch = {}
-
-        self.output = f.FastaOutput(os.path.join(self.config.output_directory, self.output_file_prefix + '_MERGED' ))
-        self.failed = f.FastaOutput(os.path.join(self.config.output_directory, self.output_file_prefix + '_FAILED' ))
-        self.withNs = f.FastaOutput(os.path.join(self.config.output_directory, self.output_file_prefix + '_FAILED_WITH_Ns' ))
-
+        
         self.stats = MergerStats()
 
 
     def run(self):                         
         #sys.stderr.write('POK: "Percent of all pairs that did present the prefix defined by the user\n"')
         #sys.stderr.write('ZM : "Percent of all pairs that merged with 0 mismatch\n"')
+        
+        self.init()
     
         for index in range(0, len(self.config.pair_1)):
             try:
@@ -244,33 +251,74 @@ class Merger:
                 len_overlap = (len(self.input_1.entry.sequence) + len(self.input_2.entry.sequence)) - len(merged_sequence)
                 p = 1.0 * number_of_mismatches / len_overlap
     
+                if self.enforce_Q30_check:
+                    if not self.input_1.entry.Q_list:
+                        self.input_1.entry.process_Q_list()
+                        self.input_2.entry.process_Q_list()
+                    
+                    r1_passed_Q30, r1_Q30 = self.passes_minoche_Q30(self.input_1.entry.Q_list[0:-len_overlap])
+                    r2_passed_Q30, r2_Q30 = self.passes_minoche_Q30(self.input_2.entry.Q_list[0:-len_overlap])
+
+                    pair_passed_Q30 = r1_passed_Q30 and r2_passed_Q30
+                    
+                    if not r1_passed_Q30 and r2_passed_Q30:
+                        self.stats.num_Q30_fails_in_read_1 += 1
+                    elif r1_passed_Q30 and not r2_passed_Q30:
+                        self.stats.num_Q30_fails_in_read_2 += 1
+                    elif not r1_passed_Q30 and not r2_passed_Q30:
+                        self.stats.num_Q30_fails_in_both += 1
+
+
                 # generate the header line
-                header_line = '%s|o:%d|m/o:%f|MR:%s|mismatches:%d' % (self.input_1.entry.header_line,
+                header_line = '%s|o:%d|m/o:%f|MR:%s|Q30:%s|mismatches:%d' % (self.input_1.entry.header_line,
                                                                       len_overlap,
                                                                       p,
                                                                       'n=%d;r1=%d;r2=%d' % (recovery_dict['none'],
                                                                                             recovery_dict['read_1'],
                                                                                             recovery_dict['read_2']),
+                                                                      'n/a' if not self.enforce_Q30_check \
+                                                                            else '%s,%d;%s,%d' % ('p' if r1_passed_Q30 else 'f',
+                                                                                                  r1_Q30,
+                                                                                                  'p' if r2_passed_Q30 else 'f',
+                                                                                                  r2_Q30),
                                                                       number_of_mismatches)
-    
+
+
+                # FAIL CASE ~ m/o
+                if p > self.p_value or len_overlap < self.min_overlap_size:
+                    self.failed.write_id(header_line)
+                    self.failed.write_seq(merged_sequence, split = False)
+                    self.stats.record_num_mismatches(number_of_mismatches, 'merge failed due to P value')
+                    self.stats.merge_failed_total += 1
+                    self.stats.pairs_eliminated_due_to_P += 1
+                    continue
+
+                # FAIL CASE ~ N
                 if not self.ignore_Ns:
                     if 'N' in merged_sequence or 'n' in merged_sequence:
                         self.withNs.write_id(header_line)
                         self.withNs.write_seq(merged_sequence, split = False)
                         self.stats.record_num_mismatches(number_of_mismatches, 'merge failed due to N')
+                        self.stats.merge_failed_total += 1
                         self.stats.pairs_eliminated_due_to_Ns += 1
                         continue
-    
-                if p > self.p_value or len_overlap < self.min_overlap_size:
-                    self.failed.write_id(header_line)
-                    self.failed.write_seq(merged_sequence, split = False)
-                    self.stats.record_num_mismatches(number_of_mismatches, 'merge failed due to m/o ratio')
-                    self.stats.merge_failed_total += 1
-                else:
-                    self.output.write_id(header_line)
-                    self.output.write_seq(merged_sequence, split = False)
-                    self.stats.record_num_mismatches(number_of_mismatches, 'merge passed')
-                    self.stats.merge_passed_total += 1
+
+                # FAIL CASE ~ Q30
+                if self.enforce_Q30_check:
+                    if not pair_passed_Q30:
+                        self.Q33fails.write_id(header_line)
+                        self.Q33fails.write_seq(merged_sequence, split = False)
+                        self.stats.record_num_mismatches(number_of_mismatches, 'merge failed due to Q30')
+                        self.stats.merge_failed_total += 1
+                        self.stats.pairs_eliminated_due_to_Q30 += 1
+                        continue
+                
+                
+                # FINALLY
+                self.output.write_id(header_line)
+                self.output.write_seq(merged_sequence, split = False)
+                self.stats.record_num_mismatches(number_of_mismatches, 'merge passed')
+                self.stats.merge_passed_total += 1
 
 
                 # FIXME: this is ridiculous. visualization of the Q-score curves associated
@@ -327,15 +375,16 @@ class Merger:
                         tiles_dict['2'][tile_number]['count'][i] += 1
                         
                     ################ / quality dicts associated stuff ####################
-     
+ 
+
+
+    
             print
             self.input_1.close()
             self.input_2.close()
     
-        self.output.close()
-        self.failed.close()
-        self.withNs.close()
-    
+   
+        self.close_output_files() 
         self.stats.write_stats(os.path.join(self.config.output_directory, self.output_file_prefix + '_STATS'), self)
         self.stats.write_mismatches_breakdown_table(os.path.join(self.config.output_directory, self.output_file_prefix + '_MISMATCHES_BREAKDOWN'))
     
@@ -360,6 +409,31 @@ class Merger:
                                                     'Machine Reported Mean PHRED Scores for Pairs Merged with 1 Mismatch')
             print
             ################ / quality dicts associated stuff ####################
+
+
+    def init(self):
+        if not self.output_file_prefix:
+            self.output_file_prefix = self.config.project_name.strip().replace(' ', '_')
+        
+        P = lambda p: f.FastaOutput(os.path.join(self.config.output_directory, self.output_file_prefix + p)) 
+        
+        self.output = P('_MERGED')
+        self.failed = P('_FAILED')
+        self.withNs = P('_FAILED_WITH_Ns')
+
+        if self.enforce_Q30_check:
+            self.Q33fails = P('_FAILED_Q30') 
+        else:
+            self.Q33fails = None
+
+
+    def close_output_files(self):
+        self.output.close()
+        self.failed.close()
+        self.withNs.close()
+        if self.enforce_Q30_check:
+            self.Q33fails.close()
+
 
     def get_read_id_with_better_base_qual(self, base_index_in_read_1, base_index_in_reversed_read_2):
         """when there is a disagreement regarding a base between pairs at the,
@@ -495,8 +569,16 @@ class Merger:
             print 'Something went wrong while merging these: \n\n%s\n--\n%s\n\n' % (seq1, seq2)
             sys.exit(-2)
 
-
-
+    def passes_minoche_Q30(self, base_qualities):
+        # This algorithm is from Minoche et al. It calculates the length of the
+        # read, returnes true only if two thirds of bases in the first half of
+        # the read have Q-scores over Q30.
+       
+        half_length = len(base_qualities) / 2
+        Q30 = len([True for _q in base_qualities[0:half_length] if _q > 30])
+        if Q30 < (0.66 * half_length):
+            return (False, Q30)
+        return (True, Q30)
 
 if __name__ == '__main__':
     import argparse
@@ -504,7 +586,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Merge Overlapping Paired-End Illumina Reads')
     parser.add_argument('user_config', metavar = 'CONFIG_FILE',
                                         help = 'User configuration to run')
-    parser.add_argument('output_file_prefix', metavar = 'OUTPUT_FILE_PREFIX',
+    parser.add_argument('-o', '--output_file_prefix', metavar = 'OUTPUT_FILE_PREFIX', default = None,
                                         help = 'Output file prefix (which will be used as a prefix\
                                                 for files that appear in output directory)')
     parser.add_argument('--min-overlap-size', type = int, default = 15, metavar = 'INT',
@@ -529,6 +611,16 @@ if __name__ == '__main__':
                                                 of the overlapped region is 30 nt long, and there are\
                                                 3 mismatches in the overlapped region, P would be\
                                                 3 / 30 = 0.1. The default value for P is %(default)f.')
+    parser.add_argument('--enforce-Q30-check', action = 'store_true', default = False,
+                                        help = 'Quality filtering is being done only on the overlapped\
+                                                region by default, and the beginning and the end of\
+                                                merged readw are not being checked. This parameter turns\
+                                                on the Q30 check, which was introduced by Minoche et al.\
+                                                Briefly, Q30-check eliminates pairs if the two thirds of\
+                                                bases in the first half of each read do not have Q-scores\
+                                                over Q30. Q30 is applied to only to the parts that did not\
+                                                overlap. If either of reads fail Q30 check, merged sequence\
+                                                is discarded and put in the appropriate file.')
     parser.add_argument('--compute-qual-dicts', action = 'store_true', default = False,
                                         help = 'When set, qual ditcs will be computed. May take a\
                                                 very long time for datasets with more than a\
@@ -574,10 +666,12 @@ if __name__ == '__main__':
         sys.exit()
 
 
-    merger = Merger(config, args.output_file_prefix)
+    merger = Merger(config)
+    merger.output_file_prefix = args.output_file_prefix
     merger.p_value = args.p_value
     merger.min_overlap_size = args.min_overlap_size
     merger.min_qual_score = args.min_qual_score
+    merger.enforce_Q30_check = args.enforce_Q30_check
     merger.compute_qual_dicts = args.compute_qual_dicts
     merger.slow_merge = args.slow_merge
     merger.debug = args.debug
