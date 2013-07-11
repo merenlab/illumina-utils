@@ -25,6 +25,7 @@ You can get in touch with me via `meren at mbl dot edu`.
     - [[files] section](#files-section)
     - [[prefixes] section](#prefixes-section)
 - [Merging Partially Overlapping Illumina Pairs](#merging-partially-overlapping-illumina-pairs)
+    - [Example STATS output](#example-stats-output)
     - [Recovering high-quality reads from merged reads file](#recovering-high-quality-reads-from-merged-reads-file)
 - [Quality Filtering](#quality-filtering)
     - ["Complete Overlap" analysis for V6](#complete-overlap-analysis-for-v6)
@@ -36,7 +37,6 @@ You can get in touch with me via `meren at mbl dot edu`.
         - [Example STATS output:](#example-stats-output)
         - [Example PNG files](#example-png-files)
 - [Questions?](#questions)
-
 
 # Obtaining the Source Code
 
