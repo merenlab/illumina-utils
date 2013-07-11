@@ -155,18 +155,8 @@ If the program runs successfully, these files will appear in the `output_directo
 
 When [merge-illumina-pairs](https://github.com/meren/illumina-utils/blob/master/scripts/merge-illumina-pairs) is run with `--compute-qual-dicts` it will also generate visualization of quality scores for different number of mismatch levels. Please see command line options for more information.
 
-## Recovering high-quality reads from merged reads file
 
-If [merge-illumina-pairs](https://github.com/meren/illumina-utils/blob/master/scripts/merge-illumina-pairs) finishes successfuly, it will generate `project_name_MERGED` for successfuly merged reads. A successful merge depends on the `o/r` value, Q30-check and lack of ambiguous bases in the merged sequence. However, succesfully merged reads based on user-defined or default parameters may not be as accurate as needed depending on the project. Further elimination of reads can be done by filtering out reads based on the number of mismatches they present at the overlapped region. For instance, user can decide to use only merged sequences with 0 mismatches from the resulting FASTA file.
-
-Program [filter-merged-reads](https://github.com/meren/illumina-utils/blob/master/scripts/filter-merged-reads) can be used to retain high-quality reads from `project_name_MERGED` file. To retain reads with 0 mismatches at the overlapped region you can simply run this command on your `project_name_MERGED` to generate a file with filtered reads `project_name_FILTERED`:
-
-     filter-merged-reads project_name_MERGED --max-mismatches 0 --output project_name_FILTERED
-
-Resulting file would be the file to use in downstream analyses.
-
-
-### Example STATS output
+## Example STATS output
 
 The `project_name_STATS` file that is created in the output directory contains important information about the merging operation. It is a good practice to check the numbers and make sure there is no anomalies. Here is an example output:
 
@@ -203,14 +193,27 @@ The `project_name_STATS` file that is created in the output directory contains i
     12	1
     
     
-    Command line            	/Users/meren/Desktop/MBL/illumina-utils/scripts/merge-illumina-pairs miseq_partial_overlap_config.ini z --enforce --compute
-    Work directory              	/Users/meren/Desktop/MBL/illumina-utils/Unittests/sample-files
+    Command line            	merge-illumina-pairs miseq_partial_overlap_config.ini z --enforce --compute
+    Work directory              	/path/to/the/working/directory
     "p" value                   	0.300000
     Min overlap size            	15
     Min Q-score for mismatches  	10
     Ns ignored?                 	False
     Q30 enforced?               	True
     Slow merge?                 	False
+
+
+
+
+## Recovering high-quality reads from merged reads file
+
+If [merge-illumina-pairs](https://github.com/meren/illumina-utils/blob/master/scripts/merge-illumina-pairs) finishes successfuly, it will generate `project_name_MERGED` for successfuly merged reads. A successful merge depends on the `o/r` value, Q30-check and lack of ambiguous bases in the merged sequence. However, succesfully merged reads based on user-defined or default parameters may not be as accurate as needed depending on the project. Further elimination of reads can be done by filtering out reads based on the number of mismatches they present at the overlapped region. For instance, user can decide to use only merged sequences with 0 mismatches from the resulting FASTA file.
+
+Program [filter-merged-reads](https://github.com/meren/illumina-utils/blob/master/scripts/filter-merged-reads) can be used to retain high-quality reads from `project_name_MERGED` file. To retain reads with 0 mismatches at the overlapped region you can simply run this command on your `project_name_MERGED` to generate a file with filtered reads `project_name_FILTERED`:
+
+     filter-merged-reads project_name_MERGED --max-mismatches 0 --output project_name_FILTERED
+
+Resulting file would be the file to use in downstream analyses.
 
 
 # Quality Filtering
