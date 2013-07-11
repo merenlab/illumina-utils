@@ -612,15 +612,17 @@ if __name__ == '__main__':
                                                 3 mismatches in the overlapped region, P would be\
                                                 3 / 30 = 0.1. The default value for P is %(default)f.')
     parser.add_argument('--enforce-Q30-check', action = 'store_true', default = False,
-                                        help = 'Quality filtering is being done only on the overlapped\
-                                                region by default, and the beginning and the end of\
-                                                merged readw are not being checked. This parameter turns\
-                                                on the Q30 check, which was introduced by Minoche et al.\
-                                                Briefly, Q30-check eliminates pairs if the two thirds of\
-                                                bases in the first half of each read do not have Q-scores\
-                                                over Q30. Q30 is applied to only to the parts that did not\
-                                                overlap. If either of reads fail Q30 check, merged sequence\
-                                                is discarded and put in the appropriate file.')
+                                        help = 'By default, quality filtering is being done based only\
+                                                on the mismatches found in the overlapped region, and\
+                                                the beginning and the end of merged reads are not being\
+                                                checked. However a final control can be enforced using\
+                                                this flag. This flag turns on the Q30 check, as it was\
+                                                explained by Minoche et al. in their 2012 paper. Briefly,\
+                                                Q30-check eliminates pairs if the 66% of bases in the\
+                                                first half of each read do not have Q-scores over Q30.\
+                                                Note that Q30 is applied only to the parts of reads that\
+                                                did not overlap. If either of reads fail Q30 check,\
+                                                merged sequence is discarded.')
     parser.add_argument('--compute-qual-dicts', action = 'store_true', default = False,
                                         help = 'When set, qual ditcs will be computed. May take a\
                                                 very long time for datasets with more than a\
