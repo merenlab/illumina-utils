@@ -48,7 +48,7 @@ This will generate the `illumina-utils` directory within the directory from whic
 
      https://github.com/meren/illumina-utils/archive/master.zip
 
-Once you have the codebase, you should update your `PYTHONPATH` and `PATH` environment variables for easy access to the scripts and required libraries. You can do it by adding the following two lines in your `.bashrc` file (it is a hidden file in your home directory, you can reach it by opening a terminal window and typing "nano ~/.bashrc"):
+Once you have the codebase, you should update your `PYTHONPATH` and `PATH` environment variables for easy access to the scripts and required libraries. You can do it by adding the following two lines in your `.bash_profile` file (it is a hidden file in your home directory, you can reach it by opening a terminal window and typing "nano ~/.bash_profile"):
 
      export PYTHONPATH=$PYTHONPATH:/path-to/illumina-utils/
      export PATH=$PATH:/path-to/illumina-utils/scripts
