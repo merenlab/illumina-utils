@@ -533,8 +533,8 @@ class Merger:
 
 
     def merge_two_sequences(self):
-        seq1 = obj_pair_1.sequence
-        seq2 = reverse_complement(obj_pair_2.sequence)
+        seq1 = self.input_1.entry.sequence
+        seq2 = reverse_complement(self.input_2.entry.sequence)
     
         temp_seq_1 = tempfile.NamedTemporaryFile(delete=False)
         temp_seq_1_path = temp_seq_1.name
