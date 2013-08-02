@@ -508,15 +508,20 @@ def populate_tiles_qual_dict_from_input(input_1, input_2, tiles_dict = {'1': {},
         if input_1.p_available:
             input_1.print_percentage()
     
+        q1 = input_1.entry.process_Q_list()
+
         if not tiles_dict['1'].has_key(input_1.entry.tile_number):
             tiles_dict['1'][input_1.entry.tile_number] = []
-            for i in range(0, 101):
+            for i in range(0, len(q1)):
                 tiles_dict['1'][input_1.entry.tile_number].append([])
-   
-        q1 = input_1.entry.process_Q_list()
-        
+    
         for i in range(0, len(q1)):
-            tiles_dict['1'][input_1.entry.tile_number][i].append(q1[i])
+            try:
+                tiles_dict['1'][input_1.entry.tile_number][i].append(q1[i])
+            except:
+                tiles_dict['1'][input_1.entry.tile_number].append([])
+                tiles_dict['1'][input_1.entry.tile_number][i].append(q1[i])
+                
     
     sys.stderr.write('\n') 
     
@@ -532,7 +537,10 @@ def populate_tiles_qual_dict_from_input(input_1, input_2, tiles_dict = {'1': {},
         q2 = input_2.entry.process_Q_list()
         
         for i in range(0, len(q2)):
-            tiles_dict['2'][input_2.entry.tile_number][i].append(q2[i])
+            try:
+                tiles_dict['2'][input_2.entry.tile_number][i].append(q2[i])
+            except:
+                tiles_dict['2'][input_2.entry.tile_number].append([])
     
     sys.stderr.write('\n') 
     return tiles_dict
