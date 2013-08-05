@@ -247,7 +247,7 @@ def main(config, visualize_quality_curves = False, p = 0.75):
 if __name__ == '__main__':
     import argparse
 
-    parser = argparse.ArgumentParser(description='Implementation of "http://www.nature.com/nmeth/journal/v10/n1/full/nmeth.2276.html"')
+    parser = argparse.ArgumentParser(description='Implementation of "http://genomebiology.com/content/12/11/R112"')
     parser.add_argument('user_config', metavar = 'CONFIG_FILE',
                                         help = 'User configuration to run. See the source code to\
                                                 see an example.')
