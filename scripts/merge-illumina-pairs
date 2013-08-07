@@ -618,7 +618,7 @@ if __name__ == '__main__':
                                                 checked. However a final control can be enforced using\
                                                 this flag. This flag turns on the Q30 check, as it was\
                                                 explained by Minoche et al. in their 2012 paper. Briefly,\
-                                                Q30-check eliminates pairs if the 66% of bases in the\
+                                                Q30-check eliminates pairs if the 66%% of bases in the\
                                                 first half of each read do not have Q-scores over Q30.\
                                                 Note that Q30 is applied only to the parts of reads that\
                                                 did not overlap. If either of reads fail Q30 check,\

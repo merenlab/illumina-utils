@@ -17,6 +17,8 @@ import cPickle
 import ConfigParser
 
 import IlluminaUtils.lib.fastqlib as u
+from IlluminaUtils.utils.helperfunctions import populate_tiles_qual_dict_from_input
+from IlluminaUtils.utils.helperfunctions import compute_plot_dict_from_tiles_dict 
 from IlluminaUtils.utils.runconfiguration import RunConfiguration
 from IlluminaUtils.utils.runconfiguration import ConfigError
 
@@ -29,13 +31,13 @@ def main(input_1_path, input_2_path, output_prefix):
     
     tiles_dict  = {'1': {}, '2': {}}
 
-    input_1 = u.FastQSource(input_1_path)
-    input_2 = u.FastQSource(input_2_path)
+    input_1 = u.FastQSource(input_1_path, compressed = input_1_path.endswith('.gz'))
+    input_2 = u.FastQSource(input_2_path, compressed = input_2_path.endswith('.gz'))
     
-    tiles_dict = u.populate_tiles_qual_dict_from_input(input_1, input_2, tiles_dict)
+    tiles_dict = populate_tiles_qual_dict_from_input(input_1, input_2, tiles_dict)
 
     sys.stderr.write('[qual dicts] computing plot dict ... ')
-    plot_dict = u.compute_plot_dict_from_tiles_dict(tiles_dict)
+    plot_dict = compute_plot_dict_from_tiles_dict(tiles_dict)
     sys.stderr.write('done.\n')
 
     sys.stderr.write('[qual dicts] serializing plot dicts ... ')

@@ -15,10 +15,11 @@ import sys
 import cPickle
 
 import IlluminaUtils.lib.fastqlib as u
+from IlluminaUtils.utils.helperfunctions import visualize_qual_stats_dict
 
 
 def main(plot_dict, figure_dest, title = None, split_tiles = False):
-    u.visualize_qual_stats_dict(plot_dict, figure_dest, title, split_tiles)
+    visualize_qual_stats_dict(plot_dict, figure_dest, title, split_tiles)
 
 if __name__ == '__main__':
     import argparse
