@@ -41,7 +41,8 @@ from IlluminaUtils.utils.runconfiguration import ConfigError
 from IlluminaUtils.utils.helperfunctions import visualize_qual_stats_dict
 from IlluminaUtils.utils.helperfunctions import colorize
 from IlluminaUtils.utils.helperfunctions import conv_dict
-from IlluminaUtils.utils.helperfunctions import reverse_complement 
+from IlluminaUtils.utils.helperfunctions import reverse_complement
+from IlluminaUtils.utils.helperfunctions import big_number_pretty_print
 
 
 bases_upper_case = set(conv_dict.keys())
@@ -203,7 +204,9 @@ class Merger:
                                        self.stats.num_mismatches_breakdown['merge passed'][0] * 100.0 / (self.stats.passed_prefix_total or 1)
                                        ))
                     else:
-                        self.input_1.print_percentage('[Merging %d of %d]' % (index + 1, len(self.config.pair_1)))
+                        self.input_1.print_percentage(prefix = '[Merging %d of %d]' % (index + 1, len(self.config.pair_1)),
+                                                      postfix = '-- merged pairs: %s' % big_number_pretty_print(self.stats.merge_passed_total)) \
+                                                                    if self.stats.merge_passed_total > 0 else ''
     
                 # taking care of prefixes if there are any..
                 if self.pair_1_prefix_compiled:

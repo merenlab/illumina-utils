@@ -228,11 +228,11 @@ class FastQSource:
     def close(self):
         self.file_pointer.close()
 
-    def print_percentage(self, prefix = ''):
+    def print_percentage(self, prefix = '', postfix = ''):
         if self.percent_read:
-            sys.stderr.write('\r%s %.2d%% -- (approximate number of entries have been processed so far: %s)' % (prefix, self.percent_read, big_number_pretty_print(self.pos)))
+            sys.stderr.write('\r%s %.2d%% -- (num pairs processed: %s) %s' % (prefix, self.percent_read, big_number_pretty_print(self.pos), postfix))
         else:
-            sys.stderr.write('\r%s (approximate number of entries have been processed so far: %s)' % (prefix, big_number_pretty_print(self.pos)))
+            sys.stderr.write('\r%s (num pairs processed: %s) %s' % (prefix, big_number_pretty_print(self.pos), postfix))
         
         sys.stderr.flush()
         self.p_available = False
