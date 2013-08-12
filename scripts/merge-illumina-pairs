@@ -245,11 +245,8 @@ class Merger:
                 else:
                     # uses Levenshtein distance.
                     merged_sequence, number_of_mismatches, recovery_dict = self.merge_two_sequences_fast()
-                
-                
-                # record the info in recovery dict
-                self.stats.process_recovery_dict(recovery_dict)
-               
+
+ 
                 # find out about 'p' 
                 len_overlap = (len(self.input_1.entry.sequence) + len(self.input_2.entry.sequence)) - len(merged_sequence)
                 p = 1.0 * number_of_mismatches / len_overlap
@@ -322,6 +319,9 @@ class Merger:
                 self.output.write_seq(merged_sequence, split = False)
                 self.stats.record_num_mismatches(number_of_mismatches, 'merge passed')
                 self.stats.merge_passed_total += 1
+
+                # record the info for successfuly merged pair in recovery dict
+                self.stats.process_recovery_dict(recovery_dict)
 
 
                 # FIXME: this is ridiculous. visualization of the Q-score curves associated
@@ -492,7 +492,7 @@ class Merger:
         
         seq1 = obj_read_1.sequence
         seq2 = reverse_complement(obj_read_2.sequence)
-    
+        
         smallest, ind = sys.maxint, 0
         for i in range(self.min_overlap_size, min(len(seq1), len(seq2))):
             d = l.distance(seq1[-i:], seq2[:i])
