@@ -73,9 +73,9 @@ Clients under the [scripts directory](https://github.com/meren/illumina-utils/tr
 
     [general]
     project_name = project name
-    researcher_email = meren@mbl.edu
-    input_directory = test_input
-    output_directory = test_output
+    researcher_email = reasearcher@institute.edu
+    input_directory = /full/path/test_input
+    output_directory = /full/path/test_output
     
     
     [files]
@@ -122,7 +122,7 @@ An example header line from the FASTA file for merged reads is shown below:
 Each field is separated from each other by a "|" character. Field one is the original defline from the FASTQ file of read 1. Following items explain details of these fields and command line options that affect them:
 
 * `o`: Length of the overlap.
-* `m/o`: The P value. P value is the ratio of the number of mismatches and the length of the overlap. Merged sequences can be discarded based on this ratio. The default is 0.3, and this value can be changed through the command line parameter `--p-value`.
+* `m/o`: The P value. P value is the ratio of the number of mismatches and the length of the overlap. Merged sequences can be discarded based on this ratio. The default is 0.3. This value should be changed through the command line parameter `--p-value` depending on the expected overlap size (if the expected length of overlap is 100 nts and if you choose to eliminate any pairs with more than 5 mismatches at the overlapping region, you can set the `--p-value` parameter to 0.05).
 * `MR`: "Mismatches Recovered". When there is a mismatch in the overlapped region, the base to be used in the final merged sequence is picked from whichever read possesses the higher Q-score (and shown as a capital letter in the merged sequence). If a mismatch is recovered from read 1, it increases the number next to r1 in this field, and so forth. However, if there is a disagreement between two reads, *and* neither of the reads have a Q-score higher than a minimum acceptable value, the corresponding base denoted with an `N` in the merged read, and the number next to `none` is increased by one. By default, the minimum Q-score value is 10. This value can be changed via the command line parameter `--min-qual-score`. Note that if `--ignore-Ns` flag is not declared, all merged sequences that had at least one disagreement which can't be recovered from neither reads due to `--min-qual-score` value will be discarded.
 * `Q30`: By default, quality filtering is being done based only on the mismatches found in the overlapped region, and the beginning and the end of merged reads are not being checked. However a final control can be enforced using the command line flag `--enforce-Q30-check`. This flag turns on the Q30 check, as it was explained by [Minoche _et al_](http://genomebiology.com/2011/12/11/R112). Briefly, Q30-check eliminates pairs if the 66% of bases in the *first half* of each read do not have Q-scores over Q30. Note that Q30 is applied only to the parts of reads that did not overlap. If either of reads fail Q30 check, merged sequence is discarded. `p,77;p,76` in the example header reads as "read 1 passed Q30 check (threfore `p`, failed case denoted by an `f`), and 77 bases in the first half of it had a better Q-score than 30; read 2 passed Q30 check, and 76 bases in the first half of it had a better Q-score than 30". If Q30-check was not enforced `n/a` appears next to it.
 * `mismatches`: Number of mismatches at the overlapped region for quick filtering of resulting reads.
