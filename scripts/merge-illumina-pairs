@@ -77,37 +77,41 @@ class MergerStats:
         self.num_Q30_fails_in_read_2 = 0
         self.num_Q30_fails_in_both = 0
 
+    def s_line(self, label, value, padding = 40):
+        return '%s%s\t%s\n' % (label, ' ' * (padding - len(label)), value)
+
     def write_stats(self, output_file_path, merger_object):
         stats = open(output_file_path, 'w')
 
-        stats.write('Number of pairs analyzed        \t%d\n' % self.actual_number_of_pairs)
-        stats.write('Prefix failed in read 1         \t%d\n' % self.prefix_failed_in_pair_1_total)
-        stats.write('Prefix failed in read 2         \t%d\n' % self.prefix_failed_in_pair_2_total)
-        stats.write('Prefix failed in both           \t%d\n' % self.prefix_failed_in_both_pairs_total)
-        stats.write('Passed prefix total             \t%d\n' % self.passed_prefix_total)
-        stats.write('Failed prefix total             \t%d\n' % self.failed_prefix_total)
-        stats.write('Merged total                    \t%d\n' % self.merge_passed_total)
-        stats.write('Merge failed total              \t%d\n' % self.merge_failed_total)
-        stats.write('Merge discarded due to P        \t%d\n' % self.pairs_eliminated_due_to_P)
-        stats.write('Merge discarded due to Ns       \t%d\n' % self.pairs_eliminated_due_to_Ns)
-        stats.write('Merge discarded due to Q30      \t%d\n' % self.pairs_eliminated_due_to_Q30)
-        stats.write('Total number of mismatches      \t%d\n' % self.total_number_of_mismatches)
-        stats.write('Mismatches recovered from read 1\t%d\n' % self.num_mismatches_recovered_from_read_1)
-        stats.write('Mismatches recovered from read 2\t%d\n' % self.num_mismatches_recovered_from_read_2)
-        stats.write('Mismatches replaced with N      \t%d\n' % self.num_mismatches_replaced_with_N)
-        stats.write('\nMismatches breakdown:\n\n')
+        stats.write(self.s_line('Number of pairs analyzed', '%d' % self.actual_number_of_pairs))
+        stats.write(self.s_line('Prefix failed in read 1', '%d' % self.prefix_failed_in_pair_1_total))
+        stats.write(self.s_line('Prefix failed in read 2', '%d' % self.prefix_failed_in_pair_2_total))
+        stats.write(self.s_line('Prefix failed in both', '%d' % self.prefix_failed_in_both_pairs_total))
+        stats.write(self.s_line('Passed prefix total', '%d' % self.passed_prefix_total))
+        stats.write(self.s_line('Failed prefix total', '%d' % self.failed_prefix_total))
+        stats.write(self.s_line('Merged total', '%d' % self.merge_passed_total))
+        stats.write(self.s_line('Merge failed total', '%d' % self.merge_failed_total))
+        stats.write(self.s_line('Merge discarded due to P', '%d' % self.pairs_eliminated_due_to_P))
+        stats.write(self.s_line('Merge discarded due to Ns', '%d' % self.pairs_eliminated_due_to_Ns))
+        stats.write(self.s_line('Merge discarded due to Q30', '%d' % self.pairs_eliminated_due_to_Q30))
+        stats.write(self.s_line('Num mismatches found in merged reads', '%d' % self.total_number_of_mismatches))
+        stats.write(self.s_line('Mismatches recovered from read 1', '%d' % self.num_mismatches_recovered_from_read_1))
+        stats.write(self.s_line('Mismatches recovered from read 2', '%d' % self.num_mismatches_recovered_from_read_2))
+        stats.write(self.s_line('Mismatches replaced with N', '%d' % self.num_mismatches_replaced_with_N))
+        stats.write('\n\nMismatches breakdown:\n\n')
     
         for i in sorted(self.num_mismatches_breakdown['merge passed'].keys()):
             stats.write('%d\t%d\n' % (i, self.num_mismatches_breakdown['merge passed'][i]))
         
-        stats.write('\n\nCommand line            \t%s\n' % ' '.join(sys.argv))
-        stats.write('Work directory              \t%s\n' % os.getcwd())
-        stats.write('"p" value                   \t%f\n' % merger_object.p_value)
-        stats.write('Min overlap size            \t%s\n' % merger_object.min_overlap_size)
-        stats.write('Min Q-score for mismatches  \t%s\n' % merger_object.min_qual_score)
-        stats.write('Ns ignored?                 \t%s\n' % merger_object.ignore_Ns)
-        stats.write('Q30 enforced?               \t%s\n' % merger_object.enforce_Q30_check)
-        stats.write('Slow merge?                 \t%s\n' % merger_object.slow_merge)
+        stats.write('\n\n')
+        stats.write(self.s_line('Command line', '%s' % ' '.join(sys.argv)))
+        stats.write(self.s_line('Work directory', '%s' % os.getcwd()))
+        stats.write(self.s_line('"p" value', '%f' % merger_object.p_value))
+        stats.write(self.s_line('Min overlap size', '%s' % merger_object.min_overlap_size))
+        stats.write(self.s_line('Min Q-score for mismatches', '%s' % merger_object.min_qual_score))
+        stats.write(self.s_line('Ns ignored?', '%s' % merger_object.ignore_Ns))
+        stats.write(self.s_line('Q30 enforced?', '%s' % merger_object.enforce_Q30_check))
+        stats.write(self.s_line('Slow merge?', '%s' % merger_object.slow_merge))
     
         stats.close()
 
