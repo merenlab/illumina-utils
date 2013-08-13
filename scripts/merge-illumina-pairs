@@ -59,6 +59,7 @@ class MergerStats:
         self.pairs_eliminated_due_to_Ns = 0
         self.pairs_eliminated_due_to_P = 0
         self.pairs_eliminated_due_to_Q30 = 0
+        self.pairs_eliminated_due_to_Min_Overlap = 0
         self.prefix_failed_in_pair_1_total = 0
         self.prefix_failed_in_pair_2_total = 0
         self.prefix_failed_in_both_pairs_total = 0
@@ -94,6 +95,7 @@ class MergerStats:
         stats.write(self.s_line('Merge discarded due to P', '%d' % self.pairs_eliminated_due_to_P))
         stats.write(self.s_line('Merge discarded due to Ns', '%d' % self.pairs_eliminated_due_to_Ns))
         stats.write(self.s_line('Merge discarded due to Q30', '%d' % self.pairs_eliminated_due_to_Q30))
+        stats.write(self.s_line('Pairs discarded due to min expected overlap', '%d' % self.pairs_eliminated_due_to_Min_Overlap))
         stats.write(self.s_line('Num mismatches found in merged reads', '%d' % self.total_number_of_mismatches))
         stats.write(self.s_line('Mismatches recovered from read 1', '%d' % self.num_mismatches_recovered_from_read_1))
         stats.write(self.s_line('Mismatches recovered from read 2', '%d' % self.num_mismatches_recovered_from_read_2))
@@ -211,7 +213,8 @@ class Merger:
                         self.input_1.print_percentage(prefix = '[Merging %d of %d]' % (index + 1, len(self.config.pair_1)),
                                                       postfix = '-- merged pairs: %s' % big_number_pretty_print(self.stats.merge_passed_total)) \
                                                                     if self.stats.merge_passed_total > 0 else ''
-    
+
+
                 # taking care of prefixes if there are any..
                 if self.pair_1_prefix_compiled:
                     pattern_1 = self.pair_1_prefix_compiled.search(self.input_1.entry.sequence)
@@ -239,8 +242,15 @@ class Merger:
                     continue
                 if not failed_prefix:
                     self.stats.passed_prefix_total += 1
+
+
+                # make sure both reads are longer than the minimum overlap criterion
+                if min(len(self.input_1.entry.sequence), len(self.input_2.entry.sequence)) <= self.min_overlap_size:
+                    self.stats.pairs_eliminated_due_to_Min_Overlap += 1
+                    continue
+
     
-    
+                # merging    
                 number_of_mismatches, recovery_dict = None, {}
                 # merging..
                 if self.slow_merge:
