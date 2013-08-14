@@ -291,7 +291,7 @@ class Merger:
                                                                                             recovery_dict['read_1'],
                                                                                             recovery_dict['read_2']),
                                                                       'n/a' if not self.enforce_Q30_check \
-                                                                            else '%s,%d;%s,%d' % ('p' if r1_passed_Q30 else 'f',
+                                                                            else '%s=%d;%s=%d' % ('p' if r1_passed_Q30 else 'f',
                                                                                                   r1_Q30,
                                                                                                   'p' if r2_passed_Q30 else 'f',
                                                                                                   r2_Q30),
