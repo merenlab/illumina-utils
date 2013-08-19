@@ -114,6 +114,7 @@ class MergerStats:
         stats.write(self.s_line('Ns ignored?', '%s' % merger_object.ignore_Ns))
         stats.write(self.s_line('Q30 enforced?', '%s' % merger_object.enforce_Q30_check))
         stats.write(self.s_line('Slow merge?', '%s' % merger_object.slow_merge))
+        stats.write(self.s_line('Only the overlapping part retained?', '%s' % merger_object.retain_only_overlap))
     
         stats.close()
 
@@ -167,6 +168,7 @@ class Merger:
         self.ignore_Ns = False
         self.ignore_deflines = False
         self.enforce_Q30_check = False
+        self.retain_only_overlap = False
 
         if self.config.pair_1_prefix:
             self.pair_1_prefix_compiled = re.compile(self.config.pair_1_prefix)
@@ -256,14 +258,16 @@ class Merger:
                 # merging..
                 if self.slow_merge:
                     # uses EMBOSS 'merger'
-                    merged_sequence, number_of_mismatches, recovery_dict = self.merge_two_sequences()
+                    (beginning, overlap, end), number_of_mismatches, recovery_dict = self.merge_two_sequences()
                 else:
                     # uses Levenshtein distance.
-                    merged_sequence, number_of_mismatches, recovery_dict = self.merge_two_sequences_fast()
+                    (beginning, overlap, end), number_of_mismatches, recovery_dict = self.merge_two_sequences_fast()
+
+                merged_sequence = beginning + overlap + end
 
  
                 # find out about 'p' 
-                len_overlap = (len(self.input_1.entry.sequence) + len(self.input_2.entry.sequence)) - len(merged_sequence)
+                len_overlap = len(overlap) 
                 p = 1.0 * number_of_mismatches / len_overlap
     
                 if self.enforce_Q30_check:
@@ -331,7 +335,11 @@ class Merger:
                 
                 # FINALLY
                 self.output.write_id(header_line)
-                self.output.write_seq(merged_sequence, split = False)
+                
+                if self.retain_only_overlap:
+                    self.output.write_seq(overlap, split = False)
+                else:
+                    self.output.write_seq(merged_sequence, split = False)
                 self.stats.record_num_mismatches(number_of_mismatches, 'merge passed')
                 self.stats.merge_passed_total += 1
 
@@ -547,7 +555,7 @@ class Merger:
             print
             print beg + colorize(overlap) + end
     
-        return ((beg + overlap + end), sum(recovery_dict.values()), recovery_dict)
+        return ((beg, overlap, end), sum(recovery_dict.values()), recovery_dict)
 
 
     def merge_two_sequences(self):
@@ -582,7 +590,7 @@ class Merger:
                 print
                 print ''.join([merged.seq[:overlap_beg], colorize(merged.seq[overlap_beg:overlap_end]), merged.seq[overlap_end:]])
     
-            return (merged.seq, NumberOfConflicts(merged.seq), {'none': 0, 'read_1': 0, 'read_2': 0})
+            return ((merged.seq[:overlap_beg], merged.seq[overlap_beg:overlap_end], merged.seq[overlap_end:]), NumberOfConflicts(merged.seq), {'none': 0, 'read_1': 0, 'read_2': 0})
         else:
             print 'Something went wrong while merging these: \n\n%s\n--\n%s\n\n' % (seq1, seq2)
             sys.exit(-2)
@@ -653,6 +661,10 @@ if __name__ == '__main__':
                                                 is a very fast and quite accurate way of merging reads\
                                                 when insertion or deletion errors are not common in the\
                                                 dataset (which is mostly the case for Illumina data).')
+    parser.add_argument('--retain-only-overlap', action = 'store_true', default = False,
+                                        help = 'When set, merger will only return the parts of reads that do\
+                                                overlap, and parts of reads that do not overlap will be\
+                                                trimmed.')
     parser.add_argument('--debug', action = 'store_true', default = False,
                                         help = 'When set, debug messages will be printed')
     parser.add_argument('--ignore-deflines', action = 'store_true', default = False,
@@ -670,6 +682,7 @@ if __name__ == '__main__':
         print "Config file does not exist (at least not at '%s')." % args.user_config
         print
         sys.exit()
+    
     
     user_config = ConfigParser.ConfigParser()
     user_config.read(args.user_config)
@@ -701,5 +714,6 @@ if __name__ == '__main__':
     merger.debug = args.debug
     merger.ignore_Ns = args.ignore_Ns
     merger.ignore_deflines = args.ignore_deflines
+    merger.retain_only_overlap = args.retain_only_overlap
 
     sys.exit(merger.run())
