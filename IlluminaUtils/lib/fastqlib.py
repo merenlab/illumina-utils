@@ -62,16 +62,23 @@ class FastQEntry:
 
         return getattr(self, '_'.join(['process', key]))()
     
-    def __init__(self, (header_line, sequence_line, optional_line, qual_scores_line), trim_from = 0, trim_to = sys.maxint, raw = False, CASAVA_version = 1.8):
+    def __init__(self, (header_line, sequence_line, optional_line, qual_scores_line), trim_from = 0, trim_to = sys.maxint, raw = False, CASAVA_version = 1.8, pos = None):
         self.is_valid = False
+        self.raise_errors = True
 
         if not header_line:
             return None
 
-        if not header_line.startswith('@') or not optional_line.startswith('+'):
-            # I'll see how stringent format checking should be. It might be a better
-            # idea to raise an error than returning False.
+        if not header_line.startswith('@'):
+            if self.raise_errors:
+                raise FastQLibError, 'FASTQ file seems to be corrupted. Header line does not start with a "@" character (pos: %s).' % (str(pos) if pos else 'unknown') 
             return None
+
+        if not optional_line.startswith('+'):
+            if self.raise_errors:
+                raise FastQLibError, 'FASTQ file seems to be corrupted. Optional line does not start with a "+" character (pos: %s).' % (str(pos) if pos else 'unknown')
+            return None
+
 
         self.CASAVA_version = CASAVA_version
 
@@ -205,7 +212,7 @@ class FastQSource:
         self.CASAVA_version = 1.8
 
     def next(self, trim_from = 0, trim_to = sys.maxint, raw = False):
-        self.entry = FastQEntry([self.file_pointer.readline().strip() for _ in range(0, 4)], trim_from, trim_to, raw, CASAVA_version = self.CASAVA_version)
+        self.entry = FastQEntry([self.file_pointer.readline().strip() for _ in range(0, 4)], trim_from, trim_to, raw, CASAVA_version = self.CASAVA_version, pos = self.pos)
        
         if not self.entry.is_valid:
             return False
