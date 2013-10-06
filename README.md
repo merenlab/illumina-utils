@@ -98,7 +98,7 @@ Two critical declerations in `[general]` section are `input_directory` and `outp
 
 ## [files] section
 
-`files` section is where you list your _file names_ to be found in the `output_directory`. Each file name has to be comma separated. The index of each file name in the comma seperated list, *must match* with its pair in the second list (see the example config file above).
+`files` section is where you list your _file names_ to be found under `input_directory`. Each file name has to be comma separated. The index of each file name in the comma seperated list, *must match* with its pair in the second list (see the example config file above).
 
 ## [prefixes] section
 
