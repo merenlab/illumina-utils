@@ -617,7 +617,7 @@ if __name__ == '__main__':
                                                 for files that appear in output directory)')
     parser.add_argument('--min-overlap-size', type = int, default = 15, metavar = 'INT',
                                         help = 'Minimum expected overlap. Default is %(default)d.')
-    parser.add_argument('--min-qual-score', type = int, default = 10, metavar = 'INT',
+    parser.add_argument('--min-qual-score', type = int, default = 15, metavar = 'INT',
                                         help = 'Minimum Q-score for a base to overwrite a mismatch\
                                                 at the overlapped region. If there is a mismatch at\
                                                 the overlapped region, the base with higher quality\
