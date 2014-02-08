@@ -584,7 +584,7 @@ class Merger:
             os.remove(temp_seq_2_path)
             os.remove(temp_merge_path)
     
-            if debug:
+            if self.debug:
                 overlap_beg = len(seq1) - (len(seq1) + len(seq2) - len(merged.seq))
                 overlap_end = overlap_beg + (len(seq1) + len(seq2) - len(merged.seq))
                 print
