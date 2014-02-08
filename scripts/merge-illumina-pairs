@@ -23,15 +23,18 @@ import ConfigParser
 
 try:
     import Levenshtein as l
-    LEVENSHTEIN_FOUND = True
+    #LEVENSHTEIN_FOUND = True
 except:
     print '''
-    WARNING: This script requires Levenshtein module, which seems to not installed on this machine. Here is a fast implementation of Levenshtein distance for Python:
+    ERROR: This script requires Levenshtein module, which seems to not installed on this machine.
+    
+    Here is a fast implementation of Levenshtein distance for Python:
 
         http://code.google.com/p/pylevenshtein/
 
 '''
-    LEVENSHTEIN_FOUND = False 
+    sys.exit()
+    #LEVENSHTEIN_FOUND = False 
 
 
 import IlluminaUtils.lib.fastqlib as u
@@ -653,14 +656,18 @@ if __name__ == '__main__':
                                         help = 'When set, qual ditcs will be computed. May take a\
                                                 very long time for datasets with more than a\
                                                 million pairs.')
-    parser.add_argument('--slow-merge', action = 'store_true', default = False,
-                                        help = 'When set, merging operation is performed using\
-                                                pairwise sequence alignment via "merger" tool\
-                                                in EMBOSS package. Otherwise, the default way \
-                                                of merging reads rely on Levenshtein distance, which\
-                                                is a very fast and quite accurate way of merging reads\
-                                                when insertion or deletion errors are not common in the\
-                                                dataset (which is mostly the case for Illumina data).')
+# FIXME: I am taking this out for now. I haven't made the final decision yet, so I will leave it in the actual codebase
+#        and limit only the access to this functionality from the client. Slow merge was to accommodate 454 runs where
+#        artificial length variation is common. But it doesn't seem to be as useful as I thought it would be, so, here
+#        we are. Commented out for now, I will get back to it later.
+#     parser.add_argument('--slow-merge', action = 'store_true', default = False,
+#                                         help = 'When set, merging operation is performed using\
+#                                                 pairwise sequence alignment via "merger" tool\
+#                                                 in EMBOSS package. Otherwise, the default way \
+#                                                 of merging reads rely on Levenshtein distance, which\
+#                                                 is a very fast and quite accurate way of merging reads\
+#                                                 when insertion or deletion errors are not common in the\
+#                                                 dataset (which is mostly the case for Illumina data).')
     parser.add_argument('--retain-only-overlap', action = 'store_true', default = False,
                                         help = 'When set, merger will only return the parts of reads that do\
                                                 overlap, and parts of reads that do not overlap will be\
@@ -694,13 +701,15 @@ if __name__ == '__main__':
         print
         sys.exit()
 
-    if (not args.slow_merge) and not LEVENSHTEIN_FOUND:
-        print """\n
-        ERROR: When the appropriate Python module for Levenshtein
-        distance is not present, you have to use --slow-merge
-        parameter. Please install the module (suggested), or
-        re-run the script with --slow-merge parameter.\n\n"""
-        sys.exit()
+# FIXME: With the access limitation from the command line interface, this check is irrlevant now. I will decide its
+#        fate later.
+#     if (not args.slow_merge) and not LEVENSHTEIN_FOUND:
+#         print """\n
+#         ERROR: When the appropriate Python module for Levenshtein
+#         distance is not present, you have to use --slow-merge
+#         parameter. Please install the module (suggested), or
+#         re-run the script with --slow-merge parameter.\n\n"""
+#         sys.exit()
 
 
     merger = Merger(config)
@@ -710,7 +719,7 @@ if __name__ == '__main__':
     merger.min_qual_score = args.min_qual_score
     merger.enforce_Q30_check = args.enforce_Q30_check
     merger.compute_qual_dicts = args.compute_qual_dicts
-    merger.slow_merge = args.slow_merge
+    #merger.slow_merge = args.slow_merge
     merger.debug = args.debug
     merger.ignore_Ns = args.ignore_Ns
     merger.ignore_deflines = args.ignore_deflines
