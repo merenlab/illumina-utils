@@ -9,6 +9,7 @@
 #
 # Please read the COPYING file.
 
+# v.
 
 import re
 import os
@@ -23,7 +24,6 @@ import ConfigParser
 
 try:
     import Levenshtein as l
-    #LEVENSHTEIN_FOUND = True
 except:
     print '''
     ERROR: This script requires Levenshtein module, which seems to not installed on this machine.
@@ -34,7 +34,6 @@ except:
 
 '''
     sys.exit()
-    #LEVENSHTEIN_FOUND = False 
 
 
 import IlluminaUtils.lib.fastqlib as u
@@ -70,6 +69,7 @@ class MergerStats:
         self.failed_prefix_total = 0
         self.merge_failed_total = 0
         self.merge_passed_total = 0
+        self.merging_done_on_complete_overlap = 0
         self.num_mismatches_breakdown = {}
         self.num_mismatches_breakdown['merge passed'] = {}
         self.num_mismatches_breakdown['merge passed'][0] = 0
@@ -94,6 +94,7 @@ class MergerStats:
         stats.write(self.s_line('Passed prefix total', '%d' % self.passed_prefix_total))
         stats.write(self.s_line('Failed prefix total', '%d' % self.failed_prefix_total))
         stats.write(self.s_line('Merged total', '%d' % self.merge_passed_total))
+        stats.write(self.s_line('Complete overlap forced total', '%d' % self.merging_done_on_complete_overlap))
         stats.write(self.s_line('Merge failed total', '%d' % self.merge_failed_total))
         stats.write(self.s_line('Merge discarded due to P', '%d' % self.pairs_eliminated_due_to_P))
         stats.write(self.s_line('Merge discarded due to Ns', '%d' % self.pairs_eliminated_due_to_Ns))
@@ -116,8 +117,8 @@ class MergerStats:
         stats.write(self.s_line('Min Q-score for mismatches', '%s' % merger_object.min_qual_score))
         stats.write(self.s_line('Ns ignored?', '%s' % merger_object.ignore_Ns))
         stats.write(self.s_line('Q30 enforced?', '%s' % merger_object.enforce_Q30_check))
-        stats.write(self.s_line('Slow merge?', '%s' % merger_object.slow_merge))
-        stats.write(self.s_line('Only the overlapping part retained?', '%s' % merger_object.retain_only_overlap))
+        stats.write(self.s_line('Run with stringent flag on?', '%s' % merger_object.marker_gene_stringent))
+        stats.write(self.s_line('Requested only the overlapping part to be retained?', '%s' % merger_object.retain_only_overlap))
     
         stats.close()
 
@@ -166,12 +167,12 @@ class Merger:
         self.p_value = 0.3
         self.min_overlap_size = 15
         self.min_qual_score = 10
-        self.slow_merge = False
         self.debug = False
         self.ignore_Ns = False
         self.ignore_deflines = False
         self.enforce_Q30_check = False
         self.retain_only_overlap = False
+        self.marker_gene_stringent = False
 
         if self.config.pair_1_prefix:
             self.pair_1_prefix_compiled = re.compile(self.config.pair_1_prefix)
@@ -256,24 +257,34 @@ class Merger:
                     continue
 
     
-                # merging    
+                # merging
+                merging_done_on_complete_overlap = False
                 number_of_mismatches, recovery_dict = None, {}
-                # merging..
-                if self.slow_merge:
-                    # uses EMBOSS 'merger'
-                    (beginning, overlap, end), number_of_mismatches, recovery_dict = self.merge_two_sequences()
-                else:
-                    # uses Levenshtein distance.
-                    (beginning, overlap, end), number_of_mismatches, recovery_dict = self.merge_two_sequences_fast()
+                (beginning, overlap, end), number_of_mismatches, recovery_dict = self.merge_two_sequences_fast()
 
                 merged_sequence = beginning + overlap + end
 
- 
                 # find out about 'p' 
                 len_overlap = len(overlap) 
                 p = 1.0 * number_of_mismatches / len_overlap
+
+                if self.marker_gene_stringent:
+                    (alt_beginning, alt_overlap, alt_end), alt_number_of_mismatches, alt_recovery_dict =\
+                                                             self.merge_two_sequences_fast(complete_overlap = True)
+                    alt_merged_sequence = alt_overlap
+ 
+                    # find out about 'p' 
+                    alt_len_overlap = len(alt_overlap) 
+                    alt_p = 1.0 * alt_number_of_mismatches / alt_len_overlap
+                    
+                    if alt_p < p:
+                        beginning, overlap, end, number_of_mismatches, recovery_dict, merged_sequence, len_overlap, p =\
+                                            alt_beginning, alt_overlap, alt_end, alt_number_of_mismatches,\
+                                            alt_recovery_dict, alt_merged_sequence, alt_len_overlap, alt_p 
+                        merging_done_on_complete_overlap = True
+                        self.stats.merging_done_on_complete_overlap += 1
     
-                if self.enforce_Q30_check:
+                if self.enforce_Q30_check and not merging_done_on_complete_overlap:
                     if not self.input_1.entry.Q_list:
                         self.input_1.entry.process_Q_list()
                         self.input_2.entry.process_Q_list()
@@ -292,7 +303,7 @@ class Merger:
 
 
                 # generate the header line
-                header_line = '%s|o:%d|m/o:%f|MR:%s|Q30:%s|mismatches:%d' % (self.input_1.entry.header_line,
+                header_line = '%s|o:%d|m/o:%f|MR:%s|Q30:%s|CO:%d|mismatches:%d' % (self.input_1.entry.header_line,
                                                                       len_overlap,
                                                                       p,
                                                                       'n=%d;r1=%d;r2=%d' % (recovery_dict['none'],
@@ -303,6 +314,7 @@ class Merger:
                                                                                                   r1_Q30,
                                                                                                   'p' if r2_passed_Q30 else 'f',
                                                                                                   r2_Q30),
+                                                                      1 if merging_done_on_complete_overlap else 0,
                                                                       number_of_mismatches)
 
 
@@ -512,12 +524,20 @@ class Merger:
             return 2
     
 
-    def merge_two_sequences_fast(self):
-        obj_read_1 = self.input_1.entry
-        obj_read_2 = self.input_2.entry
-        
-        seq1 = obj_read_1.sequence
-        seq2 = reverse_complement(obj_read_2.sequence)
+    def merge_two_sequences_fast(self, complete_overlap = False):
+        # when we expect a complete overlap, it is the first read that
+        # needs to be reverse complemented and compared to the second
+        # read.
+        if complete_overlap:
+            obj_read_1 = self.input_2.entry
+            obj_read_2 = self.input_1.entry
+            seq1 = reverse_complement(obj_read_1.sequence)
+            seq2 = obj_read_2.sequence
+        else:
+            obj_read_1 = self.input_1.entry
+            obj_read_2 = self.input_2.entry
+            seq1 = obj_read_1.sequence
+            seq2 = reverse_complement(obj_read_2.sequence)
         
         smallest, ind = sys.maxint, 0
         for i in range(self.min_overlap_size, min(len(seq1), len(seq2))):
@@ -539,18 +559,32 @@ class Merger:
         for i in range(0, len(overlap_1)):
             if overlap_1[i] != overlap_2[i]:
                 # MISMATCH FOUND!
-                
-                read_id_with_better_base_qual = self.get_read_id_with_better_base_qual(overlap_starts_in_seq_1 + i, i)
-                
-                if read_id_with_better_base_qual == 0:
-                    overlap += 'N'.upper()
-                    recovery_dict['none'] += 1
-                elif read_id_with_better_base_qual == 1:
-                    overlap += overlap_1[i].upper()
-                    recovery_dict['read_1'] += 1
-                elif read_id_with_better_base_qual == 2:
-                    overlap += overlap_2[i].upper()
-                    recovery_dict['read_2'] += 1
+
+                if complete_overlap:
+                    read_id_with_better_base_qual = self.get_read_id_with_better_base_qual(i, overlap_starts_in_seq_1 + i)
+ 
+                    if read_id_with_better_base_qual == 0:
+                        overlap += 'N'.upper()
+                        recovery_dict['none'] += 1
+                    elif read_id_with_better_base_qual == 1:
+                        overlap += overlap_2[i].upper()
+                        recovery_dict['read_1'] += 1
+                    elif read_id_with_better_base_qual == 2:
+                        overlap += overlap_1[i].upper()
+                        recovery_dict['read_2'] += 1
+                else:
+                    read_id_with_better_base_qual = self.get_read_id_with_better_base_qual(overlap_starts_in_seq_1 + i, i)
+
+                    if read_id_with_better_base_qual == 0:
+                        overlap += 'N'.upper()
+                        recovery_dict['none'] += 1
+                    elif read_id_with_better_base_qual == 1:
+                        overlap += overlap_1[i].upper()
+                        recovery_dict['read_1'] += 1
+                    elif read_id_with_better_base_qual == 2:
+                        overlap += overlap_2[i].upper()
+                        recovery_dict['read_2'] += 1
+
             else:
                 overlap += overlap_1[i]
     
@@ -656,18 +690,6 @@ if __name__ == '__main__':
                                         help = 'When set, qual ditcs will be computed. May take a\
                                                 very long time for datasets with more than a\
                                                 million pairs.')
-# FIXME: I am taking this out for now. I haven't made the final decision yet, so I will leave it in the actual codebase
-#        and limit only the access to this functionality from the client. Slow merge was to accommodate 454 runs where
-#        artificial length variation is common. But it doesn't seem to be as useful as I thought it would be, so, here
-#        we are. Commented out for now, I will get back to it later.
-#     parser.add_argument('--slow-merge', action = 'store_true', default = False,
-#                                         help = 'When set, merging operation is performed using\
-#                                                 pairwise sequence alignment via "merger" tool\
-#                                                 in EMBOSS package. Otherwise, the default way \
-#                                                 of merging reads rely on Levenshtein distance, which\
-#                                                 is a very fast and quite accurate way of merging reads\
-#                                                 when insertion or deletion errors are not common in the\
-#                                                 dataset (which is mostly the case for Illumina data).')
     parser.add_argument('--retain-only-overlap', action = 'store_true', default = False,
                                         help = 'When set, merger will only return the parts of reads that do\
                                                 overlap, and parts of reads that do not overlap will be\
@@ -682,6 +704,10 @@ if __name__ == '__main__':
                                         help = 'Merged sequences are being eliminated if they have\
                                                 any ambiguous bases. If this parameter is set\
                                                 merged pairs with Ns stay in the merged pairs bin.')
+    parser.add_argument('--marker-gene-stringent', action = 'store_true', default = False,
+                                        help = 'Finds the best merge going beyond expected "partial\
+                                                overlap" case for amplicons. Please read the description\
+                                                at url https://github.com/meren/illumina-utils/issues/1 for details.')
 
     args = parser.parse_args()
     
@@ -701,17 +727,6 @@ if __name__ == '__main__':
         print
         sys.exit()
 
-# FIXME: With the access limitation from the command line interface, this check is irrlevant now. I will decide its
-#        fate later.
-#     if (not args.slow_merge) and not LEVENSHTEIN_FOUND:
-#         print """\n
-#         ERROR: When the appropriate Python module for Levenshtein
-#         distance is not present, you have to use --slow-merge
-#         parameter. Please install the module (suggested), or
-#         re-run the script with --slow-merge parameter.\n\n"""
-#         sys.exit()
-
-
     merger = Merger(config)
     merger.output_file_prefix = args.output_file_prefix
     merger.p_value = args.p_value
@@ -719,10 +734,10 @@ if __name__ == '__main__':
     merger.min_qual_score = args.min_qual_score
     merger.enforce_Q30_check = args.enforce_Q30_check
     merger.compute_qual_dicts = args.compute_qual_dicts
-    #merger.slow_merge = args.slow_merge
     merger.debug = args.debug
     merger.ignore_Ns = args.ignore_Ns
     merger.ignore_deflines = args.ignore_deflines
     merger.retain_only_overlap = args.retain_only_overlap
+    merger.marker_gene_stringent = args.marker_gene_stringent
 
     sys.exit(merger.run())
