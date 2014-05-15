@@ -283,7 +283,7 @@ class Merger:
                                             alt_recovery_dict, alt_merged_sequence, alt_len_overlap, alt_p 
                         merging_done_on_complete_overlap = True
                         self.stats.merging_done_on_complete_overlap += 1
-    
+
                 if self.enforce_Q30_check and not merging_done_on_complete_overlap:
                     if not self.input_1.entry.Q_list:
                         self.input_1.entry.process_Q_list()
@@ -309,7 +309,7 @@ class Merger:
                                                                       'n=%d;r1=%d;r2=%d' % (recovery_dict['none'],
                                                                                             recovery_dict['read_1'],
                                                                                             recovery_dict['read_2']),
-                                                                      'n/a' if not self.enforce_Q30_check \
+                                                                      'n/a' if not (self.enforce_Q30_check and not merging_done_on_complete_overlap) \
                                                                             else '%s=%d;%s=%d' % ('p' if r1_passed_Q30 else 'f',
                                                                                                   r1_Q30,
                                                                                                   'p' if r2_passed_Q30 else 'f',
@@ -338,10 +338,10 @@ class Merger:
                         continue
 
                 # FAIL CASE ~ Q30
-                if self.enforce_Q30_check:
+                if self.enforce_Q30_check and not merging_done_on_complete_overlap:
                     if not pair_passed_Q30:
-                        self.Q33fails.write_id(header_line)
-                        self.Q33fails.write_seq(merged_sequence, split = False)
+                        self.Q30fails.write_id(header_line)
+                        self.Q30fails.write_seq(merged_sequence, split = False)
                         self.stats.record_num_mismatches(number_of_mismatches, 'merge failed due to Q30')
                         self.stats.merge_failed_total += 1
                         self.stats.pairs_eliminated_due_to_Q30 += 1
@@ -463,9 +463,9 @@ class Merger:
         self.withNs = P('_FAILED_WITH_Ns')
 
         if self.enforce_Q30_check:
-            self.Q33fails = P('_FAILED_Q30') 
+            self.Q30fails = P('_FAILED_Q30') 
         else:
-            self.Q33fails = None
+            self.Q30fails = None
 
 
     def close_output_files(self):
@@ -473,7 +473,7 @@ class Merger:
         self.failed.close()
         self.withNs.close()
         if self.enforce_Q30_check:
-            self.Q33fails.close()
+            self.Q30fails.close()
 
 
     def get_read_id_with_better_base_qual(self, base_index_in_read_1, base_index_in_reversed_read_2):
