@@ -665,15 +665,17 @@ if __name__ == '__main__':
                                                 may result in the elimination of the merged sequence\
                                                 depending on the --ignore-Ns paranmeter. The default\
                                                 value is %(default)d.')
-    parser.add_argument('--p-value', type = float, default = 0.3, metavar = 'FLOAT',
-                                        help = 'Any merged sequence with P value below declared value\
-                                                with this parameter is discarded and stored in the\
-                                                failed merges file. P value is computed by dividing\
-                                                the number of mismatches at the overlapped region by\
-                                                the length of the overlapped region. So, if the length\
+    parser.add_argument('-P', type = float, default = 0.3, metavar = 'FLOAT',
+                                        help = 'Any merged sequence with P below the declared value\
+                                                is discarded and stored in a seperate file. P is computed\
+                                                by dividing the number of mismatches at the overlapped region by\
+                                                the length of the overlapped region. For instance, if the length\
                                                 of the overlapped region is 30 nt long, and there are\
                                                 3 mismatches in the overlapped region, P would be\
-                                                3 / 30 = 0.1. The default value for P is %(default)f.')
+                                                3 / 30 = 0.1. The default value for P is %(default)f, however\
+                                                it must be adjusted based on the expected overlap in a given\
+                                                study with respect to desired stringency. Stringency can also be\
+                                                adjusted post-merging, using the script `filter-merged-reads`.')
     parser.add_argument('--enforce-Q30-check', action = 'store_true', default = False,
                                         help = 'By default, quality filtering is being done based only\
                                                 on the mismatches found in the overlapped region, and\
