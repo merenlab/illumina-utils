@@ -731,7 +731,7 @@ if __name__ == '__main__':
 
     merger = Merger(config)
     merger.output_file_prefix = args.output_file_prefix
-    merger.p_value = args.p_value
+    merger.p_value = args.P
     merger.min_overlap_size = args.min_overlap_size
     merger.min_qual_score = args.min_qual_score
     merger.enforce_Q30_check = args.enforce_Q30_check
