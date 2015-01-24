@@ -16,6 +16,7 @@ import gzip
 import stat
 import numpy
 import cPickle
+import textwrap
 
 try:
     import matplotlib.pyplot as plt
@@ -28,11 +29,74 @@ except:
 import IlluminaUtils.lib.fastalib as u
 
 
+class ConfigError(Exception):
+    def __init__(self, e = None):
+        Exception.__init__(self)
+        self.e = remove_spaces(e)
+        return
+    def __str__(self):
+        error_type = 'Config Error'
+
+        max_len = max([len(l) for l in textwrap.fill(self.e, 80).split('\n')])
+        error_lines = ['\033[0;30m\033[46m%s%s\033[0m' % (l, ' ' * (max_len - len(l)))\
+                                         for l in textwrap.fill(self.e, 80).split('\n')]
+
+        error_message = ['%s: %s' % (error_type, error_lines[0])]
+        for error_line in error_lines[1:]:
+            error_message.append('%s%s' % (' ' * (len(error_type) + 2), error_line))
+
+        return '\n'.join(error_message)
+
+
+def remove_spaces(text):
+    while 1:
+        if text.find("  ") > -1:
+            text = text.replace("  ", " ")
+        else:
+            break
+
+    return text
+
+
 conv_dict = {'A': 'T',
              'T': 'A',
              'C': 'G',
              'G': 'C',
              'N': 'N'}
+
+
+def is_file_exists(file_path):
+    if not file_path:
+        raise ConfigError, "No input file is declared..."
+    if not os.path.exists(file_path):
+        raise ConfigError, "No such file: '%s' :/" % file_path
+    return True
+
+
+def is_output_file_writable(file_path):
+    if not file_path:
+        raise ConfigError, "No output file is declared..."
+    if not os.access(os.path.dirname(os.path.abspath(file_path)), os.W_OK):
+        raise ConfigError, "You do not have permission to generate the output file '%s'" % file_path
+    return True
+
+
+def is_file_tab_delimited(file_path):
+    is_file_exists(file_path)
+    f = open(file_path)
+    line = f.readline()
+    if len(line.split('\t')) == 1:
+        raise ConfigError, "File '%s' does not seem to have TAB characters.\
+                            Did you export this file on MAC using EXCEL? :(" % file_path
+
+    f.seek(0)
+    if len(set([len(line.split('\t')) for line in f.readlines()])) != 1:
+        raise ConfigError, "Not all lines in the file '%s' have equal number of fields..." % file_path
+
+    f.close()
+    return True
+
+
 
 
 def colorize(sequence):
