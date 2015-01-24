@@ -1,0 +1,236 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# Copyright (C) 2015, A. Murat Eren
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Please read the COPYING file.
+
+import os
+import sys
+import textwrap
+import argparse
+from collections import Counter
+import IlluminaUtils.lib.fastqlib as u
+import IlluminaUtils.lib.fastalib as f
+import IlluminaUtils.utils.terminal as terminal
+import IlluminaUtils.utils.helperfunctions as h
+
+run = terminal.Run()
+progress = terminal.Progress()
+pp = h.big_number_pretty_print
+
+class Demultiplex:
+    def __init__(self, args):
+        self.args = args
+        self.r1 = None
+        self.r2 = None
+        self.index   = None
+        self.output_dir = None
+
+        self.barcode_to_sample = {}
+        self.pair_id_to_sample = {}
+        self.file_objects = {}
+        self.num_indexes_per_sample = {}
+        self.num_reads_per_sample = {}
+
+        self.sanity_check()
+
+
+    def _run(self):
+        self.build_index()
+        self.demultiplex()
+        self.report()
+
+
+    def sanity_check(self):
+        if not self.args.sample_barcode_mapping or not self.args.r1 or not self.args.r2 or not self.args.index:
+            raise h.ConfigError, "You must declare all necessary files. Mandatory parameters are --sample-barcode-mapping,\
+                                  --r1, --r2, and --index. Please run the program with --help to see the full list of\
+                                  parameters."
+        h.is_file_exists(self.args.sample_barcode_mapping)
+        h.is_file_exists(self.args.r1)
+        h.is_file_exists(self.args.r2) if self.args.r2 else None
+        h.is_file_exists(self.args.index)
+        h.is_file_tab_delimited(self.args.sample_barcode_mapping)
+
+        if self.args.output_dir:
+            h.is_file_exists(self.args.output_dir)
+            self.output_dir = os.path.abspath(self.args.output_dir)
+            if self.output_dir == os.path.dirname(os.path.abspath(self.args.r1)):
+                raise h.ConfigError, "The output directory you declared is where your input FASTQ files reside.\
+                                      Demultiplexing will probably clutter that directory, and it is going to be\
+                                      very hard for you to clean it up. So, why don't you create a new directory\
+                                      and declare it as an output directory instead?"
+        else:
+            raise h.ConfigError, "Please define an output directory. Preferably an empty one, too. I will not overwrite\
+                                  any existing file while demultiplexing (and you will get an error about that). So\
+                                  it is best if you create a new directory and declare it with --output-dir parameter."
+
+        run.info('Output directory', self.output_dir)
+
+        self.r1 =  u.FastQSource(self.args.r1, compressed = self.args.r1.endswith('.gz'))
+        self.r2 =  u.FastQSource(self.args.r2, compressed = self.args.r2.endswith('.gz'))
+        self.index =  u.FastQSource(self.args.index, compressed = self.args.index.endswith('.gz'))
+
+        progress.new('Reading barcodes')
+        progress.update('...')
+        for line in open(self.args.sample_barcode_mapping).readlines():
+            sample, barcode = line.strip().split()
+            if self.args.rev_comp_barcodes:
+                self.barcode_to_sample[h.reverse_complement(barcode)] = sample
+            else:
+                self.barcode_to_sample[barcode] = sample
+        progress.end()
+
+        if len(set([len(b) for b in self.barcode_to_sample.keys()])) > 1:
+            raise h.ConfigError, "All barcodes must be equal in length. Which is not the case with the\
+                                  sample-barcode mapping file you provides :/"
+
+        run.info('Barcodes%s' % (" (rev-comp'd)" if self.args.rev_comp_barcodes else ''), '%d samples found' % len(self.barcode_to_sample))
+
+
+    def build_index(self):
+        num_index = 0
+        missing_barcode = 0
+
+        self.index.next()
+        i_l = len(self.index.entry.sequence)
+        b_l = len(self.barcode_to_sample.keys()[0])
+        if i_l > b_l:
+            run.info('WARNING', '', header = True)
+            print textwrap.fill(h.remove_spaces('Barcode length (%d) differs from index length (%d). This may indicate a problem with your\
+                                 sample-barcode mapping file. Please be extra careful and double check all your output files\
+                                 for potential issues. I will attempt to use the first %d characters from your index reads\
+                                 to match them with your barcodes to continue demultiplexing' % (b_l, i_l, b_l)), 80) + '\n'
+        self.index.reset()
+
+        progress.new('Reading index')
+        while self.index.next(raw = True):
+            num_index += 1
+            if self.index.p_available:
+                progress.update('~%.2f%% (num index reads with no barcode: %d)' % (self.index.percent_read, missing_barcode))
+
+            seq = self.index.entry.sequence[0:b_l]
+
+            if not self.barcode_to_sample.has_key(seq):
+                missing_barcode += 1
+                continue 
+            self.pair_id_to_sample[self.index.entry.header_line.split()[0]] = self.barcode_to_sample[seq]
+        progress.end()
+        run.info('Index', '%s indexes read, %s of which matched barcodes' % (pp(num_index), pp(num_index - missing_barcode)))
+
+        reads_matched = num_index - missing_barcode
+
+        if reads_matched == 0:
+            raise h.ConfigError, "None of the sequences in the index file matched any of your barcodes. This is not\
+                                  good. You may want to run this program with --rev-comp-barcodes option. I have seen\
+                                  some runs where barcodes needed to be reverse-complemented. If you can't figure out\
+                                  what is wrong, please get in touch with your sequencing facility, or send me an\
+                                  e-mail via a.murat.eren@gmail.com so we can figure out what is wrong and fix it for\
+                                  everyone if the problem is due to this library. Sorry this happened."
+
+        if reads_matched < num_index * 1.0 / 10:
+            run.info('WARNING', '', header = True)
+            print textwrap.fill(h.remove_spaces('Less than 10% of indexes matched barcodes you defined. This may be\
+                                 totally normal, but please double check everything to make sure everything seems in\
+                                 order.'), 80) + '\n'
+
+
+        self.num_indexes_per_sample = Counter(self.pair_id_to_sample.values())
+        self.samples = set(self.num_indexes_per_sample.keys())
+        self.num_reads_per_sample = dict(zip(self.samples, [0] * len(self.samples)))
+
+
+    def initiate_file_objects(self):
+        progress.new('Initiating files objects')
+        progress.update('...')
+        for sample in self.samples:
+            r1 = os.path.join(self.output_dir, sample + '-R1.fastq')
+            r2 = os.path.join(self.output_dir, sample + '-R2.fastq')
+            if os.path.exists(r1) or os.path.exists(r2):
+                progress.end()
+                raise h.ConfigError, "The output directory contains files with identical names to the ones I am about to\
+                                      create :/ Please clean your output directory before running this program."
+
+            self.file_objects[sample] = {'r1': u.FastQOutput(r1),
+                                         'r2': u.FastQOutput(r2)}
+        progress.end()
+
+
+    def close_file_objects(self):
+        progress.new('Closing files objects')
+        progress.update('...')
+        for sample in self.samples:
+            self.file_objects[sample]['r1'].close()
+            self.file_objects[sample]['r2'].close()
+        progress.end()
+
+
+    def demultiplex(self):
+        self.initiate_file_objects()
+
+        missing_read_id = 0
+        num_reads_resolved = 0
+
+        while self.r1.next() and self.r2.next():
+            pair_id = self.r1.entry.header_line.split()[0]
+
+            if pair_id not in self.pair_id_to_sample:
+                missing_read_id += 1
+                continue
+
+            sample = self.pair_id_to_sample[pair_id]
+            num_reads_resolved += 1
+            self.num_reads_per_sample[sample] += 1
+         
+            if self.r1.pos % 1000 == 0:
+                progress.update('Processed: %d (num reads resolved: %d)' % (self.r1.pos, num_reads_resolved))
+
+            self.file_objects[sample]['r1'].store_entry(self.r1.entry)
+            self.file_objects[sample]['r2'].store_entry(self.r2.entry)
+
+        self.close_file_objects()
+
+
+    def report(self):
+        progress.new('Report')
+        progress.update('...')
+        output_file_path = os.path.join(self.output_dir, '00_DEMULTIPLEXING_REPORT')
+        output = open(output_file_path, 'w')
+        items = self.num_indexes_per_sample.most_common()
+
+        output.write('sample\tnum_indexes_found\tnum_reads_stored\n')
+        for item in items:
+            sample = item[0]
+            output.write('%s\t%d\t%d\n' % (sample, self.num_indexes_per_sample[sample], self.num_reads_per_sample[sample]))
+        progress.end()
+        run.info('Demultiplexing report', output_file_path)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Demultiplex a paired-end Illumina Run')
+    # FIXME: it should be possible to run this without the runinfo-dict.
+    parser.add_argument('-s', '--sample-barcode-mapping', metavar = 'PATH', default = None,
+                        help = 'TAB-delimited file of sample-barcode associations')
+    parser.add_argument('--r1', metavar = 'FASTQ', default = None,
+                        help = 'FASTQ file for R1')
+    parser.add_argument('--r2', metavar = 'FASTQ', default = None,
+                        help = 'FASTQ file for R2.')
+    parser.add_argument('-i', '--index', metavar = 'FASTQ', default = None,
+                        help = 'Index file (I1)')
+    parser.add_argument('-x', '--rev-comp-barcodes', action = 'store_true', default = False,
+                        help = 'Reverse-complement barcodes before processing')
+    parser.add_argument('-o', '--output-dir', metavar = 'DIRECTORY', default = None,
+                        help = 'Directory for output storage')
+
+    try:
+        d = Demultiplex(parser.parse_args())
+        d._run()
+    except h.ConfigError, e:
+        print e
+        sys.exit(-1)
