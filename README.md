@@ -46,7 +46,7 @@ The easiest way to install illumina-utils is to do it through pip. To install th
 
     sudo pip install illumina-utils
 
-Alternatively, you can download the source code from [here](https://github.com/meren/illumina-utils/releases/tag/v1.0), unpack it, and install running the following command from within the directory:
+Alternatively, you can download the source code from [here](https://github.com/meren/illumina-utils/releases/tag/v1.0), unpack it, and install running the following command from within the illumina-utils directory:
 
     sudo python setup.py install
 
