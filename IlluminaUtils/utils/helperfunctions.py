@@ -97,6 +97,89 @@ def is_file_tab_delimited(file_path):
     return True
 
 
+def get_TAB_delimited_file_as_dictionary(file_path, expected_fields = None, dict_to_append = None, column_names = None,\
+                                        column_mapping = None, indexing_field = 0, assign_none_for_missing = False):
+    is_file_exists(file_path)
+    is_file_tab_delimited(file_path)
+
+    f = open(file_path)
+
+    if column_names:
+        columns = column_names
+        num_fields = len(f.readline().strip('\n').split('\t'))
+
+        if num_fields != len(columns):
+            raise  ConfigError, "Number of column names declared (%d) differs from the number of columns\
+                                 found (%d) in the matrix ('%s') :/" % (len(columns), num_fields, file_path)
+        f.seek(0)
+    else:
+        columns = f.readline().strip('\n').split('\t')
+
+    if expected_fields:
+        for field in expected_fields:
+            if field not in columns:
+                raise ConfigError, "The file '%s' does not contain the right type of header. It was expected\
+                                    to have these: '%s', however it had these: '%s'" % (file_path,
+                                                                                        ', '.join(expected_fields),
+                                                                                        ', '.join(columns[1:]))
+
+    d = {}
+
+    for line in f.readlines():
+        line_fields = line.strip('\n').split('\t')
+
+        if column_mapping:
+            updated_line_fields = []
+            for i in range(0, len(line_fields)):
+                try:
+                    updated_line_fields.append(column_mapping[i](line_fields[i]))
+                except NameError:
+                    raise ConfigError, "Mapping function '%s' did not work on value '%s'. These functions can be native\
+                                        Python functions, such as 'str', 'int', or 'float', or anonymous functions\
+                                        defined using lambda notation." % (column_mapping[i], line_fields[i])
+                except TypeError:
+                    raise ConfigError, "Mapping function '%s' does not seem to be a proper Python function :/" % column_mapping[i]
+                except ValueError:
+                    raise ConfigError, "Mapping funciton '%s' did not like the value '%s' in column number %d\
+                                        of the matrix :/" % (column_mapping[i], line_fields[i], i + 1)
+            line_fields = updated_line_fields 
+
+        entry_name = line_fields[indexing_field]
+
+        d[entry_name] = {}
+
+        e = d[line_fields[indexing_field]]
+        for i in range(0, len(columns)):
+            if i == indexing_field:
+                continue
+            e[columns[i]] = line_fields[i]
+
+    # we have the dict, but we will not return it the way it is if its supposed to be appended to an
+    # already existing dictionary.
+    if dict_to_append:
+        # we don't want to through keys in d each time we want to add stuff to 'dict_to_append', so we keep keys we
+        # find in the first item in the dict in another variable. this is potentially very dangerous if not every
+        # item in 'd' has identical set of keys.
+        keys = d.values()[0].keys()
+
+        for entry in dict_to_append:
+            if entry not in d:
+                # so dict to append is missing a key that is in the dict to be appended. if the user did not
+                # ask us to add None for these entries via none_for_missing, we are going to make a noise,
+                # otherwise we will tolerate it.
+                if not assign_none_for_missing:
+                    raise ConfigError, "Appending entries to the already existing dictionary from file '%s' failed\
+                                        as the entry %s does not appear to be in the file." % (file_path, entry)
+                else:
+                    for key in keys:
+                        dict_to_append[entry][key] = None
+            else:
+                for key in keys:
+                    dict_to_append[entry][key] = d[entry][key]
+
+        return dict_to_append
+
+    return d
 
 
 def colorize(sequence):
