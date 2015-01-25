@@ -5,7 +5,7 @@ This is a small library and a bunch of clients to perform various operations on 
 
 In this README file you will find information about the following items:
 
-* Obtaining the source code. 
+* Installing illumina-utils. 
 * Config file format library requires.
 * Merging partially overlapping illumina pairs.
 * Quality filtering script for "Complete Overlap" approach described by [Eren _et al_](http://www.plosone.org/article/info:doi/10.1371/journal.pone.0066643).
@@ -18,7 +18,7 @@ You can get in touch with me via `meren at mbl dot edu`.
 # Contents
 
 - [Contents](#contents)
-- [Obtaining the Source Code](#obtaining-the-source-code)
+- [Installing](#installing)
     - [Requirements](#requirements)
 - [Demultiplexing](#demultiplexing)
 - [Config File Format](#config-file-format)
@@ -40,22 +40,19 @@ You can get in touch with me via `meren at mbl dot edu`.
         - [Example PNG files](#example-png-files)
 - [Questions?](#questions)
 
-# Obtaining the Source Code
+# Installing
 
-You can create a copy of the codebase by simply installing `git` and running this command in your terminal window:
+The easiest way to install illumina-utils is to do it through pip. To install the latest version, you can simply run this command on your terminal:
+
+    sudo pip install illumina-utils
+
+Alternatively, you can download the source code from [here](https://github.com/meren/illumina-utils/releases/tag/v1.0), unpack it, and install running the following command from within the directory:
+
+    sudo python setup.py install
+
+If you would like to play with the development version, you can create a copy of the codebase by simply installing `git` and running this command in your terminal window:
 
      git clone git://github.com/meren/illumina-utils.git
-
-This will generate the `illumina-utils` directory within the directory from which you run this command. Or you can simply download the zipped codebase through your browser and unzip it. Although it is not mandatory, having `git` installed and learning how to use it have advantages such as being able to keep your copy updated by synchronizing it with the master repository by simply typing `git pull` in your terminal window. However, if you do not wish to use `git`, you can always reach the zipped archive file of the latest version of the codebase via this link:
-
-     https://github.com/meren/illumina-utils/archive/master.zip
-
-Once you have the codebase, you should update your `PYTHONPATH` and `PATH` environment variables for easy access to the scripts and required libraries. You can do it by adding the following two lines in your `.bash_profile` file (it is a hidden file in your home directory, you can reach it by opening a terminal window and typing "nano ~/.bash_profile"):
-
-     export PYTHONPATH=$PYTHONPATH:/path-to/illumina-utils/
-     export PATH=$PATH:/path-to/illumina-utils/scripts
-
-Please remember to replace _`path-to`_ place holder in the lines above with the actual path that points the where `illumina-utils` directory is on your file system.
 
 ## Requirements
 
@@ -65,6 +62,9 @@ In order to use this software package fully, you need following items available 
 - [python-Levenshtein](https://pypi.python.org/pypi/python-Levenshtein/) (to merge partially overlapping reads)
 - [R](http://r-project.org) (required for visualizations today and will be used for statistical analyses)
     - [ggplot2](http://ggplot2.org/) (the R module that needs to be installed for R requirement)
+
+`matplotlib` and `python-Levenshtein` will be installed automatically if you install illumina-utils using `pip` or `setup.py`.
+
 
 # Demultiplexing
 
