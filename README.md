@@ -28,6 +28,7 @@ You can get in touch with me via `meren at mbl dot edu`.
 - [Merging Partially Overlapping Illumina Pairs](#merging-partially-overlapping-illumina-pairs)
     - [Example STATS output](#example-stats-output)
     - [Recovering high-quality reads from merged reads file](#recovering-high-quality-reads-from-merged-reads-file)
+- [Merging Completely Overlapping Illumina Pairs](#merging-completely-overlapping-illumina-pairs)
 - [Quality Filtering](#quality-filtering)
     - ["Complete Overlap" analysis for V6](#complete-overlap-analysis-for-v6)
         - [Example STATS output](#example-stats-output)
@@ -223,6 +224,11 @@ Program [filter-merged-reads](https://github.com/meren/illumina-utils/blob/maste
 
 Resulting file would be the file to use in downstream analyses.
 
+# Merging Completely Overlapping Illumina Pairs
+
+Please use `merge-illumina-pairs` the same way explained in the [Merging Partially Overlapping Illumina Pairs](#merging-partially-overlapping-illumina-pairs) section, but include your command line these two flags:
+
+    (...) --marker-gene-stringent --retain-only-overlap
 
 # Quality Filtering
 
