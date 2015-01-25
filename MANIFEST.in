@@ -1,0 +1,2 @@
+recursive-include examples *
+include CHANGELOG.md COPYING README.md requirements.txt VERSION
