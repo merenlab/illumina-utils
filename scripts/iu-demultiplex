@@ -34,9 +34,10 @@ class Demultiplex:
 
         self.barcode_to_sample = {}
         self.pair_id_to_sample = {}
-        self.file_objects = {}
         self.num_indexes_per_sample = {}
         self.num_reads_per_sample = {}
+        self.sample_file_names = {}
+        self.file_objects = {}
 
         self.sanity_check()
 
@@ -157,6 +158,8 @@ class Demultiplex:
                 raise h.ConfigError, "The output directory contains files with identical names to the ones I am about to\
                                       create :/ Please clean your output directory before running this program."
 
+            self.sample_file_names[sample] = {'r1': r1, 'r2': r2}
+
             self.file_objects[sample] = {'r1': u.FastQOutput(r1),
                                          'r2': u.FastQOutput(r2)}
         progress.end()
@@ -204,17 +207,20 @@ class Demultiplex:
         output = open(output_file_path, 'w')
         items = self.num_indexes_per_sample.most_common()
 
-        output.write('sample\tnum_indexes_found\tnum_reads_stored\n')
+        output.write('sample\tnum_indexes_found\tnum_reads_stored\tr1\tr2\n')
         for item in items:
             sample = item[0]
-            output.write('%s\t%d\t%d\n' % (sample, self.num_indexes_per_sample[sample], self.num_reads_per_sample[sample]))
+            output.write('%s\t%d\t%d\t%s\t%s\n' % (sample,
+                                                   self.num_indexes_per_sample[sample],
+                                                   self.num_reads_per_sample[sample],
+                                                   os.path.basename(self.sample_file_names[sample]['r1']),
+                                                   os.path.basename(self.sample_file_names[sample]['r2'])))
         progress.end()
         run.info('Demultiplexing report', output_file_path)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Demultiplex a paired-end Illumina Run')
-    # FIXME: it should be possible to run this without the runinfo-dict.
     parser.add_argument('-s', '--sample-barcode-mapping', metavar = 'PATH', default = None,
                         help = 'TAB-delimited file of sample-barcode associations')
     parser.add_argument('--r1', metavar = 'FASTQ', default = None,
