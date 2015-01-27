@@ -1,0 +1,2 @@
+sample	r1	r2
+E.coli	ecoli-V6-R1.fastq	ecoli-V6-R2.fastq
