@@ -40,7 +40,7 @@ class ConfigGenerator:
         self.args = args
         self.report = h.get_TAB_delimited_file_as_dictionary(args.report)
         self.input_dir = os.path.dirname(os.path.abspath(args.report))
-        self.output_dir = args.output_dir if args.output_dir else self.input_dir
+        self.output_dir = os.path.abspath(args.output_dir) if args.output_dir else self.input_dir
         self.r1_prefix = args.r1_prefix
         self.r2_prefix = args.r2_prefix
         self.e_mail = args.e_mail
@@ -67,11 +67,11 @@ class ConfigGenerator:
 
             prefix_text = ''
             if self.r1_prefix:
-                prefix_text += 'pair_1_prefix = %s' % self.r1_prefix
+                prefix_text += 'pair_1_prefix = %s\n' % self.r1_prefix
             if self.r2_prefix:
-                prefix_text += 'pair_2_prefix = %s' % self.r2_prefix
+                prefix_text += 'pair_2_prefix = %s\n' % self.r2_prefix
             if len(prefix_text):
-                ini.write(prefixes_section % {'prefix_text' % prefix_text})
+                ini.write(prefixes_section % {'prefix_text': prefix_text})
 
             ini.close()
 
