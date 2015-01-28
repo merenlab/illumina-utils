@@ -15,29 +15,31 @@ import sys
 
 import IlluminaUtils.lib.fastqlib as u
 from IlluminaUtils.utils.helperfunctions import reverse_complement
+import IlluminaUtils.utils.terminal as terminal
 
+run = terminal.Run()
+progress = terminal.Progress()
 
 def main(input_file_path, output_file_path, number_of_sequences = -1, rev_comp = False, compressed = False):
     fastq = u.FastQSource(input_file_path, compressed)
     output = u.FileOutput(output_file_path, compressed)
 
+    progress.new('Processing')
     while fastq.next() and number_of_sequences:
         if fastq.p_available:
-            fastq.print_percentage()
+            progress.update('~%.2f%%' % (fastq.percent_read))
+
         e = fastq.entry
-        output.write('>%s\n%s\n' % ('.'.join([e.machine_name,
-                                              e.run_id,
-                                              e.x_coord,
-                                              e.y_coord,
-                                              e.pair_no]),
-                                              e.sequence if not rev_comp else reverse_complement(e.sequence)))
+
+        output.write('>%s\n%s\n' % (e.header_line,
+                                    e.sequence if not rev_comp else reverse_complement(e.sequence)))
         number_of_sequences -= 1
 
-    sys.stderr.write('\n')
+    progress.end()
     fastq.close()
     output.close()
-    
-    return
+
+    run.info('Output FASTA', output_file_path)
 
 
 if __name__ == '__main__':

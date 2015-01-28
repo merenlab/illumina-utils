@@ -14,6 +14,11 @@ import sys
 
 import IlluminaUtils.lib.fastalib as u
 from IlluminaUtils.utils.runconfiguration import ConfigError
+import IlluminaUtils.utils.helperfunctions as h
+import IlluminaUtils.utils.terminal as terminal
+
+run = terminal.Run()
+progress = terminal.Progress()
 
 def main(input_file_path, output_file_path, max_mismatches):
     input = u.SequenceSource(input_file_path)
@@ -21,17 +26,17 @@ def main(input_file_path, output_file_path, max_mismatches):
 
     num_passed = 0
 
+    progress.new('Filtering reads (max %d mismatches)' % max_mismatches)
     while input.next():
-        if input.pos % 1000 == 0 or input.pos == 1:
-            sys.stderr.write('\rFiltering reads with max %d mismatches: %d [%d found]' % (max_mismatches, input.pos, num_passed))
-            sys.stderr.flush()
+        if input.pos % 100 == 0 or input.pos == 1:
+            progress.update('%d with 0 mismatches among %d processed' % (num_passed, input.pos))
 
         num_mismatches = sys.maxint
         
         try:
             num_mismatches = int(input.id.split('mismatches:')[1].strip())
         except:
-            print '\n\tError: Unexpected header format (expected to find "mismatches:" in the header, but failed).'
+            raise h.ConfigError, "Unexpected header format (no 'mismatches:' in the header)."
             sys.exit(-1)
         
         if num_mismatches > max_mismatches:
@@ -39,10 +44,10 @@ def main(input_file_path, output_file_path, max_mismatches):
         else:
             num_passed += 1
             output.store(input, split = False)
+        progress.end()
 
-    sys.stderr.write('\n')
     output.close()
-    return
+    run.info('Filtered output', output_file_path)
 
 
 if __name__ == '__main__':
