@@ -62,7 +62,8 @@ conv_dict = {'A': 'T',
              'T': 'A',
              'C': 'G',
              'G': 'C',
-             'N': 'N'}
+             'N': 'N',
+             '.': 'N'}
 
 
 def is_file_exists(file_path):
