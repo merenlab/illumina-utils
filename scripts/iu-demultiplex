@@ -180,7 +180,7 @@ class Demultiplex:
         missing_read_id = 0
         num_reads_resolved = 0
 
-        while self.r1.next() and self.r2.next():
+        while self.r1.next(raw=True) and self.r2.next(raw=True):
             pair_id = self.r1.entry.header_line.split()[0]
 
             if pair_id not in self.pair_id_to_sample:

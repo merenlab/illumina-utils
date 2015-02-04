@@ -25,7 +25,7 @@ def main(input_file_path, output_file_path, number_of_sequences = -1, rev_comp =
     output = u.FileOutput(output_file_path, compressed)
 
     progress.new('Processing')
-    while fastq.next() and number_of_sequences:
+    while fastq.next(raw=True) and number_of_sequences:
         if fastq.p_available:
             progress.update('~%.2f%%' % (fastq.percent_read))
 
