@@ -41,13 +41,10 @@ J = os.path.join
 
 import IlluminaUtils.lib.fastqlib as u
 from IlluminaUtils.utils.runconfiguration import RunConfiguration
+from IlluminaUtils.utils.runconfiguration import RunConfigError
 from IlluminaUtils.utils.helperfunctions import ReadIDTracker 
 from IlluminaUtils.utils.helperfunctions import QualityScoresHandler
 from IlluminaUtils.utils.helperfunctions import visualize_qual_stats_dict
-
-
-class ConfigError(Exception):
-    pass
 
 
 def RepresentsInt(s):
@@ -92,7 +89,7 @@ def IsHighQuality(sequence, quality, p):
     return (True, trim_to, 'PASSED')
 
 
-def main(config, visualize_quality_curves = False, p = 0.75):
+def main(config, visualize_quality_curves = False, ignore_deflines = False, p = 0.75):
     
     def get_percent(x, y):
         if y == 0:
@@ -153,7 +150,7 @@ def main(config, visualize_quality_curves = False, p = 0.75):
         # main loop per read:
         #####################################################################################
        
-        while pair_1.next() and pair_2.next():
+        while pair_1.next(raw = ignore_deflines) and pair_2.next(raw = ignore_deflines):
             number_of_pairs += 1
             s1, q1 = pair_1.entry.sequence, pair_1.entry.process_Q_list()
             s2, q2 = pair_2.entry.sequence, pair_2.entry.process_Q_list()
@@ -253,6 +250,10 @@ if __name__ == '__main__':
                                                 see an example.')
     parser.add_argument('-p', default = 0.75, type=float, metavar = 'FLOAT',
                                         help = 'Minimum high-quality read length (default: %(default)s)')
+    parser.add_argument('--ignore-deflines', action = 'store_true', default = False,
+                                        help = 'If FASTQ files are not CASAVA outputs, parsing the header info\
+                                                may go wrong. This flag tells the software to skip parsing\
+                                                deflines.')
     parser.add_argument('--visualize-quality-curves', action = 'store_true', default = False,
                                         help = 'When set, mean quality score for individual bases will be\
                                                 stored and visualized for each group of reads.')
@@ -263,11 +264,17 @@ if __name__ == '__main__':
 
     try: 
         config = RunConfiguration(user_config)
-    except ConfigError, e:
-        print "There is something wrong with the config file. This is what we know: \n\n", e
-        print
+    except RunConfigError, e:
+        print e
         sys.exit()
 
-    sys.exit(main(config,
-                  p = args.p,
-                  visualize_quality_curves = args.visualize_quality_curves))
+         
+    try:
+        sys.exit(main(config, p = args.p, ignore_deflines = args.ignore_deflines,
+                      visualize_quality_curves = args.visualize_quality_curves))
+    except RunConfigError, e:
+        print e
+        sys.exit(-1)
+    except u.FastQLibError, e:
+        print e
+        sys.exit(-2)         
