@@ -39,7 +39,7 @@ except:
 import IlluminaUtils.lib.fastqlib as u
 import IlluminaUtils.lib.fastalib as f
 from IlluminaUtils.utils.runconfiguration import RunConfiguration
-from IlluminaUtils.utils.runconfiguration import ConfigError
+from IlluminaUtils.utils.runconfiguration import RunConfigError
 from IlluminaUtils.utils.helperfunctions import visualize_qual_stats_dict
 from IlluminaUtils.utils.helperfunctions import colorize
 from IlluminaUtils.utils.helperfunctions import conv_dict
@@ -729,9 +729,7 @@ if __name__ == '__main__':
 
     try: 
         config = RunConfiguration(user_config)
-    except ConfigError, e:
-        print "There is something wrong with the config file. This is what we know: \n\n", e
-        print
+    except RunConfigError, e:
         sys.exit()
 
     merger = Merger(config)

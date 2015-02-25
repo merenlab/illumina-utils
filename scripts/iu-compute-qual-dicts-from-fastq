@@ -19,8 +19,6 @@ import ConfigParser
 import IlluminaUtils.lib.fastqlib as u
 from IlluminaUtils.utils.helperfunctions import populate_tiles_qual_dict_from_input
 from IlluminaUtils.utils.helperfunctions import compute_plot_dict_from_tiles_dict 
-from IlluminaUtils.utils.runconfiguration import RunConfiguration
-from IlluminaUtils.utils.runconfiguration import ConfigError
 
 
 def main(input_1_path, input_2_path, output_prefix):

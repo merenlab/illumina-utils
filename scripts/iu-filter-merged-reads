@@ -13,7 +13,6 @@ import os
 import sys
 
 import IlluminaUtils.lib.fastalib as u
-from IlluminaUtils.utils.runconfiguration import ConfigError
 import IlluminaUtils.utils.helperfunctions as h
 import IlluminaUtils.utils.terminal as terminal
 
