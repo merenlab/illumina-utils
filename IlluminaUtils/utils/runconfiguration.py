@@ -12,13 +12,33 @@
 
 import os
 import sys
+import textwrap
 import ConfigParser
+
+from IlluminaUtils.utils.helperfunctions import remove_spaces 
 
 E = os.path.exists
 J = os.path.join
 
-class ConfigError(Exception):
-    pass
+
+class RunConfigError(Exception):
+    def __init__(self, e = None):
+        Exception.__init__(self)
+        self.e = remove_spaces(e)
+        return
+    def __str__(self):
+        error_type = 'Config File Error'
+
+        max_len = max([len(l) for l in textwrap.fill(self.e, 80).split('\n')])
+        error_lines = ['\033[0;30m\033[46m%s%s\033[0m' % (l, ' ' * (max_len - len(l)))\
+                                         for l in textwrap.fill(self.e, 80).split('\n')]
+
+        error_message = ['%s: %s' % (error_type, error_lines[0])]
+        for error_line in error_lines[1:]:
+            error_message.append('%s%s' % (' ' * (len(error_type) + 2), error_line))
+
+        return '\n'.join(error_message)
+
 
 def RepresentsInt(s):
     try: 
@@ -85,28 +105,28 @@ class RunConfiguration:
 
         for section in config.sections():
             if section not in config_template:
-                raise ConfigError, 'Unknown section: "%s"' % (section)
+                raise RunConfigError, 'Unknown section: "%s"' % (section)
             for option, value in config.items(section):
                 if option not in config_template[section].keys():
-                    raise ConfigError, 'Unknown option under "%s" section: "%s"' % (section, option)
+                    raise RunConfigError, 'Unknown option under "%s" section: "%s"' % (section, option)
                 if config_template[section][option].has_key('test') and not config_template[section][option]['test'](value):
                     if config_template[section][option].has_key('required'):
                         r = config_template[section][option]['required']
-                        raise ConfigError, 'Unexpected value for "%s" section "%s": %s \n    Expected: %s' % (option, section, value, r)
+                        raise RunConfigError, 'Unexpected value for "%s" section "%s": %s \n    Expected: %s' % (option, section, value, r)
                     else:
-                        raise ConfigError, 'Unexpected value for "%s" section "%s": %s' % (option, section, value)
+                        raise RunConfigError, 'Unexpected value for "%s" section "%s": %s' % (option, section, value)
 
         for section in config_template:
             for option in config_template[section]:
                 if config_template[section][option].has_key('mandatory') and not config.has_option(section, option):
-                    raise ConfigError, 'Missing mandatory option for section "%s": %s' % (section, option)
+                    raise RunConfigError, 'Missing mandatory option for section "%s": %s' % (section, option)
 
 
         if config.has_option('files', 'pair_2'):
             p1 = config.get('files', 'pair_1')
             p2 = config.get('files', 'pair_2')
             if len(p1.split(',')) != len(p2.split(',')):
-                raise ConfigError, 'For paired end setup, number of files has to match in pair_1 and pair_2.'
+                raise RunConfigError, 'For paired end setup, number of files has to match in pair_1 and pair_2.'
                     
 
 
