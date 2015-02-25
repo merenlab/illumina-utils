@@ -1,6 +1,9 @@
 Versions
 ========
 
+* 1.3 (2015-02-25)
+    * --ignore-defline parameter has been added to Minoche and Bokulich QC.
+
 * 1.2 (2015-02-04)
     * Partial support for very old versions of CASAVA
 
