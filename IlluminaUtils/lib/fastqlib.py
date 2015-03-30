@@ -81,7 +81,7 @@ class FastQEntry:
 
         return getattr(self, '_'.join(['process', key]))()
     
-    def __init__(self, (header_line, sequence_line, optional_line, qual_scores_line), trim_from = 0, trim_to = sys.maxint, raw = False, CASAVA_version = 1.8, pos = None):
+    def __init__(self, (header_line, sequence_line, optional_line, qual_scores_line), trim_from = 0, trim_to = sys.maxint, raw = False, CASAVA_version = '1.8', pos = None):
         self.is_valid = False
         self.raise_errors = True
 
@@ -236,7 +236,6 @@ class FastQSource:
         fields = self.entry.header_line.split(':')
         if len(fields) != 10:
             self.forced_raw = True
-            self.CASAVA_version = 'unknown'
         self.reset()
 
 
