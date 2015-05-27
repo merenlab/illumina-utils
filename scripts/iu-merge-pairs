@@ -720,6 +720,7 @@ if __name__ == '__main__':
     try: 
         config = RunConfiguration(user_config)
     except RunConfigError, e:
+        print e
         sys.exit()
 
     merger = Merger(config)
