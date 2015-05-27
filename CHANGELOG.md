@@ -1,6 +1,9 @@
 Versions
 ========
 
+* 1.4 (2014-05-27)
+    * Better error reporting.
+
 * 1.3 (2015-02-25)
     * --ignore-defline parameter has been added to Minoche and Bokulich QC.
 
