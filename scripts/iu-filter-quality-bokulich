@@ -81,13 +81,23 @@ def IsHighQuality(sequence, quality, p, q, r, n):
     return (True, trim_to, 'PASSED')
 
 
-def main(config, visualize_quality_curves = False, ignore_deflines = False, p = 0.75, q = 3, r = 3, n = 0):
-    
+def main(config, args = None, visualize_quality_curves = False, ignore_deflines = False, p = 0.75, q = 3, r = 3, n = 0, limit_num_pairs = None):
+
     def get_percent(x, y):
         if y == 0:
             return 0.0
         else:
             return x * 100.0 / y
+
+    if args:
+        q = args.q
+        p = args.p
+        r = args.r
+        n = args.n
+        ignore_deflines = args.ignore_deflines
+        visualize_quality_curves = args.visualize_quality_curves
+        limit_num_pairs = args.limit_num_pairs
+        print_qual_scores = args.print_qual_scores
 
 
     #####################################################################################
@@ -144,6 +154,10 @@ def main(config, visualize_quality_curves = False, ignore_deflines = False, p = 
        
         while pair_1.next(raw = ignore_deflines) and pair_2.next(raw = ignore_deflines):
             number_of_pairs += 1
+
+            if limit_num_pairs and number_of_pairs == limit_num_pairs:
+                break
+
             s1, q1 = pair_1.entry.sequence, pair_1.entry.process_Q_list()
             s2, q2 = pair_2.entry.sequence, pair_2.entry.process_Q_list()
 
@@ -194,6 +208,14 @@ def main(config, visualize_quality_curves = False, ignore_deflines = False, p = 
                 
                 quality_passed_r1.store_entry(pair_1.entry)
                 quality_passed_r2.store_entry(pair_2.entry)
+
+            if print_qual_scores:
+                print ''
+                print '%s' % pair_1.entry.header_line
+                print 'READ 1 [%s]: %s' % (p1_fate, ', '.join([str(_) for _ in q1]))
+                print 'READ 2 [%s]: %s' % (p2_fate, ', '.join([str(_) for _ in q2]))
+                print ''
+                print ' --'
 
 
     errors_fp.write('number of pairs analyzed      : %d\n' % (number_of_pairs))
@@ -254,6 +276,12 @@ if __name__ == '__main__':
     parser.add_argument('--visualize-quality-curves', action = 'store_true', default = False,
                                         help = 'When set, mean quality score for individual bases will be\
                                                 stored and visualized for each group of reads.')
+    parser.add_argument('--limit-num-pairs', default = None, type=int, metavar = 'INTEGER',
+                                        help = 'Put a limit to the number of pairs to analyze. For testing purposes.')
+    parser.add_argument('--print-qual-scores', action = 'store_true', default = False,
+                                        help = 'When set, the script will print out the Q-scores the way it sees it in\
+                                                the FASTQ file. This flag will generate a lot of useless output to the\
+                                                stdout, and you should not use it if you are not testing something.')
 
     args = parser.parse_args()
     user_config = ConfigParser.ConfigParser()
@@ -266,9 +294,7 @@ if __name__ == '__main__':
         sys.exit(-1)
 
     try:
-        sys.exit(main(config, q = args.q, p = args.p, r = args.r, n = args.n,
-                      ignore_deflines = args.ignore_deflines,
-                      visualize_quality_curves = args.visualize_quality_curves))
+        sys.exit(main(config, args=args))
     except RunConfigError, e:
         print e
         sys.exit(-1)
