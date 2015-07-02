@@ -481,6 +481,7 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False):
              '2201', '2202', '2203', '2204', '2205', '2206', '2207', '2208','2209', '2210', '2211','2212', '2213', '2214', '2215', '2216', 
              '2301', '2302', '2303', '2304', '2305', '2306', '2307', '2308','2309', '2310', '2311','2312', '2313', '2314', '2315', '2316']
 
+    tiles = D['1'].keys()
 
     if split_tiles:
         m = {}
@@ -560,10 +561,7 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False):
 
         plt.figtext(0.5, 0.97, '%s (%s)' % (title, big_number_pretty_print(int(sum([D['1'][x]['count'][0] for x in D['1']])))), weight = 'black', size = 'xx-large', ha = 'center')
 
-    try:
-        plt.savefig(dest + '.tiff')
-    except:
-        plt.savefig(dest + '.png')
+    plt.savefig(dest + '.png')
 
 
 def visualize_qual_stats_dict_single(D, dest, title):
