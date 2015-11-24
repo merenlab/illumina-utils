@@ -310,6 +310,8 @@ def quick_write(fp, header, sequence, qual):
 
 
 def compute_plot_dict_from_tiles_dict(tiles_dict, plot_dict = {'1': {}, '2': {}}):
+    sequence_length = max([len(t) for t in tiles_dict.values()[0].values()])
+
     for pair_no in ['1', '2']:
         for tile_no in tiles_dict[pair_no]:
             if not plot_dict[pair_no].has_key(tile_no):
@@ -317,7 +319,7 @@ def compute_plot_dict_from_tiles_dict(tiles_dict, plot_dict = {'1': {}, '2': {}}
     
     for pair_no in ['1', '2']:
         for tile_no in tiles_dict[pair_no]:
-            for i in range(0, 101):
+            for i in range(0, sequence_length):
                 plot_dict[pair_no][tile_no]['mean'].append(numpy.mean(tiles_dict[pair_no][tile_no][i]))
                 plot_dict[pair_no][tile_no]['std'].append(numpy.std(tiles_dict[pair_no][tile_no][i]))
                 plot_dict[pair_no][tile_no]['count'].append(len(tiles_dict[pair_no][tile_no][i]))
@@ -674,7 +676,7 @@ def populate_tiles_qual_dict_from_input(input_1, input_2, tiles_dict = {'1': {},
                 tiles_dict['2'][input_2.entry.tile_number].append([])
         
         q2 = input_2.entry.process_Q_list()
-        
+
         for i in range(0, len(q2)):
             try:
                 tiles_dict['2'][input_2.entry.tile_number][i].append(q2[i])
