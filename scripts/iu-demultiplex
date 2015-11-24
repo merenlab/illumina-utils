@@ -16,7 +16,6 @@ import textwrap
 import argparse
 from collections import Counter
 import IlluminaUtils.lib.fastqlib as u
-import IlluminaUtils.lib.fastalib as f
 import IlluminaUtils.utils.terminal as terminal
 import IlluminaUtils.utils.helperfunctions as h
 
@@ -113,8 +112,8 @@ class Demultiplex:
         progress.new('Reading index')
         while self.index.next(raw = True):
             num_index += 1
-            if self.index.p_available:
-                progress.update('~%.2f%% (num index reads with no barcode: %d)' % (self.index.percent_read, missing_barcode))
+            if num_index % 1000 == 0:
+                progress.update('~%.2f%% (num index reads with no barcode: %d (%.2f%% of all reads))' % (self.index.percent_read, missing_barcode, missing_barcode * 100.0 / num_index))
 
             seq = self.index.entry.sequence[0:b_l]
 
