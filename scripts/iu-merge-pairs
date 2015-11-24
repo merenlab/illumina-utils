@@ -170,6 +170,7 @@ class Merger:
         self.enforce_Q30_check = False
         self.retain_only_overlap = False
         self.marker_gene_stringent = False
+        self.project_name = 'Unknown_project'
 
         if self.config.pair_1_prefix:
             self.pair_1_prefix_compiled = re.compile(self.config.pair_1_prefix)
@@ -304,20 +305,23 @@ class Merger:
 
 
                 # generate the header line
-                header_line = '%s|o:%d|m/o:%f|MR:%s|Q30:%s|CO:%d|mismatches:%d' % (self.input_1.entry.header_line,
-                                                                      len_overlap,
-                                                                      p,
-                                                                      'n=%d;r1=%d;r2=%d' % (recovery_dict['none'],
-                                                                                            recovery_dict['read_1'],
-                                                                                            recovery_dict['read_2']),
-                                                                      'n/a' if not (self.enforce_Q30_check and not merging_done_on_complete_overlap) \
-                                                                            else '%s=%d;%s=%d' % ('p' if r1_passed_Q30 else 'f',
-                                                                                                  r1_Q30,
-                                                                                                  'p' if r2_passed_Q30 else 'f',
-                                                                                                  r2_Q30),
-                                                                      1 if merging_done_on_complete_overlap else 0,
-                                                                      number_of_mismatches)
+                header_line = '%s|o:%d|m/o:%f|MR:%s|Q30:%s|CO:%d|mismatches:%d' % \
+                                    (self.input_1.entry.header_line,
+                                     len_overlap,
+                                     p,
+                                     'n=%d;r1=%d;r2=%d' % (recovery_dict['none'],
+                                                           recovery_dict['read_1'],
+                                                           recovery_dict['read_2']),
+                                     'n/a' if not (self.enforce_Q30_check and not merging_done_on_complete_overlap) \
+                                           else '%s=%d;%s=%d' % ('p' if r1_passed_Q30 else 'f',
+                                                                 r1_Q30,
+                                                                 'p' if r2_passed_Q30 else 'f',
+                                                                 r2_Q30),
+                                     1 if merging_done_on_complete_overlap else 0,
+                                     number_of_mismatches)
 
+                # append the header line to the project name
+                header_line = '%s_%s' % (self.project_name, header_line.replace('_', '-'))
 
                 # FAIL CASE ~ m/o
                 if p > self.p_value or len_overlap < self.min_overlap_size:
@@ -454,8 +458,10 @@ class Merger:
 
 
     def init(self):
+        self.project_name = self.config.project_name.strip().replace(' ', '_')
+
         if not self.output_file_prefix:
-            self.output_file_prefix = self.config.project_name.strip().replace(' ', '_')
+            self.output_file_prefix = self.project_name
         
         P = lambda p: f.FastaOutput(os.path.join(self.config.output_directory, self.output_file_prefix + p)) 
         
