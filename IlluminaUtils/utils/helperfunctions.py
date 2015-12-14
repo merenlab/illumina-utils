@@ -114,7 +114,7 @@ def get_TAB_delimited_file_as_dictionary(file_path, expected_fields = None, dict
                                  found (%d) in the matrix ('%s') :/" % (len(columns), num_fields, file_path)
         f.seek(0)
     else:
-        columns = f.readline().strip('\n').split('\t')
+        columns = [c.strip() for c in f.readline().strip('\n').split('\t')]
 
     if expected_fields:
         for field in expected_fields:
@@ -127,7 +127,7 @@ def get_TAB_delimited_file_as_dictionary(file_path, expected_fields = None, dict
     d = {}
 
     for line in f.readlines():
-        line_fields = line.strip('\n').split('\t')
+        line_fields = line.strip('\n').strip('\r').split('\t')
 
         if column_mapping:
             updated_line_fields = []
