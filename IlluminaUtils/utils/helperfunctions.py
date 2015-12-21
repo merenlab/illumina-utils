@@ -14,6 +14,7 @@ import os
 import sys
 import gzip
 import stat
+import math
 import numpy
 import cPickle
 import textwrap
@@ -462,12 +463,17 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False):
             return float(max(D[p][tile]['count']))
 
 
+    def get_num_tiles(D, p = '1'):
+        return len(D[p].keys())
+
+    num_tiles = get_num_tiles(D)
+
+    num_rows_to_show = 8
+    fig = plt.figure(figsize = (30, 16))
     if split_tiles:
-        fig = plt.figure(figsize = (30, 16))
-        gs = Gs(6, 80)
+        gs = Gs(num_rows_to_show, int(math.ceil(num_tiles / num_rows_to_show)) * 2)
     else:
-        fig = plt.figure(figsize = (30, 16))
-        gs = Gs(6, 16)
+        gs = Gs(num_rows_to_show, int(math.ceil(num_tiles / num_rows_to_show)))
     
     plt.rcParams.update({'axes.linewidth' : 0.9})
     plt.rc('grid', color='0.50', linestyle='-', linewidth=0.1)
