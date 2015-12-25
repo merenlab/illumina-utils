@@ -412,7 +412,7 @@ class Gs:
         return self.current
 
 
-def visualize_qual_stats_dict(D, dest, title, split_tiles = False):
+def visualize_qual_stats_dict(D, dest, title, split_tiles = False, num_columns_to_show = 12, min_rows_to_show = 6):
     """
     
     this how D looks like:
@@ -468,12 +468,16 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False):
 
     num_tiles = get_num_tiles(D)
 
-    num_rows_to_show = 8
-    fig = plt.figure(figsize = (30, 16))
     if split_tiles:
-        gs = Gs(num_rows_to_show, int(math.ceil(num_tiles / num_rows_to_show)) * 2)
+        num_rows_to_show = int((math.ceil(num_tiles / num_columns_to_show)) or 1) * 2
     else:
-        gs = Gs(num_rows_to_show, int(math.ceil(num_tiles / num_rows_to_show)))
+        num_rows_to_show = int((math.ceil(num_tiles / num_columns_to_show)) or 1)
+
+    if num_rows_to_show < min_rows_to_show:
+        num_rows_to_show = min_rows_to_show
+
+    fig = plt.figure(figsize = (30, 16))
+    gs = Gs(num_rows_to_show, num_columns_to_show)
     
     plt.rcParams.update({'axes.linewidth' : 0.9})
     plt.rc('grid', color='0.50', linestyle='-', linewidth=0.1)
