@@ -9,7 +9,6 @@
 #
 # Please read the COPYING file.
 
-import os
 import sys
 
 import IlluminaUtils.lib.fastalib as u
