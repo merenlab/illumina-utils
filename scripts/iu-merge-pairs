@@ -321,7 +321,7 @@ class Merger:
                                      number_of_mismatches)
 
                 # append the header line to the project name
-                header_line = '%s_%s' % (self.project_name, header_line.replace('_', '-'))
+                header_line = '%s_%d|%s' % (self.project_name, self.stats.actual_number_of_pairs, header_line.replace('_', '-'))
 
                 # FAIL CASE ~ m/o
                 if p > self.p_value or len_overlap < self.min_overlap_size:
