@@ -476,7 +476,7 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False, num_columns_t
     if num_rows_to_show < min_rows_to_show:
         num_rows_to_show = min_rows_to_show
 
-    fig = plt.figure(figsize = (30, 16))
+    fig = plt.figure(figsize = (3 * num_columns_to_show, 2 * num_rows_to_show))
     gs = Gs(num_rows_to_show, num_columns_to_show)
     
     plt.rcParams.update({'axes.linewidth' : 0.9})
