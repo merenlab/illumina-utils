@@ -135,10 +135,10 @@ An example header line from the FASTA file for merged reads is shown below:
 Each field is separated from each other by a "|" character. Field one is the original defline from the FASTQ file of read 1. Following items explain details of these fields and command line options that affect them:
 
 * `o`: Length of the overlap.
-* `m/o`: The P value. P value is the ratio of the number of mismatches and the length of the overlap. Merged sequences can be discarded based on this ratio. The default is 0.3. This value should be changed through the command line parameter `-P` depending on the expected overlap size (if the expected length of overlap is 100 nts and if you choose to eliminate any pairs with more than 5 mismatches at the overlapping region, you can set the `-P` parameter to 0.05).
+* `m/o`: The P value. P value is the ratio of the number of mismatches and the length of the overlap. Merged sequences can be discarded based on this ratio. The default is 0.3. This value should be changed through the command line parameter `-P` depending on the expected overlap size (if the expected length of overlap is 100 nts and if you choose to eliminate any pairs with more than 5 mismatches at the overlapping region, you can set the `-P` parameter to 0.05). A more intuitive way to eliminate pairs with more than a certain amount mismatches at the overlapped region is to use the parameter `--max-num-mismatches`.
 * `MR`: "Mismatches Recovered". When there is a mismatch in the overlapped region, the base to be used in the final merged sequence is picked from whichever read possesses the higher Q-score (and shown as a capital letter in the merged sequence). If a mismatch is recovered from read 1, it increases the number next to r1 in this field, and so forth. However, if there is a disagreement between two reads, *and* neither of the reads have a Q-score higher than a minimum acceptable value, the corresponding base denoted with an `N` in the merged read, and the number next to `none` is increased by one. By default, the minimum Q-score value is 10. This value can be changed via the command line parameter `--min-qual-score`. Note that if `--ignore-Ns` flag is not declared, all merged sequences that had at least one disagreement which can't be recovered from either read due to `--min-qual-score` value will be discarded.
 * `Q30`: By default, quality filtering is being done based only on the mismatches found in the overlapped region, and the beginning and the end of merged reads are not being checked. However a final control can be enforced using the command line flag `--enforce-Q30-check`. This flag turns on the Q30 check, as it was explained by [Minoche _et al_](http://genomebiology.com/2011/12/11/R112). Briefly, Q30-check eliminates pairs if the 66% of bases in the *first half* of each read do not have Q-scores over Q30. Note that Q30 is applied only to the parts of reads that did not overlap. If either of reads fail Q30 check, merged sequence is discarded. `p,77;p,76` in the example header reads as "read 1 passed Q30 check (threfore `p`, failed case denoted by an `f`), and 77 bases in the first half of it had a better Q-score than 30; read 2 passed Q30 check, and 76 bases in the first half of it had a better Q-score than 30". If Q30-check was not enforced `n/a` appears next to it.
-* `mismatches`: Number of mismatches at the overlapped region for quick filtering of resulting reads.
+* `mismatches`: Number of mismatches at the overlapped region for quick filtering of resulting reads. Using `--max-num-mismatches` parameter, you can remove any pair with more than a certain number of mismatches at the overlapped region.
 
 Here is a snippet from the merged sequences file (reads are trimmed from both ends for readability):
 
@@ -220,7 +220,9 @@ The `project_name_STATS` file that is created in the output directory contains i
 
 ## Recovering high-quality reads from merged reads file
 
-If `iu-merge-pairs` finishes successfuly, it will generate `project_name_MERGED` for successfuly merged reads. A successful merge depends on the `o/r` value, Q30-check and lack of ambiguous bases in the merged sequence. However, succesfully merged reads based on user-defined or default parameters may not be as accurate as needed depending on the project. Further elimination of reads can be done by filtering out reads based on the number of mismatches they present at the overlapped region. For instance, user can decide to use only merged sequences with 0 mismatches from the resulting FASTA file.
+If `iu-merge-pairs` finishes successfuly, it will generate `project_name_MERGED` for successfuly merged reads. A successful merge depends on the `o/r` value, Q30-check and lack of ambiguous bases in the merged sequence. However, succesfully merged reads based on user-defined or default parameters may not be as accurate as needed depending on the project. If you haven't used `--max-num-mismatches` parameter, your merged file may contain sequences that are merged poorly.
+
+Further elimination of reads can be done by filtering out reads based on the number of mismatches they present at the overlapped region. For instance, user can decide to use only merged sequences with 0 mismatches from the resulting FASTA file.
 
 Program `iu-filter-merged-reads` can be used to retain high-quality reads from `project_name_MERGED` file. To retain reads with 0 mismatches at the overlapped region you can simply run this command on your `project_name_MERGED` to generate a file with filtered reads `project_name_FILTERED`:
 
@@ -234,45 +236,17 @@ Please use `iu-merge-pairs` the same way explained in the [Merging Partially Ove
 
     (...) --marker-gene-stringent --retain-only-overlap
 
-An example complete overlap analysis is demonstrated in the [examples](https://github.com/meren/illumina-utils/tree/master/examples) directory of the codebase. The script [v6-complete-overlap.sh](https://github.com/meren/illumina-utils/blob/master/examples/v6-complete-overlap.sh) lists necessary commands to (1) [generate](https://github.com/meren/illumina-utils/blob/master/examples/v6-complete-overlap.sh#L12) a config file for merging with proper prefixes to have V6 primers trimmed, (2) [merge](https://github.com/meren/illumina-utils/blob/master/examples/v6-complete-overlap.sh#L15) reads in FASTQ files, and (3) [retain](https://github.com/meren/illumina-utils/blob/master/examples/v6-complete-overlap.sh#L18) only reads with 0 mismatches.
+You can be extremely stringent with this approach by allowing 0 mismatches at the overlapped region:
+
+    (...) --marker-gene-stringent --retain-only-overlap --max-num-mismatches 0
+
+An example complete overlap analysis is demonstrated in the [examples](https://github.com/meren/illumina-utils/tree/master/examples) directory of the codebase.
 
 # Quality Filtering
 
 ## "Complete Overlap" analysis for V6
 
-`iu-analyze-v6-complete-overlaps` can be used to generate very high quality short reads from sequences that were generated by a short insert size library preperation method. Library preperation method and the efficacy of the complete overlap analysis is described in [Eren _et al_](http://www.plosone.org/article/info:doi/10.1371/journal.pone.0066643). Once the manuscript is published, the reference will be available here. The output of the iu-analyze-v6-complete-overlaps script include these files:
-
-* `project_name-STATS.txt` (an example output can be seen below)
-* `project_name-PERFECT_reads.fa` (FASTA file for reads that passed the complete overlap analysis)
-* `project_name-Q_DICT.cPickle.z` (gzipped cPickle object for Python that holds the machine reported quality scores for each group of failed and passed reads)
-* `project_name-READ_IDs.cPickle.z` (gzipped cPickle object for Python that holds the read fate information)
-
-If the program is run with `--visualize-quality-curves` option, following files will also be generated in the output directory:
-
-* `project_name-PASSED.png` (visualization of mean machine reported quality scores per tile for pairs that passed the the complete overlap analysis)
-* `project_name-FAILED_MISMATCH.png` (same for pairs that failed due to one or more mismatches at the region of read of interest)
-* `project_name-FAILED_RP.png` (same for pairs that lacked a proper reverse primer)
-* `project_name-FAILED_FP.png` (same for pairs that lacked a proper forward primer)
-
-### Example STATS output
-
-    $ cat 9022_B9-STATS.txt
-    number of pairs                 : 828243
-    total pairs passed              : 618589 (%74.69 of all pairs)
-      perfect pairs with Ns         : 0 (%0.00 of perfect pairs)
-      recovered ambiguous bases (p1): 0 (%0.00 of perfect pairs)
-      recovered ambiguous bases (p2): 0 (%0.00 of perfect pairs)
-    total pairs failed              : 209654 (%25.31 of all pairs)
-      FP failed in both pairs       : 5086 (%2.43 of all failed pairs)
-      FP failed only in pair 1      : 386 (%0.18 of all failed pairs)
-      FP failed only in pair 2      : 116822 (%55.72 of all failed pairs)
-      RP failed in both pairs       : 7076 (%3.38 of all failed pairs)
-      RP failed only in pair 1      : 6767 (%3.23 of all failed pairs)
-      RP failed only in pair 2      : 7647 (%3.65 of all failed pairs)
-      FAILED_MISMATCH               : 65870 (%31.42 of all failed pairs)
-      FAILED_RP                     : 21490 (%10.25 of all failed pairs)
-      FAILED_FP                     : 122294 (%58.33 of all failed pairs)
-
+The workflow for complete overlap analysis for the V6 region has been described in [Eren _et al_](http://www.plosone.org/article/info:doi/10.1371/journal.pone.0066643). With illumina-utils `v1.4.6` we made slight changes to the workflow. Instead of `iu-analyze-v6-complete-overlaps`, we now use `iu-merge-pairs` program and then remove V6 primers from complete overlaps with zero mismatches using `iu-trim-V6-primers`. The script [v6-complete-overlap.sh](https://github.com/meren/illumina-utils/blob/master/examples/v6-complete-overlap.sh) demonstrates the new workflow and contains commands to (1) generate a config file for a given sample, (2) merge reads in FASTQ files with complete overlap and zero mismatches, and (3) remove V6 primers from resulting reads. Please don't hesitate to get in touch if you have any questions.
 
 ## Minoche et al.
 
@@ -346,4 +320,4 @@ If the program is run with `--visualize-quality-curves` option, these files will
 
 # Questions?
 
-Please don't hesitate to get in touch with me via `meren at mbl dot edu`.
+Please don't hesitate to get in touch with me via `meren at uchicago dot edu`.
