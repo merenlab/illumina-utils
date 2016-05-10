@@ -130,6 +130,7 @@ def main(fasta_file, archaea = False, debug = False):
     
     fasta = u.SequenceSource(fasta_file)
     while fasta.next():
+        fasta.seq = fasta.seq.upper()
         number_of_sequences += 1
 
         #####################################################################################
