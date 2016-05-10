@@ -1,6 +1,10 @@
 Versions
 ========
 
+* 1.4.6 (2016-05-10)
+	* Realizing that there was this CHANGELOG.
+	* Improvements over pretty much everything.
+
 * 1.4.1 (2014-05-27)
     * Better error reporting.
 
