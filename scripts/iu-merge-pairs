@@ -57,6 +57,7 @@ class MergerStats:
         self.actual_number_of_pairs = 0
         self.pairs_eliminated_due_to_Ns = 0
         self.pairs_eliminated_due_to_P = 0
+        self.pairs_eliminated_due_to_max_num_mismatches = 0
         self.pairs_eliminated_due_to_Q30 = 0
         self.pairs_eliminated_due_to_Min_Overlap = 0
         self.prefix_failed_in_pair_1_total = 0
@@ -78,8 +79,8 @@ class MergerStats:
         self.num_Q30_fails_in_read_2 = 0
         self.num_Q30_fails_in_both = 0
 
-    def s_line(self, label, value, padding = 40):
-        return '%s%s\t%s\n' % (label, ' ' * (padding - len(label)), value)
+    def s_line(self, label, value, padding = 55):
+        return '%s%s\t%s\n' % (label, ' ' + '.' * (padding - len(label)), value)
 
     def write_stats(self, output_file_path, merger_object):
         stats = open(output_file_path, 'w')
@@ -94,6 +95,7 @@ class MergerStats:
         stats.write(self.s_line('Complete overlap forced total', '%d' % self.merging_done_on_complete_overlap))
         stats.write(self.s_line('Merge failed total', '%d' % self.merge_failed_total))
         stats.write(self.s_line('Merge discarded due to P', '%d' % self.pairs_eliminated_due_to_P))
+        stats.write(self.s_line('Merge discarded due to max num mismatches', '%d' % self.pairs_eliminated_due_to_max_num_mismatches))
         stats.write(self.s_line('Merge discarded due to Ns', '%d' % self.pairs_eliminated_due_to_Ns))
         stats.write(self.s_line('Merge discarded due to Q30', '%d' % self.pairs_eliminated_due_to_Q30))
         stats.write(self.s_line('Pairs discarded due to min expected overlap', '%d' % self.pairs_eliminated_due_to_Min_Overlap))
@@ -101,7 +103,7 @@ class MergerStats:
         stats.write(self.s_line('Mismatches recovered from read 1', '%d' % self.num_mismatches_recovered_from_read_1))
         stats.write(self.s_line('Mismatches recovered from read 2', '%d' % self.num_mismatches_recovered_from_read_2))
         stats.write(self.s_line('Mismatches replaced with N', '%d' % self.num_mismatches_replaced_with_N))
-        stats.write('\n\nMismatches breakdown:\n\n')
+        stats.write('\n\nMismatches breakdown in final merged reads:\n\n')
     
         for i in sorted(self.num_mismatches_breakdown['merge passed'].keys()):
             stats.write('%d\t%d\n' % (i, self.num_mismatches_breakdown['merge passed'][i]))
@@ -110,6 +112,7 @@ class MergerStats:
         stats.write(self.s_line('Command line', '%s' % ' '.join(sys.argv)))
         stats.write(self.s_line('Work directory', '%s' % os.getcwd()))
         stats.write(self.s_line('"p" value', '%f' % merger_object.p_value))
+        stats.write(self.s_line('Max num mismatches at the overlapped region', '%s' % (str(merger_object.max_num_mismatches) if merger_object.max_num_mismatches else 'None')))
         stats.write(self.s_line('Min overlap size', '%s' % merger_object.min_overlap_size))
         stats.write(self.s_line('Min Q-score for mismatches', '%s' % merger_object.min_qual_score))
         stats.write(self.s_line('Ns ignored?', '%s' % merger_object.ignore_Ns))
@@ -162,6 +165,7 @@ class Merger:
         self.output_file_prefix = None
         self.compute_qual_dicts = False
         self.p_value = 0.3
+        self.max_num_mismatches = -1
         self.min_overlap_size = 15
         self.min_qual_score = 10
         self.debug = False
@@ -191,7 +195,7 @@ class Merger:
     def run(self):                         
         #sys.stderr.write('POK: "Percent of all pairs that did present the prefix defined by the user\n"')
         #sys.stderr.write('ZM : "Percent of all pairs that merged with 0 mismatch\n"')
-        
+
         self.init()
     
         for index in range(0, len(self.config.pair_1)):
@@ -322,6 +326,15 @@ class Merger:
 
                 # append the header line to the project name
                 header_line = '%s_%d|%s' % (self.project_name, self.stats.actual_number_of_pairs, header_line.replace('_', '-'))
+
+                # FAIL CASE ~ max_num_mismatches
+                if self.max_num_mismatches >= 0 and number_of_mismatches > self.max_num_mismatches:
+                    self.failed.write_id(header_line)
+                    self.failed.write_seq(merged_sequence, split = False)
+                    self.stats.record_num_mismatches(number_of_mismatches, 'merge failed due to max num mismatches')
+                    self.stats.merge_failed_total += 1
+                    self.stats.pairs_eliminated_due_to_max_num_mismatches += 1
+                    continue
 
                 # FAIL CASE ~ m/o
                 if p > self.p_value or len_overlap < self.min_overlap_size:
@@ -596,7 +609,8 @@ class Merger:
                 overlap += overlap_1[i]
     
         if self.debug:
-            print
+            print '--'
+            print self.input_1.entry.header_line
             print beg + colorize(overlap) + end
     
         return ((beg, overlap, end), sum(recovery_dict.values()), recovery_dict)
@@ -661,6 +675,11 @@ if __name__ == '__main__':
                                                 for files that appear in output directory)')
     parser.add_argument('--min-overlap-size', type = int, default = 15, metavar = 'INT',
                                         help = 'Minimum expected overlap. Default is %(default)d.')
+    parser.add_argument('--max-num-mismatches', type = int, default = -1, metavar = 'INT',
+                                        help = 'Maximum number of mismatches at the overlapped region to\
+                                                retain the pair. The default behavior relies on `-P`\
+                                                parameter an does not pay attention to the number of\
+                                                mismatches at the overlapped region.')
     parser.add_argument('--min-qual-score', type = int, default = 15, metavar = 'INT',
                                         help = 'Minimum Q-score for a base to overwrite a mismatch\
                                                 at the overlapped region. If there is a mismatch at\
@@ -682,7 +701,8 @@ if __name__ == '__main__':
                                                 3 / 30 = 0.1. The default value for P is %(default)f, however\
                                                 it must be adjusted based on the expected overlap in a given\
                                                 study with respect to desired stringency. Stringency can also be\
-                                                adjusted post-merging, using the script `filter-merged-reads`.')
+                                                adjusted using `--max-num-mismatches` parameter, or can be done\
+                                                post-merging, using the program `filter-merged-reads`.')
     parser.add_argument('--enforce-Q30-check', action = 'store_true', default = False,
                                         help = 'By default, quality filtering is being done based only\
                                                 on the mismatches found in the overlapped region, and\
@@ -732,6 +752,7 @@ if __name__ == '__main__':
     merger = Merger(config)
     merger.output_file_prefix = args.output_file_prefix
     merger.p_value = args.P
+    merger.max_num_mismatches = args.max_num_mismatches
     merger.min_overlap_size = args.min_overlap_size
     merger.min_qual_score = args.min_qual_score
     merger.enforce_Q30_check = args.enforce_Q30_check
