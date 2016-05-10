@@ -112,7 +112,7 @@ class MergerStats:
         stats.write(self.s_line('Command line', '%s' % ' '.join(sys.argv)))
         stats.write(self.s_line('Work directory', '%s' % os.getcwd()))
         stats.write(self.s_line('"p" value', '%f' % merger_object.p_value))
-        stats.write(self.s_line('Max num mismatches at the overlapped region', '%s' % (str(merger_object.max_num_mismatches) if merger_object.max_num_mismatches else 'None')))
+        stats.write(self.s_line('Max num mismatches at the overlapped region', '%s' % (str(merger_object.max_num_mismatches) if merger_object.max_num_mismatches >= 0 else 'None')))
         stats.write(self.s_line('Min overlap size', '%s' % merger_object.min_overlap_size))
         stats.write(self.s_line('Min Q-score for mismatches', '%s' % merger_object.min_qual_score))
         stats.write(self.s_line('Ns ignored?', '%s' % merger_object.ignore_Ns))
