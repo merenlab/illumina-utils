@@ -168,7 +168,7 @@ def main(fasta_file, archaea = False, debug = False):
         if debug:
             print fasta.seq[:fp.start()] + ' ' + fasta.seq[fp.start():fp.end()] + ' ' + colorize(fasta.seq[fp.end():rp.start()]) + ' ' + fasta.seq[rp.start():rp.end()] + ' ' + fasta.seq[rp.end():]
 
-        fasta_for_trimmed_sequences.write('>%s\n' % fasta.id.split('|')[0])
+        fasta_for_trimmed_sequences.write('>%s\n' % fasta.id)
         fasta_for_trimmed_sequences.write('%s\n' % sequence)
         num_sequences_trimmed += 1
 
