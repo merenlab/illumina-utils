@@ -277,7 +277,11 @@ class Merger:
                 if self.marker_gene_stringent:
                     (alt_beginning, alt_overlap, alt_end), alt_number_of_mismatches, alt_recovery_dict =\
                                                              self.merge_two_sequences_fast(complete_overlap = True)
-                    alt_merged_sequence = alt_overlap
+
+                    if self.retain_only_overlap:
+                        alt_merged_sequence = alt_overlap
+                    else:
+                        alt_merged_sequence = alt_beginning + alt_overlap + alt_end
  
                     # find out about 'p' 
                     alt_len_overlap = len(alt_overlap) 
