@@ -1,6 +1,12 @@
 Versions
 ========
 
+* 1.4.8 (2016-06-10)
+  * iu-merge-pairs bug fixed: when `--marker-gene-stringent` is used, the program no longer assumes that the user wants to retain only the overlapping parts of reads (for which we have a separate flag: `--retain-only-overlap`).
+
+* 1.4.7 (2016-05-11)
+	* iu-trim-V6-primers no longer trims information-rich deflines
+
 * 1.4.6 (2016-05-10)
 	* Realizing that there was this CHANGELOG.
 	* Improvements over pretty much everything.
