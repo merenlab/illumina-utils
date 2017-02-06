@@ -37,7 +37,7 @@ setup(
     scripts = [script for script in glob.glob('scripts/*') if not script.endswith('-OBSOLETE')],
 
     include_package_data = True,
-    package_data={'': ['examples/']},
+    package_data={'': ['examples']},
 
     install_requires=reqs,
 )
