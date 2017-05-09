@@ -220,7 +220,7 @@ class FastQSource:
             self.file_pointer = gzip.open(file_path)
             self.file_length = None
         else:
-            self.file_pointer = open(file_path)
+            self.file_pointer = open(file_path, 'rU')
             self.file_length = predict_file_length(self.file_pointer, file_path)
 
         self.percent_step = 1000

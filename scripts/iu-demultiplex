@@ -79,7 +79,7 @@ class Demultiplex:
 
         progress.new('Reading barcodes')
         progress.update('...')
-        for line in open(self.args.sample_barcode_mapping).readlines():
+        for line in open(self.args.sample_barcode_mapping, 'rU').readlines():
             sample, barcode = line.strip().split()
             if self.args.rev_comp_barcodes:
                 self.barcode_to_sample[h.reverse_complement(barcode)] = sample

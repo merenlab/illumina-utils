@@ -27,7 +27,7 @@ J = os.path.join
 
 
 def main(fastq_path, ids_path):
-    ids = set([id.strip() for id in open(ids_path)])
+    ids = set([id.strip() for id in open(ids_path, 'rU')])
     input = u.FastQSource(fastq_path)
 
 
