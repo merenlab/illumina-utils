@@ -102,34 +102,34 @@ class RunConfiguration:
         }
 
         if not len(config.sections()):
-            raise RunConfigError, 'RunConfiguration class is upset, because the config object is empty.\
+            raise RunConfigError('RunConfiguration class is upset, because the config object is empty.\
                                    Probably your config file is not where you think it is. Please check\
-                                   your paths.'
+                                   your paths.')
 
         for section in config.sections():
             if section not in config_template:
-                raise RunConfigError, 'Unknown section: "%s"' % (section)
+                raise RunConfigError('Unknown section: "%s"' % (section))
             for option, value in config.items(section):
-                if option not in config_template[section].keys():
-                    raise RunConfigError, 'Unknown option under "%s" section: "%s"' % (section, option)
-                if config_template[section][option].has_key('test') and not config_template[section][option]['test'](value):
-                    if config_template[section][option].has_key('required'):
+                if option not in list(config_template[section].keys()):
+                    raise RunConfigError('Unknown option under "%s" section: "%s"' % (section, option))
+                if 'test' in config_template[section][option] and not config_template[section][option]['test'](value):
+                    if 'required' in config_template[section][option]:
                         r = config_template[section][option]['required']
-                        raise RunConfigError, 'Unexpected value for "%s" section "%s": %s \n    Expected: %s' % (option, section, value, r)
+                        raise RunConfigError('Unexpected value for "%s" section "%s": %s \n    Expected: %s' % (option, section, value, r))
                     else:
-                        raise RunConfigError, 'Unexpected value for "%s" section "%s": %s' % (option, section, value)
+                        raise RunConfigError('Unexpected value for "%s" section "%s": %s' % (option, section, value))
 
         for section in config_template:
             for option in config_template[section]:
-                if config_template[section][option].has_key('mandatory') and not config.has_option(section, option):
-                    raise RunConfigError, 'Missing mandatory option for section "%s": %s' % (section, option)
+                if 'mandatory' in config_template[section][option] and not config.has_option(section, option):
+                    raise RunConfigError('Missing mandatory option for section "%s": %s' % (section, option))
 
 
         if config.has_option('files', 'pair_2'):
             p1 = config.get('files', 'pair_1')
             p2 = config.get('files', 'pair_2')
             if len(p1.split(',')) != len(p2.split(',')):
-                raise RunConfigError, 'For paired end setup, number of files has to match in pair_1 and pair_2.'
+                raise RunConfigError('For paired end setup, number of files has to match in pair_1 and pair_2.')
                     
 
 

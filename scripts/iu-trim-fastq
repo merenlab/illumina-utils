@@ -35,7 +35,7 @@ if __name__ == '__main__':
     parser.add_argument('input', metavar = 'FILE_PATH', help = 'FASTQ file to be trimmed')
     parser.add_argument('output', metavar = 'FILE_PATH', help = 'Where trimmed sequences will be written (default: [-i]-TRIMMED-TO-[-l]')
     parser.add_argument('-f', '--trim-from', type=int, metavar = 'INT', help = 'Trim from', default=0)
-    parser.add_argument('-t', '--trim-to', type=int, metavar = 'INT', help = 'Trim to', default=sys.maxint)
+    parser.add_argument('-t', '--trim-to', type=int, metavar = 'INT', help = 'Trim to', default=sys.maxsize)
 
     args = parser.parse_args()
 

@@ -57,7 +57,7 @@ class ConfigGenerator:
 
         if not os.path.exists(self.output_dir):
             progress.end()
-            print "\n\tError: Output directory %s does not exist.\n" % self.output_dir
+            print("\n\tError: Output directory %s does not exist.\n" % self.output_dir)
             sys.exit(1)
 
         for sample in self.samples_config:
@@ -66,12 +66,12 @@ class ConfigGenerator:
 
             if r1_input_path != r2_input_path:
                 progress.end()
-                print "\n\tError: R1 path is not identical to R2 path for %s.\n" % sample
+                print("\n\tError: R1 path is not identical to R2 path for %s.\n" % sample)
                 sys.exit(2)
 
             if not os.path.exists(r1_input_path):
                 progress.end()
-                print "\n\tError: Input paths for %s do not work...\n" % sample
+                print("\n\tError: Input paths for %s do not work...\n" % sample)
                 sys.exit(3)
 
             progress.update('%s ...' % sample)
@@ -116,6 +116,6 @@ if __name__ == '__main__':
     try:
         c = ConfigGenerator(parser.parse_args())
         c._run()
-    except h.ConfigError, e:
-        print e
+    except h.ConfigError as e:
+        print(e)
         sys.exit(-1)

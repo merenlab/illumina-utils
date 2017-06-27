@@ -12,7 +12,7 @@
 
 import os
 import sys
-import cPickle
+import pickle
 
 import IlluminaUtils.lib.fastqlib as u
 from IlluminaUtils.utils.helperfunctions import populate_tiles_qual_dict_from_input
@@ -37,7 +37,7 @@ def main(input_1_path, input_2_path, output_prefix):
     sys.stderr.write('done.\n')
 
     sys.stderr.write('[qual dicts] serializing plot dicts ... ')
-    cPickle.dump(plot_dict, open(os.path.join(output_prefix), 'w'))
+    pickle.dump(plot_dict, open(os.path.join(output_prefix), 'w'))
     sys.stderr.write('done.\n')
  
     input_1.close()

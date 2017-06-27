@@ -34,8 +34,8 @@ def main(fastq_path, ids_path):
     for _id in ids:
         if _id.startswith('@'):
             try:
-                print "\n\n    Warning: IDs are not supposed to start with '@' character, if you are sure that is the case for your FASTQ file, press ENTER to continue. Otherwise press CTRL+C to quit, and fix your IDs file.\n"
-                raw_input()
+                print("\n\n    Warning: IDs are not supposed to start with '@' character, if you are sure that is the case for your FASTQ file, press ENTER to continue. Otherwise press CTRL+C to quit, and fix your IDs file.\n")
+                input()
                 break
             except:
                 sys.exit()
@@ -61,11 +61,11 @@ def main(fastq_path, ids_path):
 
     sys.stderr.write('\n\n')
 
-    print 'Total number of reads processed: %s' % u.big_number_pretty_print(input.pos)
-    print 'Number of reads removed        : %s' % u.big_number_pretty_print(number_of_reads_removed)
-    print 'FASTQ file for removed reads   : "%s"' % (fastq_path + '.removed')
-    print 'FASTQ file for surviving reads : "%s"' % (fastq_path + '.survived')
-    print
+    print('Total number of reads processed: %s' % u.big_number_pretty_print(input.pos))
+    print('Number of reads removed        : %s' % u.big_number_pretty_print(number_of_reads_removed))
+    print('FASTQ file for removed reads   : "%s"' % (fastq_path + '.removed'))
+    print('FASTQ file for surviving reads : "%s"' % (fastq_path + '.survived'))
+    print()
 
 if __name__ == '__main__':
     import argparse

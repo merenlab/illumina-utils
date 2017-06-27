@@ -49,9 +49,9 @@ class Demultiplex:
 
     def sanity_check(self):
         if not self.args.sample_barcode_mapping or not self.args.r1 or not self.args.r2 or not self.args.index:
-            raise h.ConfigError, "You must declare all necessary files. Mandatory parameters are --sample-barcode-mapping,\
+            raise h.ConfigError("You must declare all necessary files. Mandatory parameters are --sample-barcode-mapping,\
                                   --r1, --r2, and --index. Please run the program with --help to see the full list of\
-                                  parameters."
+                                  parameters.")
         h.is_file_exists(self.args.sample_barcode_mapping)
         h.is_file_exists(self.args.r1)
         h.is_file_exists(self.args.r2) if self.args.r2 else None
@@ -62,14 +62,14 @@ class Demultiplex:
             h.is_file_exists(self.args.output_dir)
             self.output_dir = os.path.abspath(self.args.output_dir)
             if self.output_dir == os.path.dirname(os.path.abspath(self.args.r1)):
-                raise h.ConfigError, "The output directory you declared is where your input FASTQ files reside.\
+                raise h.ConfigError("The output directory you declared is where your input FASTQ files reside.\
                                       Demultiplexing will probably clutter that directory, and it is going to be\
                                       very hard for you to clean it up. So, why don't you create a new directory\
-                                      and declare it as an output directory instead?"
+                                      and declare it as an output directory instead?")
         else:
-            raise h.ConfigError, "Please define an output directory. Preferably an empty one, too. I will not overwrite\
+            raise h.ConfigError("Please define an output directory. Preferably an empty one, too. I will not overwrite\
                                   any existing file while demultiplexing (and you will get an error about that). So\
-                                  it is best if you create a new directory and declare it with --output-dir parameter."
+                                  it is best if you create a new directory and declare it with --output-dir parameter.")
 
         run.info('Output directory', self.output_dir)
 
@@ -87,9 +87,9 @@ class Demultiplex:
                 self.barcode_to_sample[barcode] = sample
         progress.end()
 
-        if len(set([len(b) for b in self.barcode_to_sample.keys()])) > 1:
-            raise h.ConfigError, "All barcodes must be equal in length. Which is not the case with the\
-                                  sample-barcode mapping file you provides :/"
+        if len(set([len(b) for b in list(self.barcode_to_sample.keys())])) > 1:
+            raise h.ConfigError("All barcodes must be equal in length. Which is not the case with the\
+                                  sample-barcode mapping file you provides :/")
 
         run.info('Barcodes%s' % (" (rev-comp'd)" if self.args.rev_comp_barcodes else ''), '%d samples found' % len(self.barcode_to_sample))
 
@@ -100,13 +100,13 @@ class Demultiplex:
 
         self.index.next()
         i_l = len(self.index.entry.sequence)
-        b_l = len(self.barcode_to_sample.keys()[0])
+        b_l = len(list(self.barcode_to_sample.keys())[0])
         if i_l > b_l:
             run.info('WARNING', '', header = True)
-            print textwrap.fill(h.remove_spaces('Barcode length (%d) differs from index length (%d). This may indicate a problem with your\
+            print(textwrap.fill(h.remove_spaces('Barcode length (%d) differs from index length (%d). This may indicate a problem with your\
                                  sample-barcode mapping file. Please be extra careful and double check all your output files\
                                  for potential issues. I will attempt to use the first %d characters from your index reads\
-                                 to match them with your barcodes to continue demultiplexing' % (b_l, i_l, b_l)), 80) + '\n'
+                                 to match them with your barcodes to continue demultiplexing' % (b_l, i_l, b_l)), 80) + '\n')
         self.index.reset()
 
         progress.new('Reading index')
@@ -117,7 +117,7 @@ class Demultiplex:
 
             seq = self.index.entry.sequence[0:b_l]
 
-            if not self.barcode_to_sample.has_key(seq):
+            if seq not in self.barcode_to_sample:
                 missing_barcode += 1
                 continue 
             self.pair_id_to_sample[self.index.entry.header_line.split()[0]] = self.barcode_to_sample[seq]
@@ -127,23 +127,23 @@ class Demultiplex:
         reads_matched = num_index - missing_barcode
 
         if reads_matched == 0:
-            raise h.ConfigError, "None of the sequences in the index file matched any of your barcodes. This is not\
+            raise h.ConfigError("None of the sequences in the index file matched any of your barcodes. This is not\
                                   good. You may want to run this program with --rev-comp-barcodes option. I have seen\
                                   some runs where barcodes needed to be reverse-complemented. If you can't figure out\
                                   what is wrong, please get in touch with your sequencing facility, or send me an\
                                   e-mail via a.murat.eren@gmail.com so we can figure out what is wrong and fix it for\
-                                  everyone if the problem is due to this library. Sorry this happened."
+                                  everyone if the problem is due to this library. Sorry this happened.")
 
         if reads_matched < num_index * 1.0 / 10:
             run.info('WARNING', '', header = True)
-            print textwrap.fill(h.remove_spaces('Less than 10% of indexes matched barcodes you defined. This may be\
+            print(textwrap.fill(h.remove_spaces('Less than 10% of indexes matched barcodes you defined. This may be\
                                  totally normal, but please double check everything to make sure everything seems in\
-                                 order.'), 80) + '\n'
+                                 order.'), 80) + '\n')
 
 
-        self.num_indexes_per_sample = Counter(self.pair_id_to_sample.values())
+        self.num_indexes_per_sample = Counter(list(self.pair_id_to_sample.values()))
         self.samples = set(self.num_indexes_per_sample.keys())
-        self.num_reads_per_sample = dict(zip(self.samples, [0] * len(self.samples)))
+        self.num_reads_per_sample = dict(list(zip(self.samples, [0] * len(self.samples))))
 
 
     def initiate_file_objects(self):
@@ -154,8 +154,8 @@ class Demultiplex:
             r2 = os.path.join(self.output_dir, sample + '-R2.fastq')
             if os.path.exists(r1) or os.path.exists(r2):
                 progress.end()
-                raise h.ConfigError, "The output directory contains files with identical names to the ones I am about to\
-                                      create :/ Please clean your output directory before running this program."
+                raise h.ConfigError("The output directory contains files with identical names to the ones I am about to\
+                                      create :/ Please clean your output directory before running this program.")
 
             self.sample_file_names[sample] = {'r1': r1, 'r2': r2}
 
@@ -236,6 +236,6 @@ if __name__ == '__main__':
     try:
         d = Demultiplex(parser.parse_args())
         d._run()
-    except h.ConfigError, e:
-        print e
+    except h.ConfigError as e:
+        print(e)
         sys.exit(-1)

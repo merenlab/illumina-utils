@@ -12,7 +12,7 @@
 
 import os
 import sys
-import cPickle
+import pickle
 
 import IlluminaUtils.lib.fastqlib as u
 from IlluminaUtils.utils.helperfunctions import visualize_qual_stats_dict
@@ -36,7 +36,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     
-    plot_dict = cPickle.load(open(args.plot_dict))
+    plot_dict = pickle.load(open(args.plot_dict))
     dest = args.dest if args.dest else args.plot_dict
     title = args.title if args.title else os.path.basename(args.plot_dict)
     split_tiles = args.split_tiles

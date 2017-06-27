@@ -16,7 +16,7 @@ import gzip
 import stat
 import math
 import numpy
-import cPickle
+import pickle
 import textwrap
 
 try:
@@ -24,7 +24,7 @@ try:
     import matplotlib.gridspec as gridspec
     import matplotlib.cm as cm
 except:
-    print "No matplotlib found"
+    print("No matplotlib found")
 
 
 import IlluminaUtils.lib.fastalib as u
@@ -69,17 +69,17 @@ conv_dict = {'A': 'T',
 
 def is_file_exists(file_path):
     if not file_path:
-        raise ConfigError, "No input file is declared..."
+        raise ConfigError("No input file is declared...")
     if not os.path.exists(file_path):
-        raise ConfigError, "No such file: '%s' :/" % file_path
+        raise ConfigError("No such file: '%s' :/" % file_path)
     return True
 
 
 def is_output_file_writable(file_path):
     if not file_path:
-        raise ConfigError, "No output file is declared..."
+        raise ConfigError("No output file is declared...")
     if not os.access(os.path.dirname(os.path.abspath(file_path)), os.W_OK):
-        raise ConfigError, "You do not have permission to generate the output file '%s'" % file_path
+        raise ConfigError("You do not have permission to generate the output file '%s'" % file_path)
     return True
 
 
@@ -88,12 +88,12 @@ def is_file_tab_delimited(file_path):
     f = open(file_path)
     line = f.readline()
     if len(line.split('\t')) == 1:
-        raise ConfigError, "File '%s' does not seem to have TAB characters.\
-                            Did you export this file on MAC using EXCEL? :(" % file_path
+        raise ConfigError("File '%s' does not seem to have TAB characters.\
+                            Did you export this file on MAC using EXCEL? :(" % file_path)
 
     f.seek(0)
     if len(set([len(line.split('\t')) for line in f.readlines()])) != 1:
-        raise ConfigError, "Not all lines in the file '%s' have equal number of fields..." % file_path
+        raise ConfigError("Not all lines in the file '%s' have equal number of fields..." % file_path)
 
     f.close()
     return True
@@ -111,8 +111,8 @@ def get_TAB_delimited_file_as_dictionary(file_path, expected_fields = None, dict
         num_fields = len(f.readline().strip('\n').split('\t'))
 
         if num_fields != len(columns):
-            raise  ConfigError, "Number of column names declared (%d) differs from the number of columns\
-                                 found (%d) in the matrix ('%s') :/" % (len(columns), num_fields, file_path)
+            raise  ConfigError("Number of column names declared (%d) differs from the number of columns\
+                                 found (%d) in the matrix ('%s') :/" % (len(columns), num_fields, file_path))
         f.seek(0)
     else:
         columns = [c.strip() for c in f.readline().strip('\n').split('\t')]
@@ -120,10 +120,10 @@ def get_TAB_delimited_file_as_dictionary(file_path, expected_fields = None, dict
     if expected_fields:
         for field in expected_fields:
             if field not in columns:
-                raise ConfigError, "The file '%s' does not contain the right type of header. It was expected\
+                raise ConfigError("The file '%s' does not contain the right type of header. It was expected\
                                     to have these: '%s', however it had these: '%s'" % (file_path,
                                                                                         ', '.join(expected_fields),
-                                                                                        ', '.join(columns[1:]))
+                                                                                        ', '.join(columns[1:])))
 
     d = {}
 
@@ -136,14 +136,14 @@ def get_TAB_delimited_file_as_dictionary(file_path, expected_fields = None, dict
                 try:
                     updated_line_fields.append(column_mapping[i](line_fields[i]))
                 except NameError:
-                    raise ConfigError, "Mapping function '%s' did not work on value '%s'. These functions can be native\
+                    raise ConfigError("Mapping function '%s' did not work on value '%s'. These functions can be native\
                                         Python functions, such as 'str', 'int', or 'float', or anonymous functions\
-                                        defined using lambda notation." % (column_mapping[i], line_fields[i])
+                                        defined using lambda notation." % (column_mapping[i], line_fields[i]))
                 except TypeError:
-                    raise ConfigError, "Mapping function '%s' does not seem to be a proper Python function :/" % column_mapping[i]
+                    raise ConfigError("Mapping function '%s' does not seem to be a proper Python function :/" % column_mapping[i])
                 except ValueError:
-                    raise ConfigError, "Mapping funciton '%s' did not like the value '%s' in column number %d\
-                                        of the matrix :/" % (column_mapping[i], line_fields[i], i + 1)
+                    raise ConfigError("Mapping funciton '%s' did not like the value '%s' in column number %d\
+                                        of the matrix :/" % (column_mapping[i], line_fields[i], i + 1))
             line_fields = updated_line_fields 
 
         entry_name = line_fields[indexing_field]
@@ -162,7 +162,7 @@ def get_TAB_delimited_file_as_dictionary(file_path, expected_fields = None, dict
         # we don't want to through keys in d each time we want to add stuff to 'dict_to_append', so we keep keys we
         # find in the first item in the dict in another variable. this is potentially very dangerous if not every
         # item in 'd' has identical set of keys.
-        keys = d.values()[0].keys()
+        keys = list(d.values())[0].keys()
 
         for entry in dict_to_append:
             if entry not in d:
@@ -170,8 +170,8 @@ def get_TAB_delimited_file_as_dictionary(file_path, expected_fields = None, dict
                 # ask us to add None for these entries via none_for_missing, we are going to make a noise,
                 # otherwise we will tolerate it.
                 if not assign_none_for_missing:
-                    raise ConfigError, "Appending entries to the already existing dictionary from file '%s' failed\
-                                        as the entry %s does not appear to be in the file." % (file_path, entry)
+                    raise ConfigError("Appending entries to the already existing dictionary from file '%s' failed\
+                                        as the entry %s does not appear to be in the file." % (file_path, entry))
                 else:
                     for key in keys:
                         dict_to_append[entry][key] = None
@@ -191,14 +191,14 @@ def colorize(sequence):
 
 def store_cPickle_obj(obj, output_file_path):
     f = gzip.open(output_file_path, 'wb')
-    cPickle.dump(obj, f)
+    pickle.dump(obj, f)
     f.close()
     return True
 
 
 def load_cPickle_obj(obj_file_path):
     f = gzip.open(obj_file_path, 'rb')
-    obj = cPickle.load(f)
+    obj = pickle.load(f)
     f.close()
     return obj
 
@@ -252,14 +252,14 @@ class QualityScoresHandler:
         if pair_2:
             q2 = pair_2.entry.process_Q_list()
 
-        if not tiles_dict.has_key('1'):
+        if '1' not in tiles_dict:
             tiles_dict['1'] = {}
-        if not tiles_dict.has_key('2'):
+        if '2' not in tiles_dict:
             tiles_dict['2'] = {}
 
-        if not tiles_dict['1'].has_key(tile_number):
+        if tile_number not in tiles_dict['1']:
             tiles_dict['1'][tile_number] = {'mean': [0] * len(q1), 'std': [0] * len(q1), 'count': [0] * len(q1)}
-        if not tiles_dict['2'].has_key(tile_number):
+        if tile_number not in tiles_dict['2']:
             tiles_dict['2'][tile_number] = {'mean': [0] * len(q2), 'std': [0] * len(q2), 'count': [0] * len(q2)}
 
         tile_for_p1 = tiles_dict['1'][tile_number]
@@ -311,11 +311,11 @@ def quick_write(fp, header, sequence, qual):
 
 
 def compute_plot_dict_from_tiles_dict(tiles_dict, plot_dict = {'1': {}, '2': {}}):
-    sequence_length = max([len(t) for t in tiles_dict.values()[0].values()])
+    sequence_length = max([len(t) for t in list(tiles_dict.values())[0].values()])
 
     for pair_no in ['1', '2']:
         for tile_no in tiles_dict[pair_no]:
-            if not plot_dict[pair_no].has_key(tile_no):
+            if tile_no not in plot_dict[pair_no]:
                 plot_dict[pair_no][tile_no] = {'mean': [], 'count': [], 'std': []}
     
     for pair_no in ['1', '2']:
@@ -332,7 +332,7 @@ def visualize_sequence_length_distribution(fasta_file_path, dest, title, max_seq
 
     fasta = u.SequenceSource(fasta_file_path)
 
-    while fasta.next():
+    while next(fasta):
         if fasta.pos % 10000 == 0 or fasta.pos == 1:
             sys.stderr.write('\rReading: %s' % (big_number_pretty_print(fasta.pos)))
             sys.stderr.flush()
@@ -359,7 +359,7 @@ def visualize_sequence_length_distribution(fasta_file_path, dest, title, max_seq
     plt.subplots_adjust(left=0.05, bottom = 0.03, top = 0.95, right = 0.98)
 
     plt.plot(seq_len_distribution, color = 'black', alpha = 0.3)
-    plt.fill_between(range(0, max_seq_len + 1), seq_len_distribution, y2 = 0, color = 'black', alpha = 0.15)
+    plt.fill_between(list(range(0, max_seq_len + 1)), seq_len_distribution, y2 = 0, color = 'black', alpha = 0.15)
     plt.ylabel('number of sequences')
     plt.xlabel('sequence length')
 
@@ -369,8 +369,8 @@ def visualize_sequence_length_distribution(fasta_file_path, dest, title, max_seq
     if ytickstep == None:
         ytickstep = max(seq_len_distribution) / 20 or 1
 
-    plt.xticks(range(xtickstep, max_seq_len + 1, xtickstep), rotation=90, size='xx-small')
-    plt.yticks(range(0, max(seq_len_distribution) + 1, ytickstep), size='xx-small')
+    plt.xticks(list(range(xtickstep, max_seq_len + 1, xtickstep)), rotation=90, size='xx-small')
+    plt.yticks(list(range(0, max(seq_len_distribution) + 1, ytickstep)), size='xx-small')
     plt.ylim(ymin = 0, ymax = max(seq_len_distribution) + (max(seq_len_distribution) / 20.0))
     plt.xlim(xmin = 0, xmax = max_seq_len)
     plt.yticks(size='xx-small')
@@ -449,7 +449,7 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False, num_columns_t
     # lanes
     number_of_cycles = 0
     for pair in ['1', '2']:
-        if not D.has_key(pair):
+        if pair not in D:
             continue
         for tile in D[pair]:
             if len(D[pair][tile]['mean']) > number_of_cycles:
@@ -458,13 +458,13 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False, num_columns_t
 
     def get_max_count(D, p = '1', tile = None):
         if tile == None:
-            return float(max([D[p][x]['count'][0] for x in D[p].keys()]))
+            return float(max([D[p][x]['count'][0] for x in list(D[p].keys())]))
         else:
             return float(max(D[p][tile]['count']))
 
 
     def get_num_tiles(D, p = '1'):
-        return len(D[p].keys())
+        return len(list(D[p].keys()))
 
     num_tiles = get_num_tiles(D)
 
@@ -506,26 +506,26 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False, num_columns_t
                 plt.grid(True)
                 plt.subplots_adjust(left=0.02, bottom = 0.03, top = 0.95, right = 0.98)
   
-                plt.xticks(range(number_of_cycles / 10, number_of_cycles, number_of_cycles / 10), rotation=90, size='xx-small')
+                plt.xticks(list(range(number_of_cycles / 10, number_of_cycles, number_of_cycles / 10)), rotation=90, size='xx-small')
                 plt.ylim(ymin = 0, ymax = 42)
                 plt.xlim(xmin = 0, xmax = number_of_cycles - 1)
                 if _pair == '1':
-                    plt.yticks(range(5, 41, 5), size='xx-small')
+                    plt.yticks(list(range(5, 41, 5)), size='xx-small')
                 else:
-                    plt.yticks(range(5, 41, 5), [])
+                    plt.yticks(list(range(5, 41, 5)), [])
 
-                if D[_pair].has_key(tile):
-                    plt.fill_between(range(0, number_of_cycles), [42 for _ in range(0, number_of_cycles)], y2 = 0, color = colors(D[_pair][tile]['count'][0] / m[_pair]), alpha = 0.2)
+                if tile in D[_pair]:
+                    plt.fill_between(list(range(0, number_of_cycles)), [42 for _ in range(0, number_of_cycles)], y2 = 0, color = colors(D[_pair][tile]['count'][0] / m[_pair]), alpha = 0.2)
                     subplots[tile][_pair].plot(D[_pair][tile]['mean'], color = _color, lw = 2)
                     
                     read_number_percent_dropdown = [42 * (x / get_max_count(D, _pair, tile)) for x in D[_pair][tile]['count']]
                     if not len(set(read_number_percent_dropdown)) <= 1:
-                        plt.fill_between(range(0, number_of_cycles), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
+                        plt.fill_between(list(range(0, number_of_cycles)), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
 
                     plt.text(5, 2.5, '%s/%s :: %s' % (tile, _pair, big_number_pretty_print(int(get_max_count(D, _pair, tile)))), alpha=0.8, size = 'x-small')
                 else:
                     plt.text(5, 2.5, '%s/%s :: 0' % (tile, _pair), alpha=0.8, size = 'x-small')
-                    plt.fill_between(range(0, number_of_cycles), [42 for _ in range(0, number_of_cycles)], y2 = 0, color = colors(0 / m[_pair]), alpha = 0.2)
+                    plt.fill_between(list(range(0, number_of_cycles)), [42 for _ in range(0, number_of_cycles)], y2 = 0, color = colors(0 / m[_pair]), alpha = 0.2)
 
         Total = lambda p: big_number_pretty_print(int(sum([D[p][x]['count'][0] for x in D[p]])))
 
@@ -537,31 +537,31 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False, num_columns_t
         for i in range(0, len(tiles)):
             tile = tiles[i]
             
-            subplots[tile] = plt.subplot(gs.next())
+            subplots[tile] = plt.subplot(next(gs))
             plt.grid(True)
 
             plt.subplots_adjust(left=0.02, bottom = 0.03, top = 0.95, right = 0.98)
   
-            plt.xticks(range(number_of_cycles / 10, number_of_cycles, number_of_cycles / 10), rotation=90, size='xx-small')
+            plt.xticks(list(range(number_of_cycles / 10, number_of_cycles, number_of_cycles / 10)), rotation=90, size='xx-small')
             plt.ylim(ymin = 0, ymax = 42)
             plt.xlim(xmin = 0, xmax = number_of_cycles - 1)
-            plt.yticks(range(5, 41, 5), size='xx-small')
+            plt.yticks(list(range(5, 41, 5)), size='xx-small')
 
-            if D['1'].has_key(tile):
-                plt.fill_between(range(0, number_of_cycles), [42 for _ in range(0, number_of_cycles)], y2 = 0, color = colors(D['1'][tile]['count'][0] / m), alpha = 0.2)
+            if tile in D['1']:
+                plt.fill_between(list(range(0, number_of_cycles)), [42 for _ in range(0, number_of_cycles)], y2 = 0, color = colors(D['1'][tile]['count'][0] / m), alpha = 0.2)
                 subplots[tile].plot(D['1'][tile]['mean'], color = 'orange', lw = 2)
                 
                 read_number_percent_dropdown = [42 * (x / get_max_count(D, tile = tile)) for x in D['1'][tile]['count']]
                 if not len(set(read_number_percent_dropdown)) <= 1:
                     if len(read_number_percent_dropdown) < number_of_cycles:
                         read_number_percent_dropdown += [0] * (number_of_cycles - len(read_number_percent_dropdown)) 
-                    plt.fill_between(range(0, number_of_cycles), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
+                    plt.fill_between(list(range(0, number_of_cycles)), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
 
                 plt.text(5, 2.5, '%s :: %s' % (tile, big_number_pretty_print(int(get_max_count(D, tile = tile)))), alpha=0.5)
             else:
                 plt.text(5, 2.5, '%s :: 0' % tile, alpha=0.5)
-                plt.fill_between(range(0, number_of_cycles), [42 for _ in range(0, number_of_cycles)], y2 = 0, color = colors(0 / m), alpha = 0.2)
-            if D['2'].has_key(tile):
+                plt.fill_between(list(range(0, number_of_cycles)), [42 for _ in range(0, number_of_cycles)], y2 = 0, color = colors(0 / m), alpha = 0.2)
+            if tile in D['2']:
                 subplots[tile].plot(D['2'][tile]['mean'], color = 'purple', lw = 2)
 
         plt.figtext(0.5, 0.97, '%s (%s)' % (title, big_number_pretty_print(int(sum([D['1'][x]['count'][0] for x in D['1']])))), weight = 'black', size = 'xx-large', ha = 'center')
@@ -582,7 +582,7 @@ def visualize_qual_stats_dict_single(D, dest, title):
     # lanes
     number_of_cycles = 0
     for pair in ['1', '2']:
-        if not D.has_key(pair):
+        if pair not in D:
             continue
         for tile in D[pair]:
             if len(D[pair][tile]['mean']) > number_of_cycles:
@@ -607,7 +607,7 @@ def visualize_qual_stats_dict_single(D, dest, title):
             tile = D['1'][tile_id]
             means_p1.append(tile['mean'][i])
             counts_p1.append(tile['count'][i])
-            if D.has_key('2') and D['2']:
+            if '2' in D and D['2']:
                 tile = D['2'][tile_id]
                 means_p2.append(tile['mean'][i])
                 counts_p2.append(tile['count'][i])
@@ -615,7 +615,7 @@ def visualize_qual_stats_dict_single(D, dest, title):
         all_tiles['1']['mean'][i] = numpy.mean(means_p1)
         all_tiles['1']['count'][i] = sum(counts_p1)
 
-        if D.has_key('2') and D['2']:
+        if '2' in D and D['2']:
             all_tiles['2']['mean'][i] = numpy.mean(means_p2)
             all_tiles['2']['count'][i] = sum(counts_p2)
 
@@ -625,23 +625,23 @@ def visualize_qual_stats_dict_single(D, dest, title):
 
     plt.subplots_adjust(left=0.02, bottom = 0.03, top = 0.95, right = 0.98)
   
-    plt.xticks(range(number_of_cycles / 10, number_of_cycles, number_of_cycles / 10), rotation=90, size='xx-small')
+    plt.xticks(list(range(number_of_cycles / 10, number_of_cycles, number_of_cycles / 10)), rotation=90, size='xx-small')
     plt.ylim(ymin = 0, ymax = 42)
     plt.xlim(xmin = 0, xmax = number_of_cycles - 1)
-    plt.yticks(range(5, 41, 5), size='xx-small')
+    plt.yticks(list(range(5, 41, 5)), size='xx-small')
 
-    plt.fill_between(range(0, number_of_cycles), [42 for _ in range(0, number_of_cycles)], y2 = 0, color = colors(0), alpha = 0.2)
+    plt.fill_between(list(range(0, number_of_cycles)), [42 for _ in range(0, number_of_cycles)], y2 = 0, color = colors(0), alpha = 0.2)
     plt.plot(all_tiles['1']['mean'], color = 'orange', lw = 6)
     
     read_number_percent_dropdown = [42 * (x / all_tiles['1']['count'][0]) for x in all_tiles['1']['count']]
     if not len(set(read_number_percent_dropdown)) <= 1:
-        plt.fill_between(range(0, number_of_cycles), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
+        plt.fill_between(list(range(0, number_of_cycles)), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
 
         plt.text(5, 2.5, '%s' % big_number_pretty_print(all_tiles['1']['count'][0]), alpha=0.5)
     else:
         plt.text(5, 2.5, '%s' % big_number_pretty_print(all_tiles['1']['count'][0]), alpha=0.5)
 
-    if all_tiles.has_key('2') and all_tiles['2']:
+    if '2' in all_tiles and all_tiles['2']:
         plt.plot(all_tiles['2']['mean'], color = 'purple', lw = 6)
 
     plt.figtext(0.5, 0.97, '%s' % (title), weight = 'black', size = 'xx-large', ha = 'center')
@@ -655,13 +655,13 @@ def visualize_qual_stats_dict_single(D, dest, title):
 
 
 def populate_tiles_qual_dict_from_input(input_1, input_2, tiles_dict = {'1': {}, '2': {}}):
-    while input_1.next():
+    while next(input_1):
         if input_1.p_available:
             input_1.print_percentage()
     
         q1 = input_1.entry.process_Q_list()
 
-        if not tiles_dict['1'].has_key(input_1.entry.tile_number):
+        if input_1.entry.tile_number not in tiles_dict['1']:
             tiles_dict['1'][input_1.entry.tile_number] = []
             for i in range(0, len(q1)):
                 tiles_dict['1'][input_1.entry.tile_number].append([])
@@ -676,11 +676,11 @@ def populate_tiles_qual_dict_from_input(input_1, input_2, tiles_dict = {'1': {},
     
     sys.stderr.write('\n') 
     
-    while input_2.next():
+    while next(input_2):
         if input_2.p_available:
             input_2.print_percentage()
 
-        if not tiles_dict['2'].has_key(input_2.entry.tile_number):
+        if input_2.entry.tile_number not in tiles_dict['2']:
             tiles_dict['2'][input_2.entry.tile_number] = []
             for i in range(0, 101):
                 tiles_dict['2'][input_2.entry.tile_number].append([])

@@ -38,7 +38,7 @@ class FastaOutput:
         self.output_file_obj.write('%s\n' % seq)
 
     def split(self, sequence, piece_length = 80):
-        ticks = range(0, len(sequence), piece_length) + [len(sequence)]
+        ticks = list(range(0, len(sequence), piece_length)) + [len(sequence)]
         return '\n'.join([sequence[ticks[x]:ticks[x + 1]] for x in range(0, len(ticks) - 1)])
 
     def close(self):
@@ -205,7 +205,7 @@ class SequenceSource():
         plt.subplots_adjust(left=0.05, bottom = 0.03, top = 0.95, right = 0.98)
     
         plt.plot(seq_len_distribution, color = 'black', alpha = 0.3)
-        plt.fill_between(range(0, max_seq_len + 1), seq_len_distribution, y2 = 0, color = 'black', alpha = 0.15)
+        plt.fill_between(list(range(0, max_seq_len + 1)), seq_len_distribution, y2 = 0, color = 'black', alpha = 0.15)
         plt.ylabel('number of sequences')
         plt.xlabel('sequence length')
     
@@ -215,8 +215,8 @@ class SequenceSource():
         if ytickstep == None:
             ytickstep = max(seq_len_distribution) / 20 or 1
     
-        plt.xticks(range(xtickstep, max_seq_len + 1, xtickstep), rotation=90, size='xx-small')
-        plt.yticks(range(0, max(seq_len_distribution) + 1, ytickstep),
+        plt.xticks(list(range(xtickstep, max_seq_len + 1, xtickstep)), rotation=90, size='xx-small')
+        plt.yticks(list(range(0, max(seq_len_distribution) + 1, ytickstep)),
                    [y for y in range(0, max(seq_len_distribution) + 1, ytickstep)],
                    size='xx-small')
         plt.xlim(xmin = 0, xmax = max_seq_len)

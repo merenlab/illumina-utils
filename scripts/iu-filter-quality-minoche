@@ -34,7 +34,7 @@
 
 import os
 import sys
-import ConfigParser
+import configparser
 
 E = os.path.exists
 J = os.path.join
@@ -148,8 +148,8 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
             pair_1 = u.FastQSource(config.pair_1[index], compressed = True if COMPRESSED(config.pair_1[index]) else False)
             pair_2 = u.FastQSource(config.pair_2[index], compressed = True if COMPRESSED(config.pair_2[index]) else False)
 
-        except u.FastQLibError, e:
-            print "FastQLib is not happy.\n\n\t", e, "\n"
+        except u.FastQLibError as e:
+            print("FastQLib is not happy.\n\n\t", e, "\n")
             sys.exit()
 
 
@@ -215,12 +215,12 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
                 quality_passed_r2.store_entry(pair_2.entry)
 
             if print_qual_scores:
-                print ''
-                print '%s' % pair_1.entry.header_line
-                print 'READ 1 [%s]: %s' % (p1_fate, ', '.join([str(_) for _ in q1]))
-                print 'READ 2 [%s]: %s' % (p2_fate, ', '.join([str(_) for _ in q2]))
-                print ''
-                print ' --'
+                print('')
+                print('%s' % pair_1.entry.header_line)
+                print('READ 1 [%s]: %s' % (p1_fate, ', '.join([str(_) for _ in q1])))
+                print('READ 2 [%s]: %s' % (p2_fate, ', '.join([str(_) for _ in q2])))
+                print('')
+                print(' --')
 
 
     errors_fp.write('number of pairs analyzed      : %d\n' % (number_of_pairs))
@@ -237,7 +237,7 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
                                                                        len(read_id_tracker.ids[fate]),
                                                                        get_percent(len(read_id_tracker.ids[fate]), total_pairs_failed)))
 
-    print
+    print()
     
     sys.stderr.write('\rRead ID tracker dict is being stored ...')
     sys.stderr.flush()
@@ -284,21 +284,21 @@ if __name__ == '__main__':
                                                 stdout, and you should not use it if you are not testing something.')
 
     args = parser.parse_args()
-    user_config = ConfigParser.ConfigParser()
+    user_config = configparser.ConfigParser()
     user_config.read(args.user_config)
 
     try: 
         config = RunConfiguration(user_config)
-    except RunConfigError, e:
-        print e
+    except RunConfigError as e:
+        print(e)
         sys.exit()
 
          
     try:
         sys.exit(main(config, args))
-    except RunConfigError, e:
-        print e
+    except RunConfigError as e:
+        print(e)
         sys.exit(-1)
-    except u.FastQLibError, e:
-        print e
+    except u.FastQLibError as e:
+        print(e)
         sys.exit(-2)         
