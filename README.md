@@ -34,33 +34,68 @@ Feel free to cite [this article](http://journals.plos.org/plosone/article?id=10.
 
 # Installing
 
-The easiest way to install illumina-utils is to do it through pip. To install the latest version, you can simply run this command on your terminal:
+Here are a couple of ways to install illumina-utilities.
 
-    sudo pip install illumina-utils
+## Standard
 
-Alternatively, you can download the source code from [here](https://github.com/meren/illumina-utils/releases), unpack it, and install running the following command from within the illumina-utils directory:
+The easiest way to install illumina-utils is to do it through pip. You can simply run this command, and you should be fine:
 
-    sudo python setup.py install
+```
+pip install illumina-utils
+```
 
-If you would like to play with the development version, you can create a copy of the codebase by simply installing `git` and running this command in your terminal window:
+Note: Once you have installed illumina-utils, you can type 'iu-' and press your TAB key twice to see all available scripts that are installed on your system.
 
-     git clone git://github.com/meren/illumina-utils.git
+## Slightly better (with virtualenv)
 
+Alternatively, i.e., if you want to do slightly better, you can first create a Python 3 virtual environment: 
 
-Note: Once you have installed illumina-utils, you can type 'iu-' and press your TAB key twice to see all available scripts that are installed on your system. If you would like to take a look at the examples, you should download the [latest release](https://github.com/meren/illumina-utils/releases) of the codebase, and examine/run BASH scripts in the `examples` directory. If you are confused, don't hesitate to send me an e-mail (meren at mbl edu).
+```
+mkdir -p ~/virtual-envs/
+virtualenv ~/virtual-envs/illumina-utils-v2.0.0
+source ~/virtual-envs/illumina-utils-v2.0.0
+python --version
+```
 
+Make sure the output starts with a '3'. Then continue with installation:
 
-## Requirements
+```
+pip install illumina-utils
+```
 
-In order to use this software package fully, you need following items available on your system:
+Then you can run this to activate illumina-utils virtualenv very rapidly:
 
-- [matplotlib](http://matplotlib.org/) (required for visualizations)
-- [python-Levenshtein](https://pypi.python.org/pypi/python-Levenshtein/) (to merge partially overlapping reads)
-- [R](http://r-project.org) (required for visualizations today and will be used for statistical analyses)
-    - [ggplot2](http://ggplot2.org/) (the R module that needs to be installed for R requirement)
+```
+echo 'alias illumina-utils-activate-v2.0.0="source ~/virtual-envs/illumina-utils-v2.0.0/bin/activate"' >> ~/.bash_profile
+```
 
+### Pro
 
-Note: `matplotlib` and `python-Levenshtein` will be installed automatically if you install illumina-utils using `pip` or `setup.py`.
+If you want to follow the development version, you can create a copy of the codebase and setup a virtual environment the following way:
+
+```
+# don't forget to change the directory names everywhere
+mkdir -p ~/github
+mkdir -p ~/virtual-envs
+cd ~/github
+git clone git://github.com/meren/illumina-utils.git
+virtualenv ~/virtual-envs/illumina-utils-master
+source ~/virtual-envs/illumina-utils-master/bin/activate
+cd illumina-utils
+pip install -r requirements.txt
+
+# now setup environment variables
+echo 'export PYTHONPATH=$PYTHONPATH:~/github/illumina-utils' >> ~/virtual-envs/illumina-utils-master/bin/activate
+echo 'export PATH=$PATH:~/github/illumina-utils/scripts' >> ~/virtual-envs/illumina-utils-master/bin/activate
+echo 'alias illumina-utils-activate-master="source ~/virtual-envs/illumina-utils-master/bin/activate"' >> ~/.bash_profile
+
+# make sure everytime you activate it, it updates itself from the master:
+echo 'cd ~/github/illumina-utils && git pull && cd -' >> ~/virtual-envs/illumina-utils-master/bin/activate
+```
+
+Done!
+
+Now you can run `illumina-utils-activate-master` every time you want to activate it.
 
 
 # Demultiplexing
