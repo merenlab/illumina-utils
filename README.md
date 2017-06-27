@@ -32,11 +32,12 @@ Feel free to cite [this article](http://journals.plos.org/plosone/article?id=10.
         - [Example PNG files](#example-png-files)
 - [Questions?](#questions)
 
-# Installing
+
+# Installing
 
 Here are a couple of ways to install illumina-utilities.
 
-## Standard
+## Standard installation
 
 The easiest way to install illumina-utils is to do it through pip. You can simply run this command, and you should be fine:
 
@@ -46,7 +47,7 @@ pip install illumina-utils
 
 Note: Once you have installed illumina-utils, you can type 'iu-' and press your TAB key twice to see all available scripts that are installed on your system.
 
-## Slightly better (with virtualenv)
+## Slightly better setup (with virtualenv)
 
 Alternatively, i.e., if you want to do slightly better, you can first create a Python 3 virtual environment: 
 
@@ -69,7 +70,7 @@ Then you can run this to activate illumina-utils virtualenv very rapidly:
 echo 'alias illumina-utils-activate-v2.0.0="source ~/virtual-envs/illumina-utils-v2.0.0/bin/activate"' >> ~/.bash_profile
 ```
 
-### Pro
+### Pro setup
 
 If you want to follow the development version, you can create a copy of the codebase and setup a virtual environment the following way:
 
