@@ -663,7 +663,7 @@ class Merger:
         # the read have Q-scores over Q30.
        
         half_length = len(base_qualities) / 2
-        Q30 = len([True for _q in base_qualities[0:half_length] if _q > 30])
+        Q30 = len([True for _q in base_qualities[0:int(half_length)] if _q > 30])
         if Q30 < (0.66 * half_length):
             return (False, Q30)
         return (True, Q30)
