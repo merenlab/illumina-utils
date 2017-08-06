@@ -80,7 +80,7 @@ def IsHighQuality(sequence, quality, p):
         return (False, trim_to, 'FAILED_REASON_N')
 
     # C33
-    half_length = len(quality) / 2
+    half_length = len(quality) // 2
     if len([True for _q in quality[0:half_length] if _q > 30]) < 0.66 * half_length:
         # Exclude Sequence
         return (False, trim_to, 'FAILED_REASON_C33')
