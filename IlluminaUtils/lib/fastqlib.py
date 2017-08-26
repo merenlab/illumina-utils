@@ -44,7 +44,7 @@ import textwrap
 
 from IlluminaUtils.utils.helperfunctions import big_number_pretty_print
 from IlluminaUtils.utils.helperfunctions import predict_file_length
-from IlluminaUtils.utils.helperfunctions import remove_spaces 
+from IlluminaUtils.utils.helperfunctions import remove_spaces
 
 
 class FastQLibError(Exception):
@@ -80,8 +80,8 @@ class FastQEntry:
 
         return getattr(self, '_'.join(['process', key]))()
 
-    def __init__(self, xxx_todo_changeme, trim_from = 0, trim_to = sys.maxsize, raw = False, CASAVA_version = '1.8', pos = None):
-        (header_line, sequence_line, optional_line, qual_scores_line) = xxx_todo_changeme
+    def __init__(self, FASTQ_entry, trim_from = 0, trim_to = sys.maxsize, raw = False, CASAVA_version = '1.8', pos = None):
+        (header_line, sequence_line, optional_line, qual_scores_line) = FASTQ_entry
         self.is_valid = False
         self.raise_errors = True
 
@@ -90,7 +90,7 @@ class FastQEntry:
 
         if not header_line.startswith('@'):
             if self.raise_errors:
-                raise FastQLibError('FASTQ file seems to be corrupted. Header line does not start with a "@" character (pos: %s).' % (str(pos) if pos else 'unknown')) 
+                raise FastQLibError('FASTQ file seems to be corrupted. Header line does not start with a "@" character (pos: %s).' % (str(pos) if pos else 'unknown'))
             return None
 
         if not optional_line.startswith('+'):
@@ -138,7 +138,7 @@ class FastQEntry:
             self.Q_list = [ord(q) - 33 for q in self.qual_scores]
         else:
             self.Q_list = [ord(q) - 64 for q in self.qual_scores]
- 
+
         return self.Q_list
 
     def process_Q_min(self):
