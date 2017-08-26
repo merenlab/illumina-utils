@@ -35,6 +35,7 @@
 #    ---------------------------------------------------------
 
 
+import io
 import os
 import sys
 import gzip
@@ -63,8 +64,6 @@ class FastQLibError(Exception):
             error_message.append('%s%s' % (' ' * (len(error_type) + 2), error_line))
 
         return '\n'.join(error_message)
-
-
 
 
 class FastQEntry:
@@ -218,7 +217,9 @@ class FastQSource:
 
         self.compressed = compressed
         if self.compressed:
-            self.file_pointer = gzip.open(file_path)
+            # wrap it with TextIOWrapper to prevent gzip.open to return byte\
+            # objects.
+            self.file_pointer = io.TextIOWrapper(gzip.open(file_path, 'r'))
             self.file_length = None
         else:
             self.file_pointer = open(file_path, 'rU')
