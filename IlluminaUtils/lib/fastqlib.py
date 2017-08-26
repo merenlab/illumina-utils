@@ -25,7 +25,7 @@
 #     mean PHRED qual score above Q20 into another file).
 #    ---------------------------------------------------------
 #    import fastqlib as u
-#    
+#
 #    input  = u.FastQSource('/path/to/file.fastq')
 #    output = u.FastQOutput('/path/to/output.fastq')
 #
@@ -79,7 +79,7 @@ class FastQEntry:
             self.process_Q_list()
 
         return getattr(self, '_'.join(['process', key]))()
-    
+
     def __init__(self, xxx_todo_changeme, trim_from = 0, trim_to = sys.maxsize, raw = False, CASAVA_version = '1.8', pos = None):
         (header_line, sequence_line, optional_line, qual_scores_line) = xxx_todo_changeme
         self.is_valid = False
@@ -140,11 +140,11 @@ class FastQEntry:
             self.Q_list = [ord(q) - 64 for q in self.qual_scores]
  
         return self.Q_list
-    
+
     def process_Q_min(self):
         self.Q_min = numpy.min(self.Q_list)
         return self.Q_min
-        
+
     def process_Q_mean(self):
         self.Q_mean = numpy.mean(self.Q_list)
         return self.Q_mean
@@ -163,9 +163,9 @@ class FastQEntry:
 class FileOutput(object):
     def __init__(self, file_path, compressed = False):
         self.file_path = file_path
-        
+
         self.compressed = compressed
-        
+
         if self.compressed:
             self.file_pointer = gzip.open(file_path, 'w')
         else:
@@ -201,7 +201,7 @@ class FastQSource:
 
     ---------------------------------------------------------
     import fastq as u
-    
+
     input  = u.FastQSource('/path/to/file.fastq')
 
     while input.next(trim_to = 75):
@@ -211,7 +211,7 @@ class FastQSource:
     def __init__(self, file_path, compressed = False):
         if not os.path.exists(file_path):
             raise FastQLibError('Missing input file: "%s"' % file_path)
-        
+
         self.pos = 0
         self.forced_raw = False
 
@@ -229,7 +229,7 @@ class FastQSource:
         self.percent_read = None
         self.p_available = False
         self.percent_counter = 0
-        
+
         # FIXME: check for actual CASAVA version
         self.CASAVA_version = '1.8'
 
@@ -250,7 +250,7 @@ class FastQSource:
                                   with --ignore-deflines parameter. If that parameter is not available to you, then please send\
                                   an e-mail to a.murat.eren@gmail.com.")
         self.entry = FastQEntry([self.file_pointer.readline().strip() for _ in range(0, 4)], trim_from, trim_to, raw, CASAVA_version = self.CASAVA_version, pos = self.pos)
-       
+
         if not self.entry.is_valid:
             return False
 
@@ -268,7 +268,7 @@ class FastQSource:
     def reset(self):
         self.pos = 0
         self.file_pointer.seek(0)
-    
+
     def close(self):
         self.file_pointer.close()
 
@@ -277,7 +277,7 @@ class FastQSource:
             sys.stderr.write('\r%s %.2d%% -- (num pairs processed: %s) %s' % (prefix, self.percent_read, big_number_pretty_print(self.pos), postfix))
         else:
             sys.stderr.write('\r%s (num pairs processed: %s) %s' % (prefix, big_number_pretty_print(self.pos), postfix))
-        
+
         sys.stderr.flush()
         self.p_available = False
 
