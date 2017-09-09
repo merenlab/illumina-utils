@@ -99,7 +99,7 @@ Done!
 Now you can run `illumina-utils-activate-master` every time you want to activate it.
 
 
-# Demultiplexing
+# Demultiplexing
 
 If you have raw FASTQ files, you can demultiplex them into samples using `iu-demultiplex` script. In order to demultiplex a run, you will need an extra FASTQ file for indexes, and a TAB-delimited file for barcode-sample associations. The directory [examples/demultiplexing](https://github.com/meren/illumina-utils/tree/master/examples/demultiplexing) contains sample files for demultiplexing. You can start the process by running the following command:
 
