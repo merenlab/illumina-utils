@@ -1,0 +1,51 @@
+import sys
+
+import IlluminaUtils.lib.fastqlib as u
+import IlluminaUtils.utils.helperfunctions as h
+import IlluminaUtils.utils.terminal as terminal
+import random
+
+run = terminal.Run()
+progress = terminal.Progress()
+
+def main(input_file_path, output_file_path, subsamples):
+
+    input_fastq = u.FastQSource(input_file_path)
+    num_input_reads = int(input_fastq.file_length)
+
+    if subsamples <= 0:
+        raise h.ConfigError("You probably want to change your mind that it's a good idea to subsample {} reads.".format(subsamples))
+        sys.exit(-1)
+    if subsamples > num_input_reads:
+        raise h.ConfigError("You can't subsample more reads than exist in the FASTQ file ({} reads).".format(num_input_reads))
+        sys.exit(-1)
+
+    subsample_indices = random.sample(range(num_input_reads), subsamples)
+
+    i = 0
+    output_fastq = u.FastQOutput(output_file_path)
+    while input_fastq.next(raw=True):
+        if i in subsample_indices:
+            output_fastq.store_entry(input_fastq.entry)
+        i += 1
+
+    input_fastq.close()
+    output_fastq.close()
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Randomly subsample (without replacement) a FASTQ.')
+    parser.add_argument('input', metavar = 'FILE_PATH', help = 'FASTA file to be subsampled')
+    parser.add_argument('-o', '--output', type=str, required=True, metavar = 'FILE_PATH',
+                        help = 'Where subsampled FASTQ reads will be written')
+    parser.add_argument('-s', '--subsamples', type=int, required=True, metavar = 'INT',
+                        help = 'Number of FASTQ entries to randomly sample')
+
+    args = parser.parse_args()
+
+    input_file_path = args.input
+    output_file_path = args.output
+    subsamples = args.subsamples
+
+    sys.exit(main(input_file_path, output_file_path, subsamples))
