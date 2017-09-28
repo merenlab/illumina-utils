@@ -1,0 +1,120 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# Copyright (C) 2011, A. Murat Eren
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Please read the COPYING file.
+
+import sys
+
+import IlluminaUtils.lib.fastqlib as u
+import IlluminaUtils.utils.helperfunctions as h
+import IlluminaUtils.utils.terminal as terminal
+import random
+
+run = terminal.Run()
+progress = terminal.Progress()
+
+def main(input_file_path_1, input_file_path_2, output_file_path_1, output_file_path_2, num_output_reads):
+
+    input_fastq_1 = u.FastQSource(input_file_path_1)
+    num_input_reads = int(input_fastq_1.file_length)
+
+    if num_output_reads <= 0:
+        raise h.ConfigError("You probably want to change your mind that it's a good idea to subsample {} reads.".format(num_output_reads))
+        sys.exit(-1)
+    if num_output_reads > num_input_reads:
+        raise h.ConfigError("You can't subsample more reads than exist in the FASTQ file ({} reads).".format(num_input_reads))
+        sys.exit(-1)
+
+    if output_file_path_1 is None:
+        output_file_path_1 = input_file_path_1 + "_{}randomreads".format(num_output_reads)
+    output_fastq_1 = u.FastQOutput(output_file_path_1)
+
+    ###########################################################################
+
+    if input_file_path_2 is None:
+        """If only 1 file path was provided, we are ready to rock and roll"""
+
+        i = 0
+        subsample_indices = random.sample(range(num_input_reads), num_output_reads)
+        while input_fastq_1.next(raw=True):
+            if i in subsample_indices:
+                output_fastq_1.store_entry(input_fastq_1.entry)
+            i += 1
+        input_fastq_1.close()
+        output_fastq_1.close()
+     
+    ###########################################################################
+
+    else:
+        """If 2 file paths are provided we need to do some more work"""
+
+        input_fastq_2 = u.FastQSource(input_file_path_2)
+        if int(input_fastq_2.file_length) != num_input_reads:
+            raise h.ConfigError("These aren't paired FASTQ files. The length of --r1 is {} but the length of --r2 is {}".\
+                                 format(int(input_fastq_2.file_length), num_input_reads))
+
+        if output_file_path_2 is None:
+            output_file_path_2 = input_file_path_2 + "_{}randomreads".format(num_output_reads)
+        output_fastq_2 = u.FastQOutput(output_file_path_2)
+
+        i = 0
+        subsample_indices = random.sample(range(num_input_reads), num_output_reads)
+        while input_fastq_1.next(raw=True) and input_fastq_2.next(raw=True):
+            if i in subsample_indices:
+                output_fastq_1.store_entry(input_fastq_1.entry)
+                output_fastq_2.store_entry(input_fastq_2.entry)
+            i += 1
+        input_fastq_1.close()
+        input_fastq_2.close()
+        output_fastq_1.close()
+        output_fastq_2.close()
+
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(description=\
+    """Randomly subsample (without replacement) a FASTQ, or a pair of forward
+    and reverse FASTQs.""")
+
+    parser.add_argument('--r1', metavar = 'FILE_PATH', required=True, help = \
+    """FASTQ file to be subsampled. If you are subsampling a merged FASTQ or
+    you don't have reverse reads, provide the filepath here and do not supply
+    an argument for --r2. If you have forward and reverse reads, supply the
+    filepaths as the arguments for --r1 and --r2, respectively.""")
+
+    parser.add_argument('--r2', metavar = 'FILE_PATH', required=False, help = \
+    """FASTQ file for the reverse reads. Should be provided only if you are
+    subsampling forward and reverse reads.""")
+
+    parser.add_argument('--output1', type=str, required=False, metavar = 'FILEPATH', help = \
+    """The output filepath for the forward read. By default, the suffix
+    "_{n}randomreads" is appended to the input filename""")
+
+    parser.add_argument('--output2', type=str, required=False, metavar = 'FILEPATH', help = \
+    """The output filepath for the reverse read. By default, the suffix
+    "_{n}randomreads" is appended to the input filename, where {n} is the
+    argument of --num-reads. If you do not provide an argument for --r2 do not
+    provide an argument for --output2.""")
+
+    parser.add_argument('-n', '--num-reads', type=int, required=True, metavar = 'INT', help = 
+    """Number of FASTQ entries to randomly sample""")
+
+    args = parser.parse_args()
+
+    if args.r2 is None and args.output2 is not None:
+        parser.error("There is no second FASTQ file for you to provide an output for (--output2). Supply an argument for --r2.")
+
+    input_file_path_1 = args.r1
+    input_file_path_2 = args.r2
+    output_file_path_1 = args.output1
+    output_file_path_2 = args.output2
+    num_output_reads = args.num_reads
+
+    sys.exit(main(input_file_path_1, input_file_path_2, output_file_path_1, output_file_path_2, num_output_reads))
