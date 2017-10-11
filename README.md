@@ -53,8 +53,8 @@ Alternatively, i.e., if you want to do slightly better, you can first create a P
 
 ```
 mkdir -p ~/virtual-envs/
-virtualenv ~/virtual-envs/illumina-utils-v2.0.0
-source ~/virtual-envs/illumina-utils-v2.0.0
+virtualenv ~/virtual-envs/illumina-utils-v2.0.2
+source ~/virtual-envs/illumina-utils-v2.0.2
 python --version
 ```
 
@@ -67,7 +67,7 @@ pip install illumina-utils
 Then you can run this to activate illumina-utils virtualenv very rapidly:
 
 ```
-echo 'alias illumina-utils-activate-v2.0.0="source ~/virtual-envs/illumina-utils-v2.0.0/bin/activate"' >> ~/.bash_profile
+echo 'alias illumina-utils-activate-v2.0.2="source ~/virtual-envs/illumina-utils-v2.0.2/bin/activate"' >> ~/.bash_profile
 ```
 
 ### Pro setup
