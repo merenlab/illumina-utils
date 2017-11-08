@@ -135,7 +135,7 @@ Before describing the purpose of each section, here is a useful note: in most ca
     (...)	(...)	(...)
 
 
-## [general] section
+## [general] section
 
 This is a mandatory section that contains `project_name`, `researcher_email`, `input_directory` and `output_directory` directives.
 
@@ -144,7 +144,7 @@ Two critical declerations in `[general]` section are `input_directory` and `outp
 * `input_directory`: Full path to the directory where FASTQ files reside.
 * `output_directory`: Full path to the directory where the output of the operation you will perform on this config to be stored. Since when it is Illumina we are dealing with huge files, the codebase is pretty conservative to protect users from making simple mistakes which may result in huge losses. So, if you don't create the `output_directory`, you will get an error (it will not be automatically generated). If there is already a file in the `output_directory` with the same name with one of the outputs, you will get an error (it will not be overwritten). `project_name` will be used as a prefix for the naming convention of output files, so it would be wise to choose something descriptive and UNIX-compatible.
 
-## [files] section
+## [files] section
 
 `files` section is where you list your _file names_ to be found under `input_directory`. Each file name has to be comma separated. The index of each file name in the comma seperated list, *must match* with its pair in the second list (see the example config file above).
 
