@@ -11,7 +11,6 @@ Feel free to cite [this article](http://journals.plos.org/plosone/article?id=10.
 # Contents
 
 - [Installing](#installing)
-    - [Requirements](#requirements)
 - [Demultiplexing](#demultiplexing)
 - [Config File Format](#config-file-format)
     - [[general] section](#general-section)
