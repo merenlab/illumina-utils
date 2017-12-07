@@ -53,7 +53,7 @@ Alternatively, i.e., if you want to do slightly better, you can first create a P
 ```
 mkdir -p ~/virtual-envs/
 virtualenv ~/virtual-envs/illumina-utils-v2.0.2
-source ~/virtual-envs/illumina-utils-v2.0.2
+source ~/virtual-envs/illumina-utils-v2.0.2/bin/activate
 python --version
 ```
 
