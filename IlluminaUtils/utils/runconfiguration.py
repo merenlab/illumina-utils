@@ -13,7 +13,7 @@
 import os
 import textwrap
 
-from IlluminaUtils.utils.helperfunctions import remove_spaces 
+from IlluminaUtils.utils.helperfunctions import remove_spaces
 
 E = os.path.exists
 J = os.path.join
@@ -39,7 +39,7 @@ class RunConfigError(Exception):
 
 
 def RepresentsInt(s):
-    try: 
+    try:
         int(s)
         return True
     except ValueError:
@@ -63,24 +63,26 @@ class RunConfiguration:
         self.min_base_q = int(config.get('execute', 'min_base_q')) if config.has_option('execute', 'min_base_q') else None
         self.ignore_bases = [int(l) for l in config.get('execute', 'ignore_bases').split(',')] if config.has_option('execute', 'ignore_bases') else None
         self.eliminate_Ns = True if (config.get('execute', 'eliminate_Ns') if config.has_option('execute', 'eliminate_Ns') else None) == 'True' else None
-        
+
         self.pair_1_prefix = config.get('prefixes', 'pair_1_prefix') if config.has_option('prefixes', 'pair_1_prefix') else None
         self.pair_2_prefix = config.get('prefixes', 'pair_2_prefix') if config.has_option('prefixes', 'pair_2_prefix') else None
 
 
-        
+
     def sanity_check(self, config):
         config_template = {
             'general': {
                         'project_name'    : {'mandatory': True},
                         'researcher_email': {'mandatory': True},
-                        'input_directory': {'test': lambda x: os.path.exists(x), 'mandatory': True},  
+                        'input_directory': {'test': lambda x: os.path.exists(x), 'mandatory': True},
                         'output_directory': {'test': lambda x: os.path.exists(x), 'mandatory': True},
             },
 
             'files': {
-                        'pair_1': {'test': lambda x: False not in [E(J(config.get('general', 'input_directory').strip(), t.strip())) for t in x.split(',')], 'mandatory': True},
-                        'pair_2': {'test': lambda x: False not in [E(J(config.get('general', 'input_directory').strip(), t.strip())) for t in x.split(',')]},
+                        'pair_1': {'test': lambda x: False not in [E(J(config.get('general', 'input_directory').strip(), t.strip())) for t in x.split(',')], 'mandatory': True,
+                                    'required': 'File to be found at %s' % (config.get('general', 'input_directory'))},
+                        'pair_2': {'test': lambda x: False not in [E(J(config.get('general', 'input_directory').strip(), t.strip())) for t in x.split(',')],
+                                    'required': 'File to be found at %s' % (config.get('general', 'input_directory'))},
             },
 
             'prefixes': {
@@ -95,9 +97,9 @@ class RunConfiguration:
                         'min_base_q': {'test': lambda x: RepresentsInt(x) and int(x) > 0 and int(x) <= 40,
                                        'required': 'Integer value between 1 and 40'},
                         'ignore_bases': {'test': lambda x: False not in [RepresentsInt(t) and int(t) > 0 and int(t) <= 100 for t in x.split(',')],
-                                         'required': 'Comma separated integers between 1 and 100'}, 
+                                         'required': 'Comma separated integers between 1 and 100'},
                         'eliminate_ns': {'test': lambda x: x in ['True', 'False'],
-                                         'required': 'True or False'}, 
+                                         'required': 'True or False'},
             }
         }
 
@@ -130,6 +132,3 @@ class RunConfiguration:
             p2 = config.get('files', 'pair_2')
             if len(p1.split(',')) != len(p2.split(',')):
                 raise RunConfigError('For paired end setup, number of files has to match in pair_1 and pair_2.')
-                    
-
-
