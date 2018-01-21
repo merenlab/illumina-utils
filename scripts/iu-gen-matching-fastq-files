@@ -1,0 +1,117 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# Copyright (C) 2015, A. Murat Eren
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Please read the COPYING file.
+
+import re
+import os
+import sys
+
+import IlluminaUtils.lib.fastqlib as u
+from IlluminaUtils.utils.helperfunctions import big_number_pretty_print
+
+def main(r1_path, r2_path, identifier_code="header.split()[0]", tested=False):
+    try:
+        r1 = u.FastQSource(r1_path, compressed = r1_path.endswith('.gz'))
+        r2 = u.FastQSource(r2_path, compressed = r2_path.endswith('.gz'))
+    except u.FastQLibError as e:
+        print("FastQLib is not happy.\n\n\t", e, "\n")
+        sys.exit()
+
+
+    try:
+        identifier_function = eval(identifier_code)
+    except SyntaxError as e:
+        print("Your identifier code did not compile :(")
+        sys.exit()
+
+    if not tested:
+        r1.next(raw=True)
+        print("Testing your stuff.\n\n")
+
+        print("This is what your header looks like:\n\n")
+        print("\t%s\n\n" % r1.entry.header_line)
+
+        print("This is how your identifier ('''%s''') is parses it:\n\n" % identifier_code)
+        print("\t%s\n\n" % identifier_function(r1.entry.header_line))
+        sys.exit()
+
+
+    r1_ids = {}
+    while r1.next(raw = True):
+        if r1.p_available:
+            r1.print_percentage()
+
+        r1_ids[identifier_function(r1.entry.header_line)] = r1.entry.header_line
+    sys.stderr.write('\r')
+    print('%d ids found for R1                                ' % len(r1_ids))
+
+    r2_ids = {}
+    while r2.next(raw = True):
+        if r2.p_available:
+            r2.print_percentage()
+
+        r2_ids[identifier_function(r2.entry.header_line)] = r2.entry.header_line
+    sys.stderr.write('\r')
+    print('%d ids found for R2                                ' % len(r2_ids))
+
+    remove_from_r1 = [r1_ids[i] for i in set(r1_ids).difference(r2_ids)]
+    remove_from_r2 = [r2_ids[i] for i in set(r2_ids).difference(r1_ids)]
+
+    print('')
+    print('%d ids in R1 are not matching to R2' % len(remove_from_r1))
+    print('%d ids in R2 are not matching to R1' % len(remove_from_r2))
+
+
+    r1.reset()
+    r2.reset()
+
+    r1_matched_output = u.FastQOutput(os.path.join(r1_path + '_MATCHED'))
+    while r1.next(raw = True):
+        if r1.p_available:
+            r1.print_percentage()
+
+        if r1.entry.header_line in remove_from_r1:
+            continue
+        else:
+            r1_matched_output.store_entry(r1.entry)
+    sys.stderr.write('\r')
+
+    r2_matched_output = u.FastQOutput(os.path.join(r2_path + '_MATCHED'))
+    while r2.next(raw = True):
+        if r2.p_available:
+            r2.print_percentage()
+
+        if r2.entry.header_line in remove_from_r2:
+            continue
+        else:
+            r2_matched_output.store_entry(r2.entry)
+    sys.stderr.write('\r')
+
+    print('')
+    print('R1 file that matches to R2: %s' % r1_path + '_MATCHED')
+    print('R2 file that matches to R1: %s' % r2_path + '_MATCHED')
+
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Recover matching ids in two FASTQ files')
+    parser.add_argument('--r1', metavar = 'FILE_PATH', required=True, help = "R1")
+    parser.add_argument('--r2', metavar = 'FILE_PATH', required=True, help = "R2")
+    parser.add_argument('--identifier-code', metavar = 'PYTHON CODE', default='lambda defline: defline.split()[0]', help = "Lambda function to parse the header. Default: '''%(default)s'''.")
+    parser.add_argument('--identifier-tested', default = False, action="store_true", help = "Use this flag to indicate that you tested your identifier.")
+
+    args = parser.parse_args()
+
+    if args.r2 is None and args.output2 is not None:
+        parser.error("You must declare both R1 and R2 files.")
+
+    sys.exit(main(args.r1, args.r2, args.identifier_code, args.identifier_tested))
