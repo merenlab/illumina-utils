@@ -256,7 +256,7 @@ class FastQSource:
 
         self.pos += 1
 
-        if self.pos == 1 or self.pos % 1000 == 0:
+        if self.pos == 1 or self.pos % self.percent_step == 0:
             self.p_available = True
             if self.file_length:
                 self.percent_read = self.pos * 100 / self.file_length

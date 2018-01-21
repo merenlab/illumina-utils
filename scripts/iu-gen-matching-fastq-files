@@ -25,6 +25,8 @@ def main(r1_path, r2_path, identifier_code="header.split()[0]", tested=False):
         print("FastQLib is not happy.\n\n\t", e, "\n")
         sys.exit()
 
+    r1.percent_step = 100000
+    r2.percent_step = 100000
 
     try:
         identifier_function = eval(identifier_code)
