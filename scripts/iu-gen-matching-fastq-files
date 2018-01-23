@@ -17,7 +17,8 @@ import sys
 import IlluminaUtils.lib.fastqlib as u
 from IlluminaUtils.utils.helperfunctions import big_number_pretty_print
 
-def main(r1_path, r2_path, identifier_code="header.split()[0]", tested=False):
+
+def get_file_read_objects(r1_path, r2_path):
     try:
         r1 = u.FastQSource(r1_path, compressed = r1_path.endswith('.gz'))
         r2 = u.FastQSource(r2_path, compressed = r2_path.endswith('.gz'))
@@ -25,9 +26,13 @@ def main(r1_path, r2_path, identifier_code="header.split()[0]", tested=False):
         print("FastQLib is not happy.\n\n\t", e, "\n")
         sys.exit()
 
-    r1.percent_step = 100000
-    r2.percent_step = 100000
+    r1.percent_step = 1000
+    r2.percent_step = 1000
 
+    return r1, r2
+
+
+def compile_identifier(identifier_code, r1_object, tested):
     try:
         identifier_function = eval(identifier_code)
     except SyntaxError as e:
@@ -35,16 +40,80 @@ def main(r1_path, r2_path, identifier_code="header.split()[0]", tested=False):
         sys.exit()
 
     if not tested:
-        r1.next(raw=True)
-        print("Testing your stuff.\n\n")
+        show_test_results(r1_object, identifier_code, identifier_function)
 
-        print("This is what your header looks like:\n\n")
-        print("\t%s\n\n" % r1.entry.header_line)
+    return identifier_function
 
-        print("This is how your identifier ('''%s''') is parses it:\n\n" % identifier_code)
-        print("\t%s\n\n" % identifier_function(r1.entry.header_line))
-        sys.exit()
 
+def show_test_results(r1_object, identifier_code, identifier_function):
+    r1_object.next(raw=True)
+    print("Testing your stuff.\n\n")
+
+    print("This is what your header looks like:\n\n")
+    print("\t%s\n\n" % r1_object.entry.header_line)
+
+    print("This is how your identifier ('''%s''') is parses it:\n\n" % identifier_code)
+    print("\t%s\n\n" % identifier_function(r1_object.entry.header_line))
+    sys.exit()
+
+
+def match_sequential(r1_path, r2_path, identifier_code="header.split()[0]", tested=False):
+    """this is useful if the identifier code resolves a sequential number per pair"""
+    r1, r2 = get_file_read_objects(r1_path, r2_path)
+    identifier_function = compile_identifier(identifier_code, r1, tested)
+
+    r1_matched_output = u.FastQOutput(os.path.join(r1_path + '_MATCHED'))
+    r2_matched_output = u.FastQOutput(os.path.join(r2_path + '_MATCHED'))
+
+    r1.next(raw=True)
+    r2.next(raw=True)
+    r1_dirty, r2_dirty = True, True
+
+    num_matched = 0
+    while 1:
+        if r1_dirty:
+            r1_id = int(identifier_function(r1.entry.header_line))
+            r1_dirty = False
+        if r2_dirty:
+            r2_id = int(identifier_function(r2.entry.header_line))
+            r2_dirty = False
+
+        if r1.p_available:
+            r1.print_percentage()
+
+        if r1_id == r2_id:
+            r1_matched_output.store_entry(r1.entry)
+            r2_matched_output.store_entry(r2.entry)
+            num_matched += 1
+            r1.next(raw=True)
+            r2.next(raw=True)
+        else:
+            if r1_id < r2_id:
+                r1.next(raw=True)
+                r1_dirty = True
+            else:
+                r2.next(raw=True)
+                r2_dirty = True
+
+        if not r1.entry.is_valid or not r2.entry.is_valid:
+            break
+
+    sys.stderr.write('\r')
+
+    r1_matched_output.close()
+    r2_matched_output.close()
+
+    print('')
+    print('R1 file that matches to R2: %s' % r1_path + '_MATCHED')
+    print('R2 file that matches to R1: %s' % r2_path + '_MATCHED')
+
+
+def match_non_sequential(r1_path, r2_path, identifier_code="header.split()[0]", tested=False):
+    r1, r2 = get_file_read_objects(r1_path, r2_path)
+    identifier_function = compile_identifier(identifier_code, r1, tested)
+
+    r1_matched_output = u.FastQOutput(os.path.join(r1_path + '_MATCHED'))
+    r2_matched_output = u.FastQOutput(os.path.join(r2_path + '_MATCHED'))
 
     r1_ids = {}
     while r1.next(raw = True):
@@ -75,7 +144,6 @@ def main(r1_path, r2_path, identifier_code="header.split()[0]", tested=False):
     r1.reset()
     r2.reset()
 
-    r1_matched_output = u.FastQOutput(os.path.join(r1_path + '_MATCHED'))
     while r1.next(raw = True):
         if r1.p_available:
             r1.print_percentage()
@@ -86,7 +154,6 @@ def main(r1_path, r2_path, identifier_code="header.split()[0]", tested=False):
             r1_matched_output.store_entry(r1.entry)
     sys.stderr.write('\r')
 
-    r2_matched_output = u.FastQOutput(os.path.join(r2_path + '_MATCHED'))
     while r2.next(raw = True):
         if r2.p_available:
             r2.print_percentage()
@@ -96,6 +163,9 @@ def main(r1_path, r2_path, identifier_code="header.split()[0]", tested=False):
         else:
             r2_matched_output.store_entry(r2.entry)
     sys.stderr.write('\r')
+
+    r1_matched_output.close()
+    r2_matched_output.close()
 
     print('')
     print('R1 file that matches to R2: %s' % r1_path + '_MATCHED')
@@ -110,10 +180,14 @@ if __name__ == '__main__':
     parser.add_argument('--r2', metavar = 'FILE_PATH', required=True, help = "R2")
     parser.add_argument('--identifier-code', metavar = 'PYTHON CODE', default='lambda defline: defline.split()[0]', help = "Lambda function to parse the header. Default: '''%(default)s'''.")
     parser.add_argument('--identifier-tested', default = False, action="store_true", help = "Use this flag to indicate that you tested your identifier.")
+    parser.add_argument('--sequential', default = False, action="store_true", help = "Your identifier code parses an integer value that can link pairs, and is incremental throughout the file.")
 
     args = parser.parse_args()
 
     if args.r2 is None and args.output2 is not None:
         parser.error("You must declare both R1 and R2 files.")
 
-    sys.exit(main(args.r1, args.r2, args.identifier_code, args.identifier_tested))
+    if args.sequential:
+        sys.exit(match_sequential(args.r1, args.r2, args.identifier_code, args.identifier_tested))
+    else:
+        sys.exit(match_non_sequential(args.r1, args.r2, args.identifier_code, args.identifier_tested))
