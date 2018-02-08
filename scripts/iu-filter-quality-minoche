@@ -24,8 +24,8 @@
 #    researcher_email = (your e-mail address)
 #    input_directory = (directory from which the input files will be read from)
 #    output_directory = (directory to store output)
-#    
-#    
+#
+#
 #    [files]
 #    pair_1 = (pair 1 files, comma separated)
 #    pair_2 = (pair 2 files, comma separated. must be ordered based on pair 1 files)
@@ -42,13 +42,13 @@ J = os.path.join
 import IlluminaUtils.lib.fastqlib as u
 from IlluminaUtils.utils.runconfiguration import RunConfiguration
 from IlluminaUtils.utils.runconfiguration import RunConfigError
-from IlluminaUtils.utils.helperfunctions import ReadIDTracker 
+from IlluminaUtils.utils.helperfunctions import ReadIDTracker
 from IlluminaUtils.utils.helperfunctions import QualityScoresHandler
 from IlluminaUtils.utils.helperfunctions import visualize_qual_stats_dict
 
 
 def RepresentsInt(s):
-    try: 
+    try:
         int(s)
         return True
     except ValueError:
@@ -64,7 +64,7 @@ def IsHighQuality(sequence, quality, p):
         if bq[trim_to]:
             trim_to += 1
             break
-    
+
     trim_to = None if len(sequence) == trim_to else trim_to
 
     if trim_to is not None:
@@ -74,7 +74,7 @@ def IsHighQuality(sequence, quality, p):
 
         sequence = sequence[0:trim_to]
         quality = quality[0:trim_to]
-    
+
     if sequence.count('N'):
         # Exclude Sequence
         return (False, trim_to, 'FAILED_REASON_N')
@@ -84,13 +84,13 @@ def IsHighQuality(sequence, quality, p):
     if len([True for _q in quality[0:half_length] if _q > 30]) < 0.66 * half_length:
         # Exclude Sequence
         return (False, trim_to, 'FAILED_REASON_C33')
-        
+
     # Accept sequence
     return (True, trim_to, 'PASSED')
 
 
-def main(config, args = None, visualize_quality_curves = False, ignore_deflines = False, p = 0.75):
-    
+def main(config, args = None, visualize_quality_curves = False, ignore_deflines = False, store_read_fate=False, p = 0.75):
+
     def get_percent(x, y):
         if y == 0:
             return 0.0
@@ -103,19 +103,20 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
         visualize_quality_curves = args.visualize_quality_curves
         limit_num_pairs = args.limit_num_pairs
         print_qual_scores = args.print_qual_scores
+        store_read_fate = args.store_read_fate
 
 
     #####################################################################################
     # dealing with output file pointers..
     #####################################################################################
-    
+
     GetFilePath = lambda p: os.path.join(config.output_directory, config.project_name + '-' + p)
-    
+
     errors_fp                 = open(GetFilePath('STATS.txt'), 'w')
     quality_passed_r1         = u.FastQOutput(GetFilePath('QUALITY_PASSED_R1.fastq'))
     quality_passed_r2         = u.FastQOutput(GetFilePath('QUALITY_PASSED_R2.fastq'))
     id_tracker_output_path    = GetFilePath('READ_IDs.cPickle.z')
-    
+
     if visualize_quality_curves:
         qual_dict_output_path = GetFilePath('Q_DICT.cPickle.z')
 
@@ -123,7 +124,7 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
     #####################################################################################
     # some useful variables before we begin..
     #####################################################################################
-   
+
     number_of_pairs = 0
     total_pairs_failed = 0
     total_pairs_passed = 0
@@ -135,14 +136,14 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
 
     if visualize_quality_curves:
         qual_dict = QualityScoresHandler()
-        
+
     read_id_tracker = ReadIDTracker()
 
     #####################################################################################
     # main loop per file listed in config:
     #####################################################################################
     COMPRESSED = lambda x: os.path.basename(config.pair_1[index]).endswith('.gz')
-    
+
     for index in range(0, len(config.pair_1)):
         try:
             pair_1 = u.FastQSource(config.pair_1[index], compressed = True if COMPRESSED(config.pair_1[index]) else False)
@@ -156,7 +157,7 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
         #####################################################################################
         # main loop per read:
         #####################################################################################
-       
+
         while pair_1.next(raw = ignore_deflines) and pair_2.next(raw = ignore_deflines):
             number_of_pairs += 1
 
@@ -171,7 +172,7 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
 
             #####################################################################################
             # compare reads
-            #####################################################################################           
+            #####################################################################################
 
             p1_passed_qual, p1_trim_to, p1_fate = IsHighQuality(s1, q1, p)
             p2_passed_qual, p2_trim_to, p2_fate = IsHighQuality(s2, q2, p)
@@ -187,9 +188,9 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
                     read_id_tracker.update(pair_1, pair_2, p2_fate)
                     fate = p2_fate
                 else:
-                    both_pairs_failed_qual += 1 
+                    both_pairs_failed_qual += 1
                     fate = p1_fate
-                
+
                 read_id_tracker.update(pair_1, pair_2, fate)
 
                 if visualize_quality_curves:
@@ -197,7 +198,7 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
 
             else:
                 total_pairs_passed += 1
-                
+
                 if p1_trim_to or p2_trim_to:
                     if p1_trim_to:
                         pair_1.entry.trim(trim_to = p1_trim_to)
@@ -205,12 +206,12 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
                     if p2_trim_to:
                         pair_2.entry.trim(trim_to = p2_trim_to)
                         total_pair_2s_trimmed += 1
-                        
+
                 read_id_tracker.update(pair_1, pair_2, p1_fate)
 
                 if visualize_quality_curves:
                     qual_dict.update(pair_1, pair_2, p1_fate)
-                
+
                 quality_passed_r1.store_entry(pair_1.entry)
                 quality_passed_r2.store_entry(pair_2.entry)
 
@@ -238,11 +239,12 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
                                                                        get_percent(len(read_id_tracker.ids[fate]), total_pairs_failed)))
 
     print()
-    
-    sys.stderr.write('\rRead ID tracker dict is being stored ...')
-    sys.stderr.flush()
-    read_id_tracker.store(id_tracker_output_path)
-    sys.stderr.write('\n')
+
+    if store_read_fate:
+        sys.stderr.write('\rRead ID tracker dict is being stored ...')
+        sys.stderr.flush()
+        read_id_tracker.store(id_tracker_output_path)
+        sys.stderr.write('\n')
 
     if visualize_quality_curves:
         sys.stderr.write('\rQuality scores dict is being stored ...')
@@ -282,18 +284,25 @@ if __name__ == '__main__':
                                         help = 'When set, the script will print out the Q-scores the way it sees it in\
                                                 the FASTQ file. This flag will generate a lot of useless output to the\
                                                 stdout, and you should not use it if you are not testing something.')
+    parser.add_argument('--store-read-fate', action = 'store_true', default = False,
+                                        help = 'As it goes through your raw reads, this program keeps track of the read fate\
+                                                so you can learn what happened to a given read ID in your raw input data once\
+                                                the analysis is done. This output can become extremely large, and often is\
+                                                utterly useless to you unless you have a very specific benchmarking or debugging\
+                                                interestes, hence, it is not stored by default. You can change that behavior by\
+                                                using this flag, and ask illumina-utils to store this data on your disk.')
 
     args = parser.parse_args()
     user_config = configparser.ConfigParser()
     user_config.read(args.user_config)
 
-    try: 
+    try:
         config = RunConfiguration(user_config)
     except RunConfigError as e:
         print(e)
         sys.exit()
 
-         
+
     try:
         sys.exit(main(config, args))
     except RunConfigError as e:
@@ -301,4 +310,4 @@ if __name__ == '__main__':
         sys.exit(-1)
     except u.FastQLibError as e:
         print(e)
-        sys.exit(-2)         
+        sys.exit(-2)

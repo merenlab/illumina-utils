@@ -81,7 +81,7 @@ def IsHighQuality(sequence, quality, p, q, r, n):
     return (True, trim_to, 'PASSED')
 
 
-def main(config, args = None, visualize_quality_curves = False, ignore_deflines = False, p = 0.75, q = 3, r = 3, n = 0, limit_num_pairs = None):
+def main(config, args = None, visualize_quality_curves = False, ignore_deflines = False, p = 0.75, q = 3, r = 3, n = 0, limit_num_pairs = None, store_read_fate=False):
 
     def get_percent(x, y):
         if y == 0:
@@ -98,6 +98,7 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
         visualize_quality_curves = args.visualize_quality_curves
         limit_num_pairs = args.limit_num_pairs
         print_qual_scores = args.print_qual_scores
+        store_read_fate = args.store_read_fate
 
 
     #####################################################################################
@@ -233,10 +234,11 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
                                                                        get_percent(len(read_id_tracker.ids[fate]), total_pairs_failed)))
     print()
     
-    sys.stderr.write('\rRead ID tracker dict is being stored ...')
-    sys.stderr.flush()
-    read_id_tracker.store(id_tracker_output_path)
-    sys.stderr.write('\n')
+    if store_read_fate:
+        sys.stderr.write('\rRead ID tracker dict is being stored ...')
+        sys.stderr.flush()
+        read_id_tracker.store(id_tracker_output_path)
+        sys.stderr.write('\n')
 
     if visualize_quality_curves:
         sys.stderr.write('\rQuality scores dict is being stored ...')
@@ -282,6 +284,13 @@ if __name__ == '__main__':
                                         help = 'When set, the script will print out the Q-scores the way it sees it in\
                                                 the FASTQ file. This flag will generate a lot of useless output to the\
                                                 stdout, and you should not use it if you are not testing something.')
+    parser.add_argument('--store-read-fate', action = 'store_true', default = False,
+                                        help = 'As it goes through your raw reads, this program keeps track of the read fate\
+                                                so you can learn what happened to a given read ID in your raw input data once\
+                                                the analysis is done. This output can become extremely large, and often is\
+                                                utterly useless to you unless you have a very specific benchmarking or debugging\
+                                                interestes, hence, it is not stored by default. You can change that behavior by\
+                                                using this flag, and ask illumina-utils to store this data on your disk.')
 
     args = parser.parse_args()
     user_config = configparser.ConfigParser()
