@@ -144,7 +144,7 @@ def get_TAB_delimited_file_as_dictionary(file_path, expected_fields = None, dict
                 except ValueError:
                     raise ConfigError("Mapping funciton '%s' did not like the value '%s' in column number %d\
                                         of the matrix :/" % (column_mapping[i], line_fields[i], i + 1))
-            line_fields = updated_line_fields 
+            line_fields = updated_line_fields
 
         entry_name = line_fields[indexing_field]
 
@@ -220,7 +220,7 @@ class ReadIDTracker:
     def __init__(self):
         self.ids = {}
         self.fates = set([])
-        
+
     def update(self, pair_1, pair_2 = None, fate = 'unknown'):
         if fate not in self.fates:
             self.fates.add(fate)
@@ -317,14 +317,14 @@ def compute_plot_dict_from_tiles_dict(tiles_dict, plot_dict = {'1': {}, '2': {}}
         for tile_no in tiles_dict[pair_no]:
             if tile_no not in plot_dict[pair_no]:
                 plot_dict[pair_no][tile_no] = {'mean': [], 'count': [], 'std': []}
-    
+
     for pair_no in ['1', '2']:
         for tile_no in tiles_dict[pair_no]:
             for i in range(0, sequence_length):
                 plot_dict[pair_no][tile_no]['mean'].append(numpy.mean(tiles_dict[pair_no][tile_no][i]))
                 plot_dict[pair_no][tile_no]['std'].append(numpy.std(tiles_dict[pair_no][tile_no][i]))
                 plot_dict[pair_no][tile_no]['count'].append(len(tiles_dict[pair_no][tile_no][i]))
-                
+
     return plot_dict
 
 def visualize_sequence_length_distribution(fasta_file_path, dest, title, max_seq_len = None, xtickstep = None, ytickstep = None):
@@ -401,7 +401,7 @@ class Gs:
         self.grid = gridspec.GridSpec(x, y)
         self.pointer = None
         self.current = None
-    
+
     def next(self, p = 1):
         if self.pointer == None:
             self.pointer = 0
@@ -414,7 +414,7 @@ class Gs:
 
 def visualize_qual_stats_dict(D, dest, title, split_tiles = False, num_columns_to_show = 12, min_rows_to_show = 6):
     """
-    
+
     this how D looks like:
 
     D = {
@@ -429,7 +429,7 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False, num_columns_t
                     'tile_n' : {'mean': [], 'std': [], 'count': []},
                  },
         }
-   
+
     there are two entries per pair, for each pair there are N tiles, for ever tile,
     there are mean, std and count entries, in each of those, there are X items,
     where nth item corresponds to the mean of all values at nth location of the
@@ -438,7 +438,7 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False, num_columns_t
     dest is destination file to save the output.
 
     title is the title to put on the figure.
-    
+
     """
 
     # lets find out how many cycles were there. it is going to be about 101 for
@@ -478,11 +478,11 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False, num_columns_t
 
     fig = plt.figure(figsize = (3 * num_columns_to_show, 2 * num_rows_to_show))
     gs = Gs(num_rows_to_show, num_columns_to_show)
-    
+
     plt.rcParams.update({'axes.linewidth' : 0.9})
     plt.rc('grid', color='0.50', linestyle='-', linewidth=0.1)
-    
-    
+
+
     subplots = {}
     colors = cm.get_cmap('RdYlGn', lut=256)
 
@@ -492,20 +492,20 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False, num_columns_t
         m = {}
         m['1'] = get_max_count(D, '1')
         m['2'] = get_max_count(D, '2')
-   
+
         for i in range(0, len(tiles)):
             tile = tiles[i]
-           
+
             for _pair, _color in [('1', 'orange'), ('2', 'purple'), (None, None)]:
                 if _pair:
                     subplots[tile] = {_pair: plt.subplot(gs.next(2))}
                 else:
                     gs.next(1)
                     continue
-                
+
                 plt.grid(True)
                 plt.subplots_adjust(left=0.02, bottom = 0.03, top = 0.95, right = 0.98)
-  
+
                 plt.xticks(list(range(number_of_cycles / 10, number_of_cycles, number_of_cycles / 10)), rotation=90, size='xx-small')
                 plt.ylim(ymin = 0, ymax = 42)
                 plt.xlim(xmin = 0, xmax = number_of_cycles - 1)
@@ -517,7 +517,7 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False, num_columns_t
                 if tile in D[_pair]:
                     plt.fill_between(list(range(0, number_of_cycles)), [42 for _ in range(0, number_of_cycles)], y2 = 0, color = colors(D[_pair][tile]['count'][0] / m[_pair]), alpha = 0.2)
                     subplots[tile][_pair].plot(D[_pair][tile]['mean'], color = _color, lw = 2)
-                    
+
                     read_number_percent_dropdown = [42 * (x / get_max_count(D, _pair, tile)) for x in D[_pair][tile]['count']]
                     if not len(set(read_number_percent_dropdown)) <= 1:
                         plt.fill_between(list(range(0, number_of_cycles)), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
@@ -533,15 +533,15 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False, num_columns_t
 
     else:
         m = get_max_count(D)
-        
+
         for i in range(0, len(tiles)):
             tile = tiles[i]
-            
+
             subplots[tile] = plt.subplot(next(gs))
             plt.grid(True)
 
             plt.subplots_adjust(left=0.02, bottom = 0.03, top = 0.95, right = 0.98)
-  
+
             plt.xticks(list(range(number_of_cycles / 10, number_of_cycles, number_of_cycles / 10)), rotation=90, size='xx-small')
             plt.ylim(ymin = 0, ymax = 42)
             plt.xlim(xmin = 0, xmax = number_of_cycles - 1)
@@ -550,11 +550,11 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False, num_columns_t
             if tile in D['1']:
                 plt.fill_between(list(range(0, number_of_cycles)), [42 for _ in range(0, number_of_cycles)], y2 = 0, color = colors(D['1'][tile]['count'][0] / m), alpha = 0.2)
                 subplots[tile].plot(D['1'][tile]['mean'], color = 'orange', lw = 2)
-                
+
                 read_number_percent_dropdown = [42 * (x / get_max_count(D, tile = tile)) for x in D['1'][tile]['count']]
                 if not len(set(read_number_percent_dropdown)) <= 1:
                     if len(read_number_percent_dropdown) < number_of_cycles:
-                        read_number_percent_dropdown += [0] * (number_of_cycles - len(read_number_percent_dropdown)) 
+                        read_number_percent_dropdown += [0] * (number_of_cycles - len(read_number_percent_dropdown))
                     plt.fill_between(list(range(0, number_of_cycles)), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
 
                 plt.text(5, 2.5, '%s :: %s' % (tile, big_number_pretty_print(int(get_max_count(D, tile = tile)))), alpha=0.5)
@@ -571,7 +571,7 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False, num_columns_t
 
 def visualize_qual_stats_dict_single(D, dest, title):
     """
-    same as visualize_qual_stats_dict, but puts all tiles together. 
+    same as visualize_qual_stats_dict, but puts all tiles together.
     """
 
     # first find out how many cycles were there. it is going to be about 101 for
@@ -587,13 +587,13 @@ def visualize_qual_stats_dict_single(D, dest, title):
         for tile in D[pair]:
             if len(D[pair][tile]['mean']) > number_of_cycles:
                 number_of_cycles = len(D[pair][tile]['mean'])
- 
+
 
     fig = plt.figure(figsize = (12, 8))
-    
+
     plt.rcParams.update({'axes.linewidth' : 0.9})
     plt.rc('grid', color='0.50', linestyle='-', linewidth=0.1)
-   
+
     all_tiles = {'1': {'mean': [0] * number_of_cycles, 'count': [0] * number_of_cycles},
                  '2': {'mean': [0] * number_of_cycles, 'count': [0] * number_of_cycles}
                 }
@@ -624,7 +624,7 @@ def visualize_qual_stats_dict_single(D, dest, title):
     plt.grid(True)
 
     plt.subplots_adjust(left=0.02, bottom = 0.03, top = 0.95, right = 0.98)
-  
+
     plt.xticks(list(range(number_of_cycles / 10, number_of_cycles, number_of_cycles / 10)), rotation=90, size='xx-small')
     plt.ylim(ymin = 0, ymax = 42)
     plt.xlim(xmin = 0, xmax = number_of_cycles - 1)
@@ -632,7 +632,7 @@ def visualize_qual_stats_dict_single(D, dest, title):
 
     plt.fill_between(list(range(0, number_of_cycles)), [42 for _ in range(0, number_of_cycles)], y2 = 0, color = colors(0), alpha = 0.2)
     plt.plot(all_tiles['1']['mean'], color = 'orange', lw = 6)
-    
+
     read_number_percent_dropdown = [42 * (x / all_tiles['1']['count'][0]) for x in all_tiles['1']['count']]
     if not len(set(read_number_percent_dropdown)) <= 1:
         plt.fill_between(list(range(0, number_of_cycles)), read_number_percent_dropdown, y2 = 0, color = 'black', alpha = 0.08)
@@ -658,24 +658,24 @@ def populate_tiles_qual_dict_from_input(input_1, input_2, tiles_dict = {'1': {},
     while next(input_1):
         if input_1.p_available:
             input_1.print_percentage()
-    
+
         q1 = input_1.entry.process_Q_list()
 
         if input_1.entry.tile_number not in tiles_dict['1']:
             tiles_dict['1'][input_1.entry.tile_number] = []
             for i in range(0, len(q1)):
                 tiles_dict['1'][input_1.entry.tile_number].append([])
-    
+
         for i in range(0, len(q1)):
             try:
                 tiles_dict['1'][input_1.entry.tile_number][i].append(q1[i])
             except:
                 tiles_dict['1'][input_1.entry.tile_number].append([])
                 tiles_dict['1'][input_1.entry.tile_number][i].append(q1[i])
-                
-    
-    sys.stderr.write('\n') 
-    
+
+
+    sys.stderr.write('\n')
+
     while next(input_2):
         if input_2.p_available:
             input_2.print_percentage()
@@ -684,7 +684,7 @@ def populate_tiles_qual_dict_from_input(input_1, input_2, tiles_dict = {'1': {},
             tiles_dict['2'][input_2.entry.tile_number] = []
             for i in range(0, 101):
                 tiles_dict['2'][input_2.entry.tile_number].append([])
-        
+
         q2 = input_2.entry.process_Q_list()
 
         for i in range(0, len(q2)):
@@ -692,10 +692,10 @@ def populate_tiles_qual_dict_from_input(input_1, input_2, tiles_dict = {'1': {},
                 tiles_dict['2'][input_2.entry.tile_number][i].append(q2[i])
             except:
                 tiles_dict['2'][input_2.entry.tile_number].append([])
-    
-    sys.stderr.write('\n') 
+
+    sys.stderr.write('\n')
     return tiles_dict
- 
+
 
 def predict_file_length(file_pointer, file_path):
     file_stat = os.stat(file_path)

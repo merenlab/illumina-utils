@@ -32,7 +32,7 @@ class ConfigError(Exception):
 
 
 def RepresentsInt(s):
-    try: 
+    try:
         int(s)
         return True
     except ValueError:
@@ -45,7 +45,7 @@ def get_rp_match(seq, reverse_primer):
 
     while 1:
         m = reverse_primer.search(seq, offset)
-                
+
         if not m:
             break
         else:
@@ -60,23 +60,23 @@ def main(fasta_file, archaea = False, debug = False):
     # lets setup primers based on what we are dealing with:
     if archaea:
         # set archaeal V6 primers.
-        
+
         #forward_primer = re.compile('AATTGGA.TCAACGCCGG')
         # last 12 nts of the forward primer:
         forward_primer = re.compile('A.TCAACGCCGG')
-        
+
         #reverse_primer = re.compile('CG[A,G]C[A,G]GCCATG[C,T]ACC[A,T]C')
         # 6 nts of reverse primer:
         reverse_primer = re.compile('G[A,T]GGT[G,A]')
     else:
         # set bacterial V6 primers.
         # reverse primer (first 10 character of 1046R-rc):
-        #reverse_primer = re.compile('AGGTG.TGCA') 
+        #reverse_primer = re.compile('AGGTG.TGCA')
         # 6 nts of reverse primer:
-        reverse_primer = re.compile('AGGTG.') 
+        reverse_primer = re.compile('AGGTG.')
 
         # forward primers:
-        # 
+        #
         # 967F-AQ    C    T A A    C    CG A    .    G    AACCT [CT] ACC
         # 967F-UC3   A    T A C    G    CG A    [AG] G    AACCT T    ACC
         # 967F-PP    C    . A C    G    CG A    A    G    AACCT T    A.C
@@ -86,7 +86,7 @@ def main(fasta_file, archaea = False, debug = False):
         #forward_primer = re.compile('A[AC][CG]CG[AC].[AG]AACCT[CT]A.C')
         # last 10 nts of the forward primer
         forward_primer = re.compile('[AG]AACCT[CT]A.C')
-                                   
+
 
     def get_percent(x, y):
         if y == 0:
@@ -107,29 +107,29 @@ def main(fasta_file, archaea = False, debug = False):
     #####################################################################################
     # dealing with output file pointers..
     #####################################################################################
-    
+
     GetFilePath = lambda p: fasta_file + ('_' + p)
-    
+
     errors_fp                 = open(GetFilePath('STATS'), 'w')
     fasta_for_trimmed_sequences    = open(GetFilePath('V6_PRIMERS_REMOVED'), 'w')
-    
+
     #####################################################################################
     # some useful variables before we begin..
     #####################################################################################
-   
+
     number_of_sequences = 0
     num_sequences_trimmed = 0
     rp_failed = 0
     fp_failed = 0
 
     reverse_primer_found_locations = []
-    
+
     #####################################################################################
     # main loop per read:
     #####################################################################################
-    
+
     fasta = u.SequenceSource(fasta_file)
-    while fasta.next():
+    while next(fasta):
         fasta.seq = fasta.seq.upper()
         number_of_sequences += 1
 
@@ -156,7 +156,7 @@ def main(fasta_file, archaea = False, debug = False):
         #####################################################################################
 
         fp = forward_primer.search(sequence, 0, 60)
-        
+
         if not fp:
             fp_failed += 1
             continue

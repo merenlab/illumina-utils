@@ -25,18 +25,18 @@ def main(input_file_path, output_file_path, max_mismatches):
     num_passed = 0
 
     progress.new('Filtering reads (max %d mismatches)' % max_mismatches)
-    while input.next():
+    while next(input):
         if input.pos % 100 == 0 or input.pos == 1:
             progress.update('%d with 0 mismatches among %d processed' % (num_passed, input.pos))
 
         num_mismatches = sys.maxsize
-        
+
         try:
             num_mismatches = int(input.id.split('mismatches:')[1].strip())
         except:
             raise h.ConfigError("Unexpected header format (no 'mismatches:' in the header).")
             sys.exit(-1)
-        
+
         if num_mismatches > max_mismatches:
             continue
         else:
