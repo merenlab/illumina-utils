@@ -1,6 +1,9 @@
 Versions
 ========
 
+* 2.2 (2018-02-10)
+  	* `fastalib` Python 3 bug fix.
+
 * 2.1 (2018-02-08)
   	* Bug fixes and performance improvements.
 	* New program: iu-gen-matching-fastq-files. Helps avoiding getting cancer when people release R1/R2 files that have different number of reads and non-matching pairs.
