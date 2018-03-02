@@ -131,8 +131,9 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
 
     if visualize_quality_curves:
         qual_dict = QualityScoresHandler()
-        
-    read_id_tracker = ReadIDTracker()
+
+    if store_read_fate:
+        read_id_tracker = ReadIDTracker()
 
     #####################################################################################
     # main loop per file listed in config:
@@ -180,13 +181,17 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
                     fate = p1_fate
                 elif p1_passed_qual and (not p2_passed_qual):
                     only_pair_2_failed_qual += 1
-                    read_id_tracker.update(pair_1, pair_2, p2_fate)
+
+                    if store_read_fate:
+                        read_id_tracker.update(pair_1, pair_2, p2_fate)
+
                     fate = p2_fate
                 else:
                     both_pairs_failed_qual += 1 
                     fate = p1_fate
-                
-                read_id_tracker.update(pair_1, pair_2, fate)
+
+                if store_read_fate:
+                    read_id_tracker.update(pair_1, pair_2, fate)
 
                 if visualize_quality_curves:
                     qual_dict.update(pair_1, pair_2, fate)
@@ -201,8 +206,9 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
                     if p2_trim_to:
                         pair_2.entry.trim(trim_to = p2_trim_to)
                         total_pair_2s_trimmed += 1
-                        
-                read_id_tracker.update(pair_1, pair_2, p1_fate)
+
+                if store_read_fate:
+                    read_id_tracker.update(pair_1, pair_2, p1_fate)
 
                 if visualize_quality_curves:
                     qual_dict.update(pair_1, pair_2, p1_fate)
@@ -227,11 +233,13 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
     errors_fp.write('  pairs failed due to pair_1  : %d (%%%.2f of all failed pairs)\n' % (only_pair_1_failed_qual, get_percent(only_pair_1_failed_qual, total_pairs_failed)))
     errors_fp.write('  pairs failed due to pair_2  : %d (%%%.2f of all failed pairs)\n' % (only_pair_2_failed_qual, get_percent(only_pair_2_failed_qual, total_pairs_failed)))
     errors_fp.write('  pairs failed due to both    : %d (%%%.2f of all failed pairs)\n' % (both_pairs_failed_qual, get_percent(both_pairs_failed_qual, total_pairs_failed)))
-    for fate in [f for f in read_id_tracker.fates if f.startswith('FAILED')]:
-        errors_fp.write('  %s%s: %d (%%%.2f of all failed pairs)\n' % (fate,
-                                                                       (' ' * (28 - len(fate))),
-                                                                       len(read_id_tracker.ids[fate]),
-                                                                       get_percent(len(read_id_tracker.ids[fate]), total_pairs_failed)))
+    
+    if store_read_fate:
+        for fate in [f for f in read_id_tracker.fates if f.startswith('FAILED')]:
+            errors_fp.write('  %s%s: %d (%%%.2f of all failed pairs)\n' % (fate,
+                                                                           (' ' * (28 - len(fate))),
+                                                                           len(read_id_tracker.ids[fate]),
+                                                                           get_percent(len(read_id_tracker.ids[fate]), total_pairs_failed)))
     print()
     
     if store_read_fate:
