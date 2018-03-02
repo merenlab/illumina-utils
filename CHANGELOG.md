@@ -1,6 +1,9 @@
 Versions
 ========
 
+* 2.3 (2018-03-02)
+    * Unnecessary memory leak in `iu-filter-quality-minoche` and `iu-filter-quality-minoche` is fixed (https://github.com/merenlab/illumina-utils/pull/16).
+
 * 2.2 (2018-02-10)
   	* `fastalib` Python 3 bug fix.
 
