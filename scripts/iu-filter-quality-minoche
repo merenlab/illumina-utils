@@ -58,6 +58,7 @@ def RepresentsInt(s):
 def IsHighQuality(sequence, quality, p):
     # boolean list of 'base quality is higher than q':
     bq = [True if _q > 2 else False for _q in quality]
+    trim_to = None
 
     # check for B-tail
     for trim_to in range(len(bq) - 1, 0, -1):
