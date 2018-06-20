@@ -1,6 +1,9 @@
 Versions
 ========
 
+* 2.3 (2018-06-20)
+    * A new program to de-interleave interleaved FASTQ files, `iu-deinterleave-fastq` is added.
+
 * 2.3 (2018-03-02)
     * Unnecessary memory leak in `iu-filter-quality-minoche` and `iu-filter-quality-minoche` is fixed (https://github.com/merenlab/illumina-utils/pull/16).
 
