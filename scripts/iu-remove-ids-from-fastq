@@ -26,7 +26,7 @@ E = os.path.exists
 J = os.path.join
 
 
-def main(fastq_path, ids_path):
+def main(fastq_path, ids_path, delimiter=None):
     ids = set([id.strip() for id in open(ids_path, 'rU')])
     input = u.FastQSource(fastq_path)
 
@@ -52,9 +52,14 @@ def main(fastq_path, ids_path):
                        u.big_number_pretty_print(number_of_reads_removed)))
             sys.stderr.flush()
 
-        if input.entry.header_line in ids:
+        if delimiter:
+            header_line = input.entry.header_line.split(delimiter)[0]
+        else:
+            header_line = input.entry.header_line
+
+        if header_line in ids:
             removed.store_entry(input.entry)
-            ids.remove(input.entry.header_line)
+            ids.remove(header_line)
             number_of_reads_removed += 1
         else:
             survived.store_entry(input.entry)
@@ -69,13 +74,18 @@ def main(fastq_path, ids_path):
 
 if __name__ == '__main__':
     import argparse
-    
+
     parser = argparse.ArgumentParser(description='Remove reads from FASTQ File')
     parser.add_argument('-i', '--input-fastq', required=True, metavar = 'FASTQ_FILE_PATH',
                         help = 'Sequences file from which reads will be removed in FASTQ format')
     parser.add_argument('-l', '--ids-file-path', required=True, metavar = 'IDS_FILE_PATH',
                         help = 'Input file that contains the list of ids for removal')
+    parser.add_argument('-d', '--delimiter', required=False, default=None, metavar = 'CHARACTER',
+                        help = 'By default this script will perform exact match match for IDs you listed\
+                                in the IDs file. But using this parameter, you can ask the script to "split"\
+                                the IDs found in the FASTQ file, and then try to match the first part of the\
+                                resulting ID to those you listed in the IDs file.')
 
     args = parser.parse_args()
 
-    sys.exit(main(args.input_fastq, args.ids_file_path))
+    sys.exit(main(args.input_fastq, args.ids_file_path, args.delimiter))
