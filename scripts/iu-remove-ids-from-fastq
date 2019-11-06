@@ -26,7 +26,7 @@ E = os.path.exists
 J = os.path.join
 
 
-def main(fastq_path, ids_path, delimiter=None):
+def main(fastq_path, ids_path, delimiter=None, generate_output_for_survived_only=False, keep_ids=False):
     ids = set([id.strip() for id in open(ids_path, 'r')])
     input = u.FastQSource(fastq_path)
 
@@ -40,7 +40,8 @@ def main(fastq_path, ids_path, delimiter=None):
             except:
                 sys.exit()
 
-    removed = u.FastQOutput(fastq_path + '.removed')
+    if not generate_output_for_survived_only:
+        removed = u.FastQOutput(fastq_path + '.removed')
     survived = u.FastQOutput(fastq_path + '.survived')
 
     number_of_reads_removed = 0
@@ -58,24 +59,35 @@ def main(fastq_path, ids_path, delimiter=None):
             header_line = input.entry.header_line
 
         if header_line in ids:
-            removed.store_entry(input.entry)
+            if keep_ids:
+                survived.store_entry(input.entry)
+            else:
+                if not generate_output_for_survived_only:
+                    removed.store_entry(input.entry)
             ids.remove(header_line)
             number_of_reads_removed += 1
         else:
-            survived.store_entry(input.entry)
+            if keep_ids:
+                if not generate_output_for_survived_only:
+                    removed.store_entry(input.entry)
+            else:
+                survived.store_entry(input.entry)
 
     sys.stderr.write('\n\n')
 
     print('Total number of reads processed: %s' % u.big_number_pretty_print(input.pos))
     print('Number of reads removed        : %s' % u.big_number_pretty_print(number_of_reads_removed))
-    print('FASTQ file for removed reads   : "%s"' % (fastq_path + '.removed'))
+    if not generate_output_for_survived_only:
+        print('FASTQ file for removed reads   : "%s"' % (fastq_path + '.removed'))
     print('FASTQ file for surviving reads : "%s"' % (fastq_path + '.survived'))
     print()
 
 if __name__ == '__main__':
     import argparse
 
-    parser = argparse.ArgumentParser(description='Remove reads from FASTQ File')
+    parser = argparse.ArgumentParser(description='Remove reads from FASTQ File. Creates two output file\
+                                                  that have the same path and name as the input FASTQ\
+                                                  file, but with the added suffix of ".survived", and ".removed".')
     parser.add_argument('-i', '--input-fastq', required=True, metavar = 'FASTQ_FILE_PATH',
                         help = 'Sequences file from which reads will be removed in FASTQ format')
     parser.add_argument('-l', '--ids-file-path', required=True, metavar = 'IDS_FILE_PATH',
@@ -85,7 +97,12 @@ if __name__ == '__main__':
                                 in the IDs file. But using this parameter, you can ask the script to "split"\
                                 the IDs found in the FASTQ file, and then try to match the first part of the\
                                 resulting ID to those you listed in the IDs file.')
+    parser.add_argument('-G', '--generate-output-for-survived-only', required=False, action='store_true', default=False,
+                        help = 'If provided then only one output file (the file with "survived" ids) will be produced.')
+    parser.add_argument('-K', '--keep-ids', required=False, action='store_true', default=False,
+                        help = 'If provided, then instead of removing the ids in the list, only the ids in the\
+                                list will be kept (and the rest would be removed).')
 
     args = parser.parse_args()
 
-    sys.exit(main(args.input_fastq, args.ids_file_path, args.delimiter))
+    sys.exit(main(args.input_fastq, args.ids_file_path, args.delimiter, args.generate_output_for_survived_only, args.keep_ids))
