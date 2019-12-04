@@ -564,7 +564,7 @@ class Merger:
             seq2 = reverse_complement(obj_read_2.sequence)
 
         smallest, ind = sys.maxsize, 0
-        for i in range(self.min_overlap_size, min(len(seq1), len(seq2))):
+        for i in range(self.min_overlap_size + 1, min(len(seq1), len(seq2)) + 1):
             d = l.distance(seq1[-i:], seq2[:i])
             if d <= smallest:
                 smallest = d
@@ -742,7 +742,11 @@ if __name__ == '__main__':
                                                 overlap" case for amplicons. Please read the description\
                                                 at url https://github.com/meren/illumina-utils/issues/1 for details.')
 
-    args = parser.parse_args()
+    args = parser.parse_args([
+        '/Users/sammiller/Documents/work/trna/tongue1-day1-DM/test/test-config.txt',
+        '-o', 'test', 
+        '--max-num-mismatches', '0',
+        '--marker-gene-stringent'])
 
     user_config = configparser.ConfigParser()
     user_config.read(args.user_config)
