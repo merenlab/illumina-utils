@@ -4,9 +4,6 @@
 # temporary vi files.
 *.sw*
 
-# pyenv local environment
-.python-version
-
 #nonsense
 *.DS_Store
 *ignore*
@@ -16,5 +13,3 @@
 .settings
 *config.ini
 output
-.env
-.vscode
