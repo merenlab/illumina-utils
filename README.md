@@ -10,25 +10,26 @@ Feel free to cite [this article](http://journals.plos.org/plosone/article?id=10.
 
 # Contents
 
+- [Contents](#contents)
 - [Installing](#installing)
+  - [Standard installation](#standard-installation)
+  - [Slightly better setup (with virtualenv)](#slightly-better-setup-with-virtualenv)
+    - [Pro setup](#pro-setup)
 - [Demultiplexing](#demultiplexing)
 - [Config File Format](#config-file-format)
-    - [[general] section](#general-section)
-    - [[files] section](#files-section)
-    - [[prefixes] section](#prefixes-section)
+  - [[general] section](#general-section)
+  - [[files] section](#files-section)
+  - [[prefixes] section](#prefixes-section)
 - [Merging Partially Overlapping Illumina Pairs](#merging-partially-overlapping-illumina-pairs)
-    - [Example STATS output](#example-stats-output)
-    - [Recovering high-quality reads from merged reads file](#recovering-high-quality-reads-from-merged-reads-file)
+  - [Example STATS output](#example-stats-output)
 - [Merging Completely Overlapping Illumina Pairs](#merging-completely-overlapping-illumina-pairs)
 - [Quality Filtering](#quality-filtering)
-    - ["Complete Overlap" analysis for V6](#complete-overlap-analysis-for-v6)
-        - [Example STATS output](#example-stats-output)
-    - [Minoche et al.](#minoche-et-al)
-        - [Example STATS output](#example-stats-output)
-        - [Example PNG files](#example-png-files)
-    - [Bokulich et al.](#bokulich-et-al)
-        - [Example STATS output:](#example-stats-output)
-        - [Example PNG files](#example-png-files)
+  - [Minoche et al.](#minoche-et-al)
+    - [Example STATS output](#example-stats-output-1)
+    - [Example PNG files](#example-png-files)
+  - [Bokulich et al.](#bokulich-et-al)
+    - [Example STATS output:](#example-stats-output)
+    - [Example PNG files](#example-png-files-1)
 - [Questions?](#questions)
 
 
@@ -139,7 +140,7 @@ Before describing the purpose of each section, here is a useful note: in most ca
 
 This is a mandatory section that contains `project_name`, `researcher_email`, `input_directory` and `output_directory` directives.
 
-Two critical declerations in `[general]` section are `input_directory` and `output_directory`:
+Two critical declarations in `[general]` section are `input_directory` and `output_directory`:
 
 * `input_directory`: Full path to the directory where FASTQ files reside.
 * `output_directory`: Full path to the directory where the output of the operation you will perform on this config to be stored. Since when it is Illumina we are dealing with huge files, the codebase is pretty conservative to protect users from making simple mistakes which may result in huge losses. So, if you don't create the `output_directory`, you will get an error (it will not be automatically generated). If there is already a file in the `output_directory` with the same name with one of the outputs, you will get an error (it will not be overwritten). `project_name` will be used as a prefix for the naming convention of output files, so it would be wise to choose something descriptive and UNIX-compatible.
@@ -150,7 +151,7 @@ Two critical declerations in `[general]` section are `input_directory` and `outp
 
 ## [prefixes] section
 
-`prefixes` section is optional. If you have barcodes and primers in your reads, and you want them to be trimmed, you can use [regular expression](http://en.wikipedia.org/wiki/Regular_expressions)s to specify them. If prefixes are defined, results would contain only pairs that matched them.
+`prefixes` section is optional. If you have primers, barcodes or unique molecular identifiers (UMIs) in your reads, and you want them to be trimmed, you can use [regular expression](http://en.wikipedia.org/wiki/Regular_expressions)s to specify them. A UMI, being a random sequence, would be represented by a series of dots (...... would represent a UMI of length 6). If prefixes are defined, results would contain only pairs that matched them.
 
 
 # Merging Partially Overlapping Illumina Pairs
@@ -274,6 +275,8 @@ Please use `iu-merge-pairs` the same way explained in the [Merging Partially Ove
 You can be extremely stringent with this approach by allowing 0 mismatches at the overlapped region:
 
     (...) --marker-gene-stringent --retain-only-overlap --max-num-mismatches 0
+
+Completely overlapping pairs can contain parts of the adapters at the ends of the sequence, as read 1 can continue into the read 2 adapter, and read 2 can continue into the read 1 adapter. You can trim these "suffix" sequences with the `--trim-suffix` flag.
 
 An example complete overlap analysis is demonstrated in the [examples](https://github.com/meren/illumina-utils/tree/master/examples) directory of the codebase.
 
