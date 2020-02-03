@@ -174,6 +174,9 @@ class Merger:
         self.enforce_Q30_check = False
         self.retain_only_overlap = False
         self.marker_gene_stringent = False
+        self.trim_suffix = False
+        self.report_r1_prefix = False
+        self.report_r2_prefix = False
         self.project_name = 'Unknown_project'
 
         if self.config.pair_1_prefix:
@@ -278,7 +281,7 @@ class Merger:
                     (alt_beginning, alt_overlap, alt_end), alt_number_of_mismatches, alt_recovery_dict =\
                                                              self.merge_two_sequences_fast(complete_overlap = True)
 
-                    if self.retain_only_overlap:
+                    if self.retain_only_overlap or self.trim_suffix:
                         alt_merged_sequence = alt_overlap
                     else:
                         alt_merged_sequence = alt_beginning + alt_overlap + alt_end
@@ -310,7 +313,6 @@ class Merger:
                         self.stats.num_Q30_fails_in_read_2 += 1
                     elif not r1_passed_Q30 and not r2_passed_Q30:
                         self.stats.num_Q30_fails_in_both += 1
-
 
                 # generate the header line
                 header_line = '%s|o:%d|m/o:%f|MR:%s|Q30:%s|CO:%d|mismatches:%d' % \
@@ -383,6 +385,12 @@ class Merger:
                 # record the info for successfuly merged pair in recovery dict
                 self.stats.process_recovery_dict(recovery_dict)
 
+                if self.report_r1_prefix and self.pair_1_prefix_compiled:
+                    self.read1prefixes.write_id(header_line)
+                    self.read1prefixes.write_seq(pattern_1.group(0))
+                if self.report_r2_prefix and self.pair_2_prefix_compiled:
+                    self.read2prefixes.write_id(header_line)
+                    self.read2prefixes.write_seq(pattern_2.group(0))
 
                 # FIXME: this is ridiculous. visualization of the Q-score curves associated
                 # part needs to be moved somewhere else.
@@ -490,6 +498,11 @@ class Merger:
             self.Q30fails = P('_FAILED_Q30')
         else:
             self.Q30fails = None
+            
+        if self.report_r1_prefix:
+            self.read1prefixes = P('_MERGED_R1_PREFIX')
+        if self.report_r2_prefix:
+            self.read2prefixes = P('_MERGED_R2_PREFIX')
 
 
     def close_output_files(self):
@@ -498,6 +511,10 @@ class Merger:
         self.withNs.close()
         if self.enforce_Q30_check:
             self.Q30fails.close()
+        if self.report_r1_prefix:
+            self.read1prefixes.close()
+        if self.report_r2_prefix:
+            self.read2prefixes.close()
 
 
     def get_read_id_with_better_base_qual(self, base_index_in_read_1, base_index_in_reversed_read_2):
@@ -741,6 +758,30 @@ if __name__ == '__main__':
                                         help = 'Finds the best merge going beyond expected "partial\
                                                 overlap" case for amplicons. Please read the description\
                                                 at url https://github.com/meren/illumina-utils/issues/1 for details.')
+    parser.add_argument('--trim-suffix', action = 'store_true', default = False,
+                                        help = 'Some datasets contain both partially and completely overlapping reads.\
+                                                "--marker-gene-stringent" would be used in that case.\
+                                                Completely overlapping reads can contain\
+                                                unwanted adapter sequence at the ends of the reads\
+                                                (read 1 adapter at the end of read 2\
+                                                and read 2 adapter at the end of read 1).\
+                                                This flag trims these adapter suffixes from merged reads,\
+                                                but unlike setting "--retain-only-overlap",\
+                                                it does not discard non-overlapping parts of the insert\
+                                                from partially-overlapping reads.')
+    parser.add_argument('--report-r1-prefix', action = 'store_true', default = False,
+                                        help = 'If there is a prefix to read 1 specified in the config file,\
+                                                these sequences will be reported for merged reads\
+                                                when this flag is set.\
+                                                This can be useful if the prefix sequence has variable bases,\
+                                                such as in a unique molecular identifier (UMI).')
+    parser.add_argument('--report-r2-prefix', action = 'store_true', default = False,
+                                        help = 'If there is a prefix to read 2 specified in the config file,\
+                                                these sequences will be reported for merged reads\
+                                                when this flag is set.\
+                                                This can be useful if the prefix sequence has variable bases,\
+                                                such as in a unique molecular identifier (UMI).')
+
 
     args = parser.parse_args()
 
@@ -766,5 +807,8 @@ if __name__ == '__main__':
     merger.ignore_deflines = args.ignore_deflines
     merger.retain_only_overlap = args.retain_only_overlap
     merger.marker_gene_stringent = args.marker_gene_stringent
+    merger.trim_suffix = args.trim_suffix
+    merger.report_r1_prefix = args.report_r1_prefix
+    merger.report_r2_prefix = args.report_r2_prefix
 
     sys.exit(merger.run())
