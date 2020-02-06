@@ -23,12 +23,13 @@ Feel free to cite [this article](http://journals.plos.org/plosone/article?id=10.
 - [Merging Partially Overlapping Illumina Pairs](#merging-partially-overlapping-illumina-pairs)
   - [Example STATS output](#example-stats-output)
 - [Merging Completely Overlapping Illumina Pairs](#merging-completely-overlapping-illumina-pairs)
+- [Rapid Multithreaded Merging by Exact Overlap](#rapid-multithreaded-merging-by-exact-overlap)
 - [Quality Filtering](#quality-filtering)
   - [Minoche et al.](#minoche-et-al)
     - [Example STATS output](#example-stats-output-1)
     - [Example PNG files](#example-png-files)
   - [Bokulich et al.](#bokulich-et-al)
-    - [Example STATS output:](#example-stats-output)
+    - [Example STATS output:](#example-stats-output-2)
     - [Example PNG files](#example-png-files-1)
 - [Questions?](#questions)
 
@@ -279,6 +280,10 @@ You can be extremely stringent with this approach by allowing 0 mismatches at th
 Completely overlapping pairs can contain parts of the adapters at the ends of the sequence, as read 1 can continue into the read 2 adapter, and read 2 can continue into the read 1 adapter. You can trim these "suffix" sequences with the `--trim-suffix` flag.
 
 An example complete overlap analysis is demonstrated in the [examples](https://github.com/meren/illumina-utils/tree/master/examples) directory of the codebase.
+
+# Rapid Multithreaded Merging by Exact Overlap
+
+The option `--rapid-cores` triggers multithreaded merging, where the provided argument is the number of cores to use. This option only works in conjunction with `--max-num-mismatches 0` and does not support `--ignore-Ns` or options for base quality filtering. "Rapid" merging with one core is two orders of magnitude faster than "normal" merging. The speedup scales linearly with additional cores.
 
 # Quality Filtering
 
