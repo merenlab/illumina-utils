@@ -125,6 +125,30 @@ class MergerStats:
         stats.close()
 
 
+    def write_rapidmerge_stats(self, output_file_path, merger_object):
+        stats = open(output_file_path, 'w')
+
+        stats.write(self.s_line('Number of pairs analyzed', '%d' % self.actual_number_of_pairs))
+        stats.write(self.s_line('Prefix failed in read 1', '%d' % self.prefix_failed_in_pair_1_total))
+        stats.write(self.s_line('Prefix failed in read 2', '%d' % self.prefix_failed_in_pair_2_total))
+        stats.write(self.s_line('Prefix failed in both', '%d' % self.prefix_failed_in_both_pairs_total))
+        stats.write(self.s_line('Passed prefix total', '%d' % self.passed_prefix_total))
+        stats.write(self.s_line('Failed prefix total', '%d' % self.failed_prefix_total))
+        stats.write(self.s_line('Merged total', '%d' % self.merge_passed_total))
+        stats.write(self.s_line('Complete overlap total', '%d' % self.merging_done_on_complete_overlap))
+        stats.write(self.s_line('Merge discarded due to Ns', '%d' % self.pairs_eliminated_due_to_Ns))
+
+        stats.write('\n\n')
+        stats.write(self.s_line('Command line', '%s' % ' '.join(sys.argv)))
+        stats.write(self.s_line('Work directory', '%s' % os.getcwd()))
+        stats.write(self.s_line('Max num mismatches at the overlapped region', '%s' % (str(merger_object.max_num_mismatches) if merger_object.max_num_mismatches >= 0 else 'None')))
+        stats.write(self.s_line('Min overlap size', '%s' % merger_object.min_overlap_size))
+        stats.write(self.s_line('Run with stringent flag on?', '%s' % merger_object.marker_gene_stringent))
+        stats.write(self.s_line('Requested only the overlapping part to be retained?', '%s' % merger_object.retain_only_overlap))
+
+        stats.close()
+
+
     def write_mismatches_breakdown_table(self, output_file_path):
         num_mismatches_breakdown_table = open(output_file_path, 'w')
         categories = list(self.num_mismatches_breakdown.keys())
@@ -176,7 +200,7 @@ class Merger:
         self.enforce_Q30_check = False
         self.retain_only_overlap = False
         self.marker_gene_stringent = False
-        self.trim_suffix = False
+        self.untrimmed_suffix = False
         self.report_r1_prefix = False
         self.report_r2_prefix = False
         self.rapid_cores = -1
@@ -228,29 +252,27 @@ class Merger:
                     report_r1_prefix=self.report_r1_prefix,
                     report_r2_prefix=self.report_r2_prefix,
                     min_overlap_size=self.min_overlap_size,
-                    check_full_overlap=self.marker_gene_stringent,
-                    retain_only_overlap=self.retain_only_overlap,
-                    trim_suffix=self.trim_suffix,
+                    partial_overlap_only=not self.marker_gene_stringent,
+                    retain_overlap_only=self.retain_only_overlap,
                     num_cores=self.rapid_cores)
                 count_stats = rapidmerger.run()
 
                 self.stats.actual_number_of_pairs += count_stats['total_pairs']
-                self.stats.pairs_eliminated_due_to_Ns += count_stats['pair_disqualified_by_Ns']
                 self.stats.prefix_failed_in_pair_1_total += count_stats['r1_prefix_failed']
                 self.stats.prefix_failed_in_pair_2_total += count_stats['r2_prefix_failed']
                 self.stats.prefix_failed_in_both_pairs_total += count_stats['both_prefixes_failed']
                 self.stats.passed_prefix_total += count_stats['prefix_passed']
                 self.stats.failed_prefix_total += count_stats['total_pairs'] - count_stats['prefix_passed']
                 self.stats.merge_passed_total += count_stats['merged']
-                self.stats.merging_done_on_complete_overlap += count_stats['merged_r1_does_not_precede_r2']
-                self.stats.num_mismatches_breakdown['merge passed'][index] = count_stats['merged']
+                self.stats.merging_done_on_complete_overlap += count_stats['fully_overlapping_count']
+                self.stats.pairs_eliminated_due_to_Ns += count_stats['pair_disqualified_by_Ns']
 
                 assert self.stats.passed_prefix_total == (
                     self.stats.actual_number_of_pairs
                     - self.stats.prefix_failed_in_pair_1_total
                     - self.stats.prefix_failed_in_pair_2_total)
 
-                self.stats.write_stats(
+                self.stats.write_rapidmerge_stats(
                     os.path.join(self.config.output_directory, self.output_file_prefix + '_STATS'),
                     self)
                 return
@@ -336,7 +358,7 @@ class Merger:
                     (alt_beginning, alt_overlap, alt_end), alt_number_of_mismatches, alt_recovery_dict =\
                                                              self.merge_two_sequences_fast(complete_overlap = True)
 
-                    if self.retain_only_overlap or self.trim_suffix:
+                    if self.retain_only_overlap or not self.untrimmed_suffix:
                         alt_merged_sequence = alt_overlap
                     else:
                         alt_merged_sequence = alt_beginning + alt_overlap + alt_end
@@ -425,7 +447,6 @@ class Merger:
                         self.stats.merge_failed_total += 1
                         self.stats.pairs_eliminated_due_to_Q30 += 1
                         continue
-
 
                 # FINALLY
                 self.output.write_id(header_line)
@@ -575,8 +596,10 @@ class Merger:
                 print("`--rapid-cores` cannot be used with `--compute-qual-dicts`.")
                 sys.exit(0)
             if self.ignore_Ns:
-                print("`--rapid-cores` cannot be used with `ignore_Ns`.")
+                print("`--rapid-cores` cannot be used with `--ignore-Ns`.")
                 sys.exit(0)
+            if self.untrimmed_suffix:
+                print("`--rapid-cores` cannot be used with `--untrimmed-suffix`.")
             for index in range(len(self.config.pair_1)):
                 if (self.config.pair_1[index].endswith('.gz')
                     or self.config.pair_2[index].endswith('.gz')):
@@ -774,7 +797,7 @@ if __name__ == '__main__':
                                         help = 'Output file prefix (which will be used as a prefix\
                                                 for files that appear in output directory)')
     parser.add_argument('--min-overlap-size', type = int, default = 15, metavar = 'INT',
-                                        help = 'Minimum expected overlap. Default is %(default)d.')
+                                        help = 'Overlap size must exceed this value. Default is %(default)d.')
     parser.add_argument('--max-num-mismatches', type = int, default = -1, metavar = 'INT',
                                         help = 'Maximum number of mismatches at the overlapped region to\
                                                 retain the pair. The default behavior relies on `-P`\
@@ -837,17 +860,18 @@ if __name__ == '__main__':
                                         help = 'Finds the best merge going beyond expected "partial\
                                                 overlap" case for amplicons. Please read the description\
                                                 at url https://github.com/meren/illumina-utils/issues/1 for details.')
-    parser.add_argument('--trim-suffix', action = 'store_true', default = False,
+    parser.add_argument('--untrimmed-suffix', action = 'store_true', default = False,
                                         help = 'Some datasets contain both partially and completely overlapping reads.\
                                                 `--marker-gene-stringent` would be used in that case.\
                                                 Completely overlapping reads can contain\
                                                 unwanted adapter sequence at the ends of the reads\
                                                 (read 1 adapter at the end of read 2\
                                                 and read 2 adapter at the end of read 1).\
-                                                This flag trims these adapter suffixes from merged reads,\
-                                                but unlike setting `--retain-only-overlap`,\
-                                                it does not discard non-overlapping parts of the insert\
-                                                from partially-overlapping reads.')
+                                                By default, these adapter suffixes are trimmed from merged reads,\
+                                                and non-overlapping parts of the insert\
+                                                are left untouched in partially overlapping reads\
+                                                (`--retain-only-overlap` trims partially overlapping merges).\
+                                                Setting this flag leaves adapter suffixes untrimmed.')
     parser.add_argument('--report-r1-prefix', action = 'store_true', default = False,
                                         help = 'If there is a prefix to read 1 specified in the config file,\
                                                 these sequences will be reported for merged reads\
@@ -891,7 +915,7 @@ if __name__ == '__main__':
     merger.ignore_deflines = args.ignore_deflines
     merger.retain_only_overlap = args.retain_only_overlap
     merger.marker_gene_stringent = args.marker_gene_stringent
-    merger.trim_suffix = args.trim_suffix
+    merger.untrimmed_suffix = args.untrimmed_suffix
     merger.report_r1_prefix = args.report_r1_prefix
     merger.report_r2_prefix = args.report_r2_prefix
     merger.rapid_cores = args.rapid_cores

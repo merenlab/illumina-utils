@@ -277,7 +277,7 @@ You can be extremely stringent with this approach by allowing 0 mismatches at th
 
     (...) --marker-gene-stringent --retain-only-overlap --max-num-mismatches 0
 
-Completely overlapping pairs can contain parts of the adapters at the ends of the sequence, as read 1 can continue into the read 2 adapter, and read 2 can continue into the read 1 adapter. You can trim these "suffix" sequences with the `--trim-suffix` flag.
+Completely overlapping pairs can contain parts of the adapters at the ends of the sequence, as read 1 can continue into the read 2 adapter, and read 2 can continue into the read 1 adapter. By default, these "suffix" sequences are automatically trimmed, but you can prevent trimming by setting the `--untrimmed-suffix` flag.
 
 An example complete overlap analysis is demonstrated in the [examples](https://github.com/meren/illumina-utils/tree/master/examples) directory of the codebase.
 
