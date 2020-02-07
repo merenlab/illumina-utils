@@ -22,6 +22,46 @@ from IlluminaUtils.utils.helperfunctions import (
 from IlluminaUtils.utils.terminal import Progress
 
 
+class Multiprocessor:
+    def __init__(self, num_cores, task_name=''):
+        self.num_cores = num_cores
+        self.task_name = task_name
+        self.pool = multiprocessing.Pool(num_cores)
+        self.jobs = []
+        return
+
+
+    def start_job(self, process, *args, **kwargs):
+        self.jobs.append(self.pool.apply_async(process, args, kwargs))
+        return
+
+
+    def get_output(self, verbose=True):
+        outputs = []
+        completed_jobs = []
+        if verbose:
+            progress = Progress()
+            progress.new(os.getpid())
+            progress.update(
+                "%d of %d %s jobs complete" % (len(outputs), len(self.jobs), self.task_name))
+        while True:
+            for job in self.jobs:
+                if job in completed_jobs:
+                    continue
+                if job.ready():
+                    outputs.append(job.get())
+                    completed_jobs.append(job)
+                    if verbose:
+                        progress.update("%d of %d %s jobs complete"
+                                    % (len(completed_jobs), len(self.jobs), self.task_name))
+            if len(completed_jobs) == len(self.jobs):
+                break
+        self.pool.close()
+        if verbose:
+            print()
+        return outputs
+
+
 class FastQMerger:
     def __init__(
         self,
@@ -80,12 +120,13 @@ class FastQMerger:
         return
 
 
-    def run(self):
+    def run(self, merge_method):
         # singlethreaded
         if self.num_cores == 1:
             count_stats = merge_reads_in_files(
-                input1_path=self.input1_path,
-                input2_path=self.input2_path,
+                merge_method,
+                self.input1_path,
+                self.input2_path,
                 merged_path=self.merged_path,
                 r1_prefix_compiled=self.r1_prefix_compiled,
                 r2_prefix_compiled=self.r2_prefix_compiled,
@@ -137,7 +178,8 @@ class FastQMerger:
                                 end_strings):
             multiprocessor.start_job(
                 merge_reads_in_files,
-                *(self.input1_path,
+                *(merge_method,
+                 self.input1_path,
                  self.input2_path),
                 **{'merged_path': temp_merged_path,
                  'r1_prefix_compiled': self.r1_prefix_compiled,
@@ -203,47 +245,8 @@ class FastQMerger:
         return chunk_start_positions, chunk_end_strings
 
 
-class Multiprocessor:
-    def __init__(self, num_cores, task_name=''):
-        self.num_cores = num_cores
-        self.task_name = task_name
-        self.pool = multiprocessing.Pool(num_cores)
-        self.jobs = []
-        return
-
-
-    def start_job(self, process, *args, **kwargs):
-        self.jobs.append(self.pool.apply_async(process, args, kwargs))
-        return
-
-
-    def get_output(self, verbose=True):
-        outputs = []
-        completed_jobs = []
-        if verbose:
-            progress = Progress()
-            progress.new(os.getpid())
-            progress.update(
-                "%d of %d %s jobs complete" % (len(outputs), len(self.jobs), self.task_name))
-        while True:
-            for job in self.jobs:
-                if job in completed_jobs:
-                    continue
-                if job.ready():
-                    outputs.append(job.get())
-                    completed_jobs.append(job)
-                    if verbose:
-                        progress.update("%d of %d %s jobs complete"
-                                    % (len(completed_jobs), len(self.jobs), self.task_name))
-            if len(completed_jobs) == len(self.jobs):
-                break
-        self.pool.close()
-        if verbose:
-            print()
-        return outputs
-
-
 def merge_reads_in_files(
+    merge_method,
     input1_path,
     input2_path,
     merged_path='output_MERGED',
@@ -314,8 +317,7 @@ def merge_reads_in_files(
             r1_prefix_seq = r1_prefix_match.group(0) if r1_prefix_match else ''
             r2_prefix_seq = r2_prefix_match.group(0) if r2_prefix_match else ''
 
-            # Merge sequences with trimmed prefixes.
-            insert_seq, overlap_size, partially_overlapping = merge_read1_read2(
+            insert_seq, overlap_size, partially_overlapping = merge_method(
                 r1_defline,
                 r1_seq,
                 r2_seq,
@@ -371,7 +373,7 @@ def merge_reads_in_files(
     return count_stats
 
 
-def merge_read1_read2(
+def merge_with_zero_mismatches_in_overlap(
     r1_defline,
     r1_seq,
     r2_seq,
