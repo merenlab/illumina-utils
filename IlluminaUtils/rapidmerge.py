@@ -101,7 +101,6 @@ class FastQMerger:
         progress.new(os.getpid())
         progress.update("Setting up read merging jobs")
         print()
-        progress.end()
         # Break input files into chunks of roughly the same numbers of lines.
         start_positions, end_strings = self.find_fastq_chunk_starts(
             self.input1_path, self.num_cores)
@@ -124,8 +123,7 @@ class FastQMerger:
             for chunk_index in range(1, self.num_cores + 1)]
 
         # Spawn jobs.
-        pool = multiprocessing.Pool(self.num_cores)
-        jobs = []
+        multiprocessor = Multiprocessor(self.num_cores, task_name='read merging')
         for (temp_merged_path,
              temp_r1_prefix_path,
              temp_r2_prefix_path,
@@ -137,11 +135,11 @@ class FastQMerger:
                                 start_positions,
                                 end_positions,
                                 end_strings):
-            jobs.append(pool.apply_async(
+            multiprocessor.start_job(
                 merge_reads_in_files,
-                (self.input1_path,
+                *(self.input1_path,
                  self.input2_path),
-                {'merged_path': temp_merged_path,
+                **{'merged_path': temp_merged_path,
                  'r1_prefix_compiled': self.r1_prefix_compiled,
                  'r2_prefix_compiled': self.r2_prefix_compiled,
                  'r1_prefix_path': temp_r1_prefix_path,
@@ -151,30 +149,10 @@ class FastQMerger:
                  'retain_overlap_only': self.retain_overlap_only,
                  'start_position': start_position,
                  'end_position': end_position,
-                 'end_string': end_string}))
-
-        # Wait for jobs to finish.
-        count_stats_chunks = []
-        completed_jobs = []
-        progress.new(os.getpid())
-        progress.update(
-            "%d of %d read merging jobs complete" % (len(count_stats_chunks), len(jobs)))
-        while True:
-            for job in jobs:
-                if job not in completed_jobs:
-                    if job.ready():
-                        count_stats_chunks.append(job.get())
-                        completed_jobs.append(job)
-                        progress.update("%d of %d read merging jobs complete"
-                                    % (len(completed_jobs), len(jobs)))
-            if len(completed_jobs) == len(jobs):
-                break
-        pool.close()
-        print()
-        progress.end()
+                 'end_string': end_string})
+        count_stats_chunks = multiprocessor.get_output()
 
         # Delete temp files after combining them.
-        progress.new(os.getpid())
         progress.update("Combining temporary files produced by each job")
         print()
         progress.end()
@@ -223,6 +201,46 @@ class FastQMerger:
         chunk_end_strings.append('')
         fastq_file.close()
         return chunk_start_positions, chunk_end_strings
+
+
+class Multiprocessor:
+    def __init__(self, num_cores, task_name=''):
+        self.num_cores = num_cores
+        self.task_name = task_name
+        self.pool = multiprocessing.Pool(num_cores)
+        self.jobs = []
+        return
+
+
+    def start_job(self, process, *args, **kwargs):
+        self.jobs.append(self.pool.apply_async(process, args, kwargs))
+        return
+
+
+    def get_output(self, verbose=True):
+        outputs = []
+        completed_jobs = []
+        if verbose:
+            progress = Progress()
+            progress.new(os.getpid())
+            progress.update(
+                "%d of %d %s jobs complete" % (len(outputs), len(self.jobs), self.task_name))
+        while True:
+            for job in self.jobs:
+                if job in completed_jobs:
+                    continue
+                if job.ready():
+                    outputs.append(job.get())
+                    completed_jobs.append(job)
+                    if verbose:
+                        progress.update("%d of %d %s jobs complete"
+                                    % (len(completed_jobs), len(self.jobs), self.task_name))
+            if len(completed_jobs) == len(self.jobs):
+                break
+        self.pool.close()
+        if verbose:
+            print()
+        return outputs
 
 
 def merge_reads_in_files(
