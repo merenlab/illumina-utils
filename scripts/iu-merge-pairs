@@ -245,6 +245,8 @@ class Merger:
                 rapidmerger = rapidmerge.FastQMerger(
                     self.config.pair_1[index],
                     self.config.pair_2[index],
+                    input1_is_gzipped=self.config.pair_1[index].endswith('.gz'),
+                    input2_is_gzipped=self.config.pair_2[index].endswith('.gz'),
                     output_dir=self.config.output_directory,
                     output_file_name=self.output_file_prefix,
                     r1_prefix_pattern=r1_prefix_pattern,
@@ -255,7 +257,7 @@ class Merger:
                     partial_overlap_only=not self.marker_gene_stringent,
                     retain_overlap_only=self.retain_only_overlap,
                     num_cores=self.rapid_cores)
-                count_stats = rapidmerger.run()
+                count_stats = rapidmerger.run(rapidmerge.merge_with_zero_mismatches_in_overlap)
 
                 self.stats.actual_number_of_pairs += count_stats['total_pairs']
                 self.stats.prefix_failed_in_pair_1_total += count_stats['r1_prefix_failed']
@@ -600,11 +602,7 @@ class Merger:
                 sys.exit(0)
             if self.untrimmed_suffix:
                 print("`--rapid-cores` cannot be used with `--untrimmed-suffix`.")
-            for index in range(len(self.config.pair_1)):
-                if (self.config.pair_1[index].endswith('.gz')
-                    or self.config.pair_2[index].endswith('.gz')):
-                    print("`--rapid-cores` cannot process compressed FastQ files.")
-                    sys.exit(0)
+                sys.exit(0)
 
 
     def close_output_files(self):

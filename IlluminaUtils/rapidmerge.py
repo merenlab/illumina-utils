@@ -10,10 +10,12 @@
 #
 # Please read the COPYING file.
 
+import gzip
 import multiprocessing
 import os
 import re
 import stat
+import struct
 
 from datetime import datetime
 
@@ -67,6 +69,8 @@ class FastQMerger:
         self,
         input1_path,
         input2_path,
+        input1_is_gzipped=False,
+        input2_is_gzipped=False,
         output_dir='',
         output_file_name='output',
         r1_prefix_pattern='',
@@ -82,6 +86,8 @@ class FastQMerger:
         is_file_exists(input2_path)
         self.input1_path = input1_path
         self.input2_path = input2_path
+        self.input1_is_gzipped = input1_is_gzipped
+        self.input2_is_gzipped = input2_is_gzipped
 
         output_path_maker = lambda p: os.path.join(output_dir, output_file_name + p)
         self.merged_path = output_path_maker('_MERGED')
@@ -117,6 +123,7 @@ class FastQMerger:
                                "The number of cores be between 1 and %d."
                                % (num_cores, multiprocessing.cpu_count()))
         self.num_cores = num_cores
+
         return
 
 
@@ -127,6 +134,8 @@ class FastQMerger:
                 merge_method,
                 self.input1_path,
                 self.input2_path,
+                input1_is_gzipped=self.input1_is_gzipped,
+                input2_is_gzipped=self.input2_is_gzipped,
                 merged_path=self.merged_path,
                 r1_prefix_compiled=self.r1_prefix_compiled,
                 r2_prefix_compiled=self.r2_prefix_compiled,
@@ -142,10 +151,9 @@ class FastQMerger:
         progress.new(os.getpid())
         progress.update("Setting up read merging jobs")
         print()
-        # Break input files into chunks of roughly the same numbers of lines.
-        start_positions, end_strings = self.find_fastq_chunk_starts(
-            self.input1_path, self.num_cores)
-        end_positions = [next_start_position for next_start_position in start_positions[1:]] + [-1]
+        # Find positions at which to chunk the input files.
+        start_positions, end_positions, end_strings = self.find_fastq_chunk_starts(
+            self.input1_path, self.num_cores, self.input1_is_gzipped)
         # Create temporary output files.
         time_str = datetime.now().isoformat(timespec='seconds').replace('-', '').replace(':', '')
         temp_merged_paths = [
@@ -178,20 +186,24 @@ class FastQMerger:
                                 end_strings):
             multiprocessor.start_job(
                 merge_reads_in_files,
-                *(merge_method,
-                 self.input1_path,
-                 self.input2_path),
-                **{'merged_path': temp_merged_path,
-                 'r1_prefix_compiled': self.r1_prefix_compiled,
-                 'r2_prefix_compiled': self.r2_prefix_compiled,
-                 'r1_prefix_path': temp_r1_prefix_path,
-                 'r2_prefix_path': temp_r2_prefix_path,
-                 'min_overlap_size': self.min_overlap_size,
-                 'partial_overlap_only': self.partial_overlap_only,
-                 'retain_overlap_only': self.retain_overlap_only,
-                 'start_position': start_position,
-                 'end_position': end_position,
-                 'end_string': end_string})
+                *(
+                    merge_method,
+                    self.input1_path,
+                    self.input2_path),
+                **{
+                    'input1_is_gzipped': self.input1_is_gzipped,
+                    'input2_is_gzipped': self.input2_is_gzipped,
+                    'merged_path': temp_merged_path,
+                    'r1_prefix_compiled': self.r1_prefix_compiled,
+                    'r2_prefix_compiled': self.r2_prefix_compiled,
+                    'r1_prefix_path': temp_r1_prefix_path,
+                    'r2_prefix_path': temp_r2_prefix_path,
+                    'min_overlap_size': self.min_overlap_size,
+                    'partial_overlap_only': self.partial_overlap_only,
+                    'retain_overlap_only': self.retain_overlap_only,
+                    'start_position': start_position,
+                    'end_position': end_position,
+                    'end_string': end_string})
         count_stats_chunks = multiprocessor.get_output()
 
         # Delete temp files after combining them.
@@ -215,12 +227,20 @@ class FastQMerger:
         return count_stats
 
 
-    def find_fastq_chunk_starts(self, path, num_chunks):
-        fastq_file = open(path)
-        file_size = os.stat(path)[stat.ST_SIZE]
-        chunk_size = file_size // num_chunks
-        chunk_start_positions = []
-        chunk_end_strings = []
+    def find_fastq_chunk_starts(self, path, num_chunks, input_is_gzipped):
+        if input_is_gzipped:
+            # Uncompressed size is stored in the last four digits of a gzip file.
+            with open(path, 'rb') as f:
+                f.seek(0, 2)
+                f.seek(-4, 2)
+                uncompressed_file_size = struct.unpack('I', f.read(4))[0]
+        else:
+            uncompressed_file_size = os.stat(path)[stat.ST_SIZE]
+        chunk_size = uncompressed_file_size // num_chunks
+
+        fastq_file = gzip.open(path, 'rt') if input_is_gzipped else open(path)
+        start_positions = []
+        end_strings = []
         position = 0
         prev_position = 0
         for chunk in range(num_chunks):
@@ -230,25 +250,28 @@ class FastQMerger:
                 # Checking for empty string must come before checking for '@'
                 if line_end == '':
                     # If EOF, append -1 rather than the last position.
-                    chunk_start_positions.append(-1)
+                    start_positions.append(-1)
                     break
                 prev_position = position
                 position = fastq_file.tell()
                 if line_end[0] == '@':
-                    chunk_start_positions.append(prev_position)
+                    start_positions.append(prev_position)
                     position += chunk_size
                     break
             if chunk > 0:
-                chunk_end_strings.append(line_end)
-        chunk_end_strings.append('')
+                end_strings.append(line_end)
+        end_strings.append('')
+        end_positions = [p for p in start_positions[1:]] + [-1]
         fastq_file.close()
-        return chunk_start_positions, chunk_end_strings
+        return start_positions, end_positions, end_strings
 
 
 def merge_reads_in_files(
     merge_method,
     input1_path,
     input2_path,
+    input1_is_gzipped=False,
+    input2_is_gzipped=False,
     merged_path='output_MERGED',
     r1_prefix_compiled=None,
     r2_prefix_compiled=None,
@@ -271,8 +294,9 @@ def merge_reads_in_files(
     pair_disqualified_by_Ns_count = 0
 
     # Do not use the fastqlib and fastalib objects to limit overhead.
-    input1_file = open(input1_path)
-    input2_file = open(input2_path)
+    input1_file = gzip.open(input1_path, 'rt') if input1_is_gzipped else open(input1_path)
+    input2_file = gzip.open(input2_path, 'rt') if input2_is_gzipped else open(input2_path)
+
     if start_position == -1:
         return
     input1_file.seek(start_position)
