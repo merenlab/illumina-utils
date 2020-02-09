@@ -22,6 +22,7 @@ from datetime import datetime
 from IlluminaUtils.utils.helperfunctions import (
     combine_files, conv_dict, is_file_exists, reverse_complement)
 from IlluminaUtils.utils.terminal import Progress
+from IlluminaUtils.lib.fastqlib import FastQSource, FastQEntry
 
 
 class Multiprocessor:
@@ -71,13 +72,14 @@ class FastQMerger:
         input2_path,
         input1_is_gzipped=False,
         input2_is_gzipped=False,
+        ignore_deflines=False,
         output_dir='',
         output_file_name='output',
         r1_prefix_pattern='',
         r2_prefix_pattern='',
         report_r1_prefix=False,
         report_r2_prefix=False,
-        min_overlap_size=15,
+        min_overlap_size=16,
         partial_overlap_only=True,
         retain_overlap_only=False,
         num_cores=1):
@@ -88,6 +90,15 @@ class FastQMerger:
         self.input2_path = input2_path
         self.input1_is_gzipped = input1_is_gzipped
         self.input2_is_gzipped = input2_is_gzipped
+        self.ignore_deflines = ignore_deflines
+
+        # Check the validity of the FASTQ files.
+        fastq_source = FastQSource(input1_path, compressed=input1_is_gzipped)
+        fastq_source.next()
+        fastq_source.close()
+        fastq_source = FastQSource(input2_path, compressed=input2_is_gzipped)
+        fastq_source.next()
+        fastq_source.close()
 
         output_path_maker = lambda p: os.path.join(output_dir, output_file_name + p)
         self.merged_path = output_path_maker('_MERGED')
@@ -136,6 +147,7 @@ class FastQMerger:
                 self.input2_path,
                 input1_is_gzipped=self.input1_is_gzipped,
                 input2_is_gzipped=self.input2_is_gzipped,
+                ignore_deflines=self.ignore_deflines,
                 merged_path=self.merged_path,
                 r1_prefix_compiled=self.r1_prefix_compiled,
                 r2_prefix_compiled=self.r2_prefix_compiled,
@@ -193,6 +205,7 @@ class FastQMerger:
                 **{
                     'input1_is_gzipped': self.input1_is_gzipped,
                     'input2_is_gzipped': self.input2_is_gzipped,
+                    'ignore_deflines': self.ignore_deflines,
                     'merged_path': temp_merged_path,
                     'r1_prefix_compiled': self.r1_prefix_compiled,
                     'r2_prefix_compiled': self.r2_prefix_compiled,
@@ -259,7 +272,7 @@ class FastQMerger:
                     position += chunk_size
                     break
             if chunk > 0:
-                end_strings.append(line_end)
+                end_strings.append(line_end.rstrip())
         end_strings.append('')
         end_positions = [p for p in start_positions[1:]] + [-1]
         fastq_file.close()
@@ -272,12 +285,13 @@ def merge_reads_in_files(
     input2_path,
     input1_is_gzipped=False,
     input2_is_gzipped=False,
+    ignore_deflines=False,
     merged_path='output_MERGED',
     r1_prefix_compiled=None,
     r2_prefix_compiled=None,
     r1_prefix_path='',
     r2_prefix_path='',
-    min_overlap_size=15,
+    min_overlap_size=16,
     partial_overlap_only=True,
     retain_overlap_only=False,
     start_position=0,
@@ -288,6 +302,7 @@ def merge_reads_in_files(
     merged_count = 0
     fully_overlapping_count = 0
     prefix_passed_count = 0
+    total_prefix_failed_count = 0
     r1_prefix_failed_count = 0
     r2_prefix_failed_count = 0
     both_prefixes_failed_count = 0
@@ -306,75 +321,78 @@ def merge_reads_in_files(
     r1_prefix_file = open(r1_prefix_path, 'w') if r1_prefix_path else None
     r2_prefix_file = open(r2_prefix_path, 'w') if r2_prefix_path else None
 
-    block_index = 0
     while True:
-        r1_line = input1_file.readline()
-        r2_line = input2_file.readline()
+        r1_lines = [input1_file.readline().rstrip() for _ in range(4)]
+        r2_lines = [input2_file.readline().rstrip() for _ in range(4)]
+        r1_seq = r1_lines[1]
+        r2_seq = r2_lines[1]
 
-        if r1_line == end_string:
+        if r1_seq == end_string:
+            # Defline strings should be unique, but double check the chunk ending position.
             if input1_file.tell() >= end_position or end_string == '':
                 break
 
-        if block_index == 0:
-            r1_defline = r1_line
-        elif block_index == 1:
-            r1_seq = r1_line.rstrip()
-            r2_seq = r2_line.rstrip()
-        elif block_index == 3:
-            # Reset the sequence block.
-            block_index = 0
-            total_pairs_count += 1
+        total_pairs_count += 1
 
-            # Check for prefix sequences.
+        # Check for prefix sequences.
+        if r1_prefix_compiled:
             r1_prefix_match = r1_prefix_compiled.search(r1_seq) if r1_prefix_compiled else None
-            r2_prefix_match = r2_prefix_compiled.search(r2_seq) if r2_prefix_compiled else None
             if not r1_prefix_match:
                 r1_prefix_failed_count += 1
+        if r2_prefix_compiled:
+            r2_prefix_match = r2_prefix_compiled.search(r2_seq) if r2_prefix_compiled else None
             if not r2_prefix_match:
                 r2_prefix_failed_count += 1
+            if r1_prefix_compiled:
                 if not r1_prefix_match:
                     both_prefixes_failed_count += 1
-            if not (r1_prefix_match and r2_prefix_match):
+        if r1_prefix_compiled:
+            if not r1_prefix_match:
+                total_prefix_failed_count += 1
                 continue
-            else:
-                prefix_passed_count += 1
-            r1_prefix_seq = r1_prefix_match.group(0) if r1_prefix_match else ''
-            r2_prefix_seq = r2_prefix_match.group(0) if r2_prefix_match else ''
-
-            insert_seq, overlap_size, partially_overlapping = merge_method(
-                r1_defline,
-                r1_seq,
-                r2_seq,
-                r1_prefix_length=len(r1_prefix_seq),
-                r2_prefix_length=len(r2_prefix_seq),
-                min_overlap_size=min_overlap_size,
-                partial_overlap_only=partial_overlap_only,
-                retain_overlap_only=retain_overlap_only)
-
-            if not insert_seq:
+        if r2_prefix_compiled:
+            if not r2_prefix_match:
+                total_prefix_failed_count += 1
                 continue
-            if 'N' in insert_seq:
-                pair_disqualified_by_Ns_count += 1
-                continue
-            merged_count += 1
-            if not partially_overlapping:
-                fully_overlapping_count += 1
+        prefix_passed_count += 1
 
-            iu_formatted_defline = (">%s|o:%d|m/o:0|MR:n=0;r1=0;r2=0|Q30:n/a|mismatches:0"
-                                    % (r1_defline.rstrip()[1:], overlap_size))
-            merged_file.write("%s\n%s\n" % (iu_formatted_defline, insert_seq))
+        r1_entry = FastQEntry(r1_lines, raw=ignore_deflines)
+        r2_entry = FastQEntry(r2_lines, raw=ignore_deflines)
 
-            # Report prefix sequences.
-            if r1_prefix_file:
-                r1_prefix_file.write('>' + iu_formatted_defline)
-                r1_prefix_file.write(r1_prefix_seq + '\n')
-            if r2_prefix_file:
-                r2_prefix_file.write('>' + iu_formatted_defline)
-                r2_prefix_file.write(r2_prefix_seq + '\n')
+        if r1_prefix_compiled:
+            r1_entry.trim(trim_from=r1_prefix_match.end())
+        if r2_prefix_compiled:
+            r2_entry.trim(trim_from=r2_prefix_match.end())
+
+        insert_seq, overlap_size, partially_overlapping = merge_method(
+            r1_entry.sequence,
+            r2_entry.sequence,
+            r1_entry.trim_from,
+            r2_entry.trim_from,
+            min_overlap_size=min_overlap_size,
+            partial_overlap_only=partial_overlap_only,
+            retain_overlap_only=retain_overlap_only)
+
+        if not insert_seq:
             continue
+        if 'N' in insert_seq:
+            pair_disqualified_by_Ns_count += 1
+            continue
+        merged_count += 1
+        if not partially_overlapping:
+            fully_overlapping_count += 1
 
-        # This increment is not reached after the last line in the sequence block.
-        block_index += 1
+        iu_formatted_defline = (">%s|o:%d|m/o:0|MR:n=0;r1=0;r2=0|Q30:n/a|mismatches:0"
+                                % (r1_entry.header_line, overlap_size))
+        merged_file.write("%s\n%s\n" % (iu_formatted_defline, insert_seq))
+
+        # Report prefix sequences.
+        if r1_prefix_file:
+            r1_prefix_file.write('>' + iu_formatted_defline)
+            r1_prefix_file.write(r1_prefix_match.group(0) + '\n')
+        if r2_prefix_file:
+            r2_prefix_file.write('>' + iu_formatted_defline)
+            r2_prefix_file.write(r2_prefix_match.group(0) + '\n')
 
     input1_file.close()
     input2_file.close()
@@ -389,6 +407,7 @@ def merge_reads_in_files(
         'merged': merged_count,
         'fully_overlapping_count': fully_overlapping_count,
         'prefix_passed': prefix_passed_count,
+        'total_prefix_failed': total_prefix_failed_count,
         'r1_prefix_failed': r1_prefix_failed_count,
         'r2_prefix_failed': r2_prefix_failed_count,
         'both_prefixes_failed': both_prefixes_failed_count,
@@ -398,70 +417,61 @@ def merge_reads_in_files(
 
 
 def merge_with_zero_mismatches_in_overlap(
-    r1_defline,
     r1_seq,
     r2_seq,
-    r1_prefix_length=0,
-    r2_prefix_length=0,
-    min_overlap_size=15,
+    r1_prefix_length,
+    r2_prefix_length,
+    min_overlap_size=16,
     partial_overlap_only=True,
     retain_overlap_only=False):
     # Returns insert sequence without prefix or suffix sequences, insert length,
     # and Boolean indicating partial (True), full (False), or no (None) overlap.
 
     # Reads 1 and 2 are assumed to be of equal length.
-    assert len(r1_seq) == len(r2_seq)
-    read_length = len(r1_seq)
-    if read_length <= min_overlap_size:
-        return '', 0, None
+    r1_seq_length = len(r1_seq)
+    r2_seq_length = len(r2_seq)
+    assert r1_prefix_length + r1_seq_length == r2_prefix_length + r2_seq_length
+    read_length = r1_prefix_length + r1_seq_length
 
     r2_rc_seq = reverse_complement(r2_seq)
 
     if not partial_overlap_only:
-        full_overlap_r2_end_index = read_length - r2_prefix_length
-
+        max_full_overlap_size = r1_seq_length - r2_prefix_length
         # Check if the insert is the same size as the read.
-        r1_end_index = read_length - r2_prefix_length
-        r2_start_index = r1_prefix_length
-        if (r1_seq[r1_prefix_length: r1_end_index]
-            == r2_rc_seq[r2_start_index: full_overlap_r2_end_index]):
-            return r1_seq[r1_prefix_length: r1_end_index], r1_end_index - r1_prefix_length, False
+        if r1_seq[: r1_seq_length - r2_prefix_length] == r2_rc_seq[r1_prefix_length: ]:
+            return (r1_seq[: r1_seq_length - r2_prefix_length],
+                    r1_seq_length - r2_prefix_length,
+                    False)
 
     shift = 1
-    while read_length - shift > min_overlap_size:
+    while read_length - shift >= min_overlap_size:
         # Check for partial overlap.
-        if read_length - shift > min_overlap_size:
-            if shift > r1_prefix_length:
-                r1_start_index = shift
-                r2_start_index = 0
+        if shift > r1_prefix_length:
+            r1_start_index = shift - r1_prefix_length
+            r2_start_index = 0
+        else:
+            r1_start_index = 0
+            r2_start_index = r1_prefix_length - shift
+        r1_end_index = (r1_seq_length - r2_prefix_length + shift if shift - r2_prefix_length < 0
+                        else r1_seq_length)
+        r2_end_index = (r2_seq_length + r2_prefix_length - shift if shift > r2_prefix_length
+                        else r2_seq_length)
+        if r1_seq[r1_start_index: r1_end_index] == r2_rc_seq[r2_start_index: r2_end_index]:
+            if retain_overlap_only:
+                insert_seq = r1_seq[r1_start_index: r1_end_index]
             else:
-                r1_start_index = r1_prefix_length
-                r2_start_index = r1_prefix_length - shift
-            r1_end_index = (read_length - r2_prefix_length + shift if shift - r2_prefix_length < 0
-                            else read_length)
-            r2_end_index = (read_length - shift if shift > r2_prefix_length
-                            else read_length - r2_prefix_length)
-            if (r1_seq[r1_start_index: r1_end_index]
-                == r2_rc_seq[r2_start_index: r2_end_index]):
-                if retain_overlap_only:
-                    insert_seq = r1_seq[r1_start_index: r1_end_index]
-                else:
-                    insert_seq = (r1_seq[r1_prefix_length: r1_end_index]
-                                  + r2_rc_seq[r2_end_index: read_length - r2_prefix_length])
-                return insert_seq, r1_end_index - r1_start_index, True
+                insert_seq = r1_seq[: r1_end_index] + r2_rc_seq[r2_end_index: ]
+            return insert_seq, r1_end_index - r1_start_index, True
 
         # Check for full overlap.
         if partial_overlap_only:
             shift += 1
             continue
-        if read_length - shift - r1_prefix_length - r2_prefix_length <= min_overlap_size:
+        if max_full_overlap_size - shift < min_overlap_size:
             shift += 1
             continue
-        r1_end_index = read_length - r2_prefix_length - shift
-        r2_start_index = r1_prefix_length + shift
-        if (r1_seq[r1_prefix_length: r1_end_index]
-            == r2_rc_seq[r2_start_index: full_overlap_r2_end_index]):
-            return r1_seq[r1_prefix_length: r1_end_index], r1_end_index - r1_prefix_length, False
+        if r1_seq[: max_full_overlap_size - shift] == r2_rc_seq[r1_prefix_length + shift: ]:
+            return r1_seq[: max_full_overlap_size - shift], max_full_overlap_size - shift, False
         shift += 1
     return '', 0, None
 
