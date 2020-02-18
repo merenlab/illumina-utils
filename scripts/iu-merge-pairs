@@ -193,17 +193,17 @@ class Merger:
         self.p_value = 0.3
         self.max_num_mismatches = -1
         self.min_overlap_size = 15
-        self.min_qual_score = 10
+        self.min_qual_score = 15
         self.debug = False
         self.ignore_Ns = False
         self.ignore_deflines = False
         self.enforce_Q30_check = False
         self.retain_only_overlap = False
         self.marker_gene_stringent = False
-        self.untrimmed_suffix = False
+        self.skip_suffix_trimming = False
         self.report_r1_prefix = False
         self.report_r2_prefix = False
-        self.rapid_cores = -1
+        self.num_threads = -1
         self.project_name = 'Unknown_project'
 
         if self.config.pair_1_prefix:
@@ -230,9 +230,9 @@ class Merger:
 
         for index in range(0, len(self.config.pair_1)):
 
-            # Faster, multithreaded merging based on overlap with no mismatches
-            if self.rapid_cores != -1:
-                # Back out certain variables for compatibility with `fastmerger`.
+            # Faster, multithreaded merging
+            if self.num_threads != -1:
+                # Back out certain variables for `rapidmerge.py`.
                 r1_prefix_pattern = ('' if self.pair_1_prefix_compiled is None
                                      else self.pair_1_prefix_compiled.pattern)
                 r2_prefix_pattern = ('' if self.pair_2_prefix_compiled is None
@@ -242,7 +242,7 @@ class Merger:
                           "as they occur at the beginning of the read.")
                     sys.exit(0)
 
-                rapidmerger = rapidmerge.FastQMerger(
+                rapidmerger = rapidmerge.FASTQMerger(
                     self.config.pair_1[index],
                     self.config.pair_2[index],
                     input1_is_gzipped=self.config.pair_1[index].endswith('.gz'),
@@ -254,30 +254,31 @@ class Merger:
                     r2_prefix_pattern=r2_prefix_pattern,
                     report_r1_prefix=self.report_r1_prefix,
                     report_r2_prefix=self.report_r2_prefix,
+                    max_p=self.p_value,
+                    max_num_mismatches=self.max_num_mismatches,
                     min_overlap_size=self.min_overlap_size + 1,
+                    min_qual_score=self.min_qual_score,
                     partial_overlap_only=not self.marker_gene_stringent,
                     retain_overlap_only=self.retain_only_overlap,
-                    num_cores=self.rapid_cores)
-                count_stats = rapidmerger.run(rapidmerge.merge_with_zero_mismatches_in_overlap)
+                    skip_suffix_trimming=self.skip_suffix_trimming,
+                    ignore_Ns=self.ignore_Ns,
+                    enforce_Q30_check=self.enforce_Q30_check,
+                    dataset_index=index + 1,
+                    total_dataset_count=len(self.config.pair_1),
+                    project_name=self.project_name,
+                    num_cores=self.num_threads)
+                if self.max_num_mismatches == 0:
+                    count_stats = rapidmerger.run('exact')
+                elif self.distance_metric == 'hamming':
+                    count_stats = rapidmerger.run('hamming')
+                elif self.distance_metric == 'levenshtein':
+                    count_stats = rapidmerger.run('levenshtein')
 
-                self.stats.actual_number_of_pairs += count_stats['total_pairs']
-                self.stats.prefix_failed_in_pair_1_total += count_stats['r1_prefix_failed']
-                self.stats.prefix_failed_in_pair_2_total += count_stats['r2_prefix_failed']
-                self.stats.prefix_failed_in_both_pairs_total += count_stats['both_prefixes_failed']
-                self.stats.passed_prefix_total += count_stats['prefix_passed']
-                self.stats.failed_prefix_total += count_stats['total_pairs'] - count_stats['prefix_passed']
-                self.stats.merge_passed_total += count_stats['merged']
-                self.stats.merging_done_on_complete_overlap += count_stats['fully_overlapping_count']
-                self.stats.pairs_eliminated_due_to_Ns += count_stats['pair_disqualified_by_Ns']
-
-                assert self.stats.passed_prefix_total == (
-                    self.stats.actual_number_of_pairs
-                    - self.stats.prefix_failed_in_pair_1_total
-                    - self.stats.prefix_failed_in_pair_2_total)
-
-                self.stats.write_rapidmerge_stats(
-                    os.path.join(self.config.output_directory, self.output_file_prefix + '_STATS'),
-                    self)
+                # REMOVE
+                # assert self.stats.passed_prefix_total == (
+                #     self.stats.actual_number_of_pairs
+                #     - self.stats.prefix_failed_in_pair_1_total
+                #     - self.stats.prefix_failed_in_pair_2_total)
                 return
 
 
@@ -361,7 +362,7 @@ class Merger:
                     (alt_beginning, alt_overlap, alt_end), alt_number_of_mismatches, alt_recovery_dict =\
                                                              self.merge_two_sequences_fast(complete_overlap = True)
 
-                    if self.retain_only_overlap or not self.untrimmed_suffix:
+                    if self.retain_only_overlap or not self.skip_suffix_trimming:
                         alt_merged_sequence = alt_overlap
                     else:
                         alt_merged_sequence = alt_beginning + alt_overlap + alt_end
@@ -581,28 +582,10 @@ class Merger:
         self.read1prefixes = P('_MERGED_R1_PREFIX') if self.report_r1_prefix else None
         self.read2prefixes = P('_MERGED_R2_PREFIX') if self.report_r2_prefix else None
 
-        # Restrictions on --rapid-cores option.
-        if self.rapid_cores != -1:
-            if self.max_num_mismatches != 0:
-                print("`--rapid-cores` can only be used with `--max-num-mismatches 0`.")
-                sys.exit(0)
-            if self.min_qual_score != 15:
-                print("`--rapid-cores` cannot be used with non-default `--min-qual-score`.")
-                sys.exit(0)
-            if self.p_value != 0.3:
-                print("`--rapid-cores` cannot be used with non-default `-P`.")
-                sys.exit(0)
-            if self.enforce_Q30_check:
-                print("`--rapid-cores` cannot be used with `--enforce-Q30-check`.")
-                sys.exit(0)
+        # Restrictions on --num-threads option.
+        if self.num_threads != -1:
             if self.compute_qual_dicts:
-                print("`--rapid-cores` cannot be used with `--compute-qual-dicts`.")
-                sys.exit(0)
-            if self.ignore_Ns:
-                print("`--rapid-cores` cannot be used with `--ignore-Ns`.")
-                sys.exit(0)
-            if self.untrimmed_suffix:
-                print("`--rapid-cores` cannot be used with `--untrimmed-suffix`.")
+                print("`--num-threads` cannot be used with `--compute-qual-dicts`.")
                 sys.exit(0)
 
 
@@ -814,7 +797,7 @@ if __name__ == '__main__':
                                                 depending on the --ignore-Ns paranmeter. The default\
                                                 value is %(default)d.')
     parser.add_argument('-P', type = float, default = 0.3, metavar = 'FLOAT',
-                                        help = 'Any merged sequence with P below the declared value\
+                                        help = 'Any merged sequence with P above the declared value\
                                                 is discarded and stored in a separate file. P is computed\
                                                 by dividing the number of mismatches at the overlapped region by\
                                                 the length of the overlapped region. For instance, if the length\
@@ -859,7 +842,7 @@ if __name__ == '__main__':
                                         help = 'Finds the best merge going beyond expected "partial\
                                                 overlap" case for amplicons. Please read the description\
                                                 at url https://github.com/meren/illumina-utils/issues/1 for details.')
-    parser.add_argument('--untrimmed-suffix', action = 'store_true', default = False,
+    parser.add_argument('--skip-suffix-trimming', action = 'store_true', default = False,
                                         help = 'Some datasets contain both partially and completely overlapping reads.\
                                                 `--marker-gene-stringent` would be used in that case.\
                                                 Completely overlapping reads can contain\
@@ -883,11 +866,12 @@ if __name__ == '__main__':
                                                 when this flag is set.\
                                                 This can be useful if the prefix sequence has variable bases,\
                                                 such as in a unique molecular identifier (UMI).')
-    parser.add_argument('--rapid-cores', type = int, default = -1, metavar = 'INT',
+    parser.add_argument('--num-threads', type = int, default = -1, metavar = 'INT',
                                         help = 'This triggers a faster algorithm for merging reads\
                                                 with no mismatches in the overlapping region.\
                                                 This can only be used in combination with `--max-num-mismatches 0`.\
                                                 Specify the number of CPU cores that you wish to use.')
+    parser.add_argument('--distance-metric', choices = ['hamming', 'levenshtein'], default='hamming')
 
 
     args = parser.parse_args()
@@ -914,9 +898,10 @@ if __name__ == '__main__':
     merger.ignore_deflines = args.ignore_deflines
     merger.retain_only_overlap = args.retain_only_overlap
     merger.marker_gene_stringent = args.marker_gene_stringent
-    merger.untrimmed_suffix = args.untrimmed_suffix
+    merger.skip_suffix_trimming = args.skip_suffix_trimming
     merger.report_r1_prefix = args.report_r1_prefix
     merger.report_r2_prefix = args.report_r2_prefix
-    merger.rapid_cores = args.rapid_cores
+    merger.num_threads = args.num_threads
+    merger.distance_metric = args.distance_metric
 
     sys.exit(merger.run())
