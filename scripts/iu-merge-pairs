@@ -666,7 +666,7 @@ class Merger:
 
         smallest, ind = sys.maxsize, 0
         for i in range(self.min_overlap_size + 1, min(len(seq1), len(seq2)) + 1):
-            d = l.distance(seq1[-i:], seq2[:i])
+            d = l.hamming(seq1[-i:], seq2[:i])
             if d <= smallest:
                 smallest = d
                 ind = i
