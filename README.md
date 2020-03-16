@@ -1,6 +1,6 @@
 This is a small library and a bunch of clients to perform various operations on FASTQ files (such as demultiplexing raw Illumina files, merging partial or complete overlaps, and/or performing quality filtering). It works with paired-end FASTQ files and has been tested with Illumina runs processed with CASAVA version 1.8.0 or higher.
 
-Send your questions to `meren at uchicago dot edu`.
+This program is maintained by [Sam Miller](https://semiller10.github.io/) (samuelmiller at uchicago dot edu) and [Meren](http://meren.org) (meren at uchicago dot edu). Please feel free to send us an e-mail, or better yet visit the anvi'o Slack for your qeustions.
 
 ### Citation
 
