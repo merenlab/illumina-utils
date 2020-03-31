@@ -237,10 +237,16 @@ class Merger:
                                      else self.pair_1_prefix_compiled.pattern)
                 r2_prefix_pattern = ('' if self.pair_2_prefix_compiled is None
                                      else self.pair_2_prefix_compiled.pattern)
-                if r1_prefix_pattern[0] != '^' or r2_prefix_pattern[0] != '^':
-                    print("Prefix patterns must start with ^ "
+                if r1_prefix_pattern:
+                    if r1_prefix_pattern[0] != '^':
+                        print("Prefix patterns must start with ^ "
                           "as they occur at the beginning of the read.")
-                    sys.exit(0)
+                        sys.exit(0)
+                if r2_prefix_pattern:
+                    if r2_prefix_pattern[0] != '^':
+                        print("Prefix patterns must start with ^ "
+                          "as they occur at the beginning of the read.")
+                        sys.exit(0)
 
                 rapidmerger = rapidmerge.FASTQMerger(
                     self.config.pair_1[index],
