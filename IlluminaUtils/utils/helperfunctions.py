@@ -723,6 +723,9 @@ def big_number_pretty_print(n):
 def combine_files(in_paths, out_path):
     with open(out_path, 'w') as out_file:
         for in_path in in_paths:
-            with open(in_path) as in_file:
-                for line in in_file:
-                    out_file.write(line)
+            try:
+                with open(in_path) as in_file:
+                    for line in in_file:
+                        out_file.write(line)
+            except FileNotFoundError:
+                pass

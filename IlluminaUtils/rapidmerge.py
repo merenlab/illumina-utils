@@ -165,7 +165,7 @@ class FASTQMerger:
 
         if not 0 < num_cores <= multiprocessing.cpu_count():
             raise RuntimeError("\"%d\" is not a valid number of cores. "
-                               "The number of cores be between 1 and %d."
+                               "The number of cores must be between 1 and %d."
                                % (num_cores, multiprocessing.cpu_count()))
         self.num_cores = num_cores
 
@@ -180,9 +180,11 @@ class FASTQMerger:
 
         # values for tracking progress
         num_lines_total = 0
-        with open(self.input1_path) as f:
-            for line in f:
-                num_lines_total += 1
+        input1_file = (gzip.open(self.input1_path) if self.input1_is_gzipped
+                       else open(self.input1_path))
+        for line in input1_file:
+            num_lines_total += 1
+        input1_file.close()
         num_items_total = num_lines_total // 4
         num_items_processed = Value('i', 0)
         next_percentage = Value('i', 1)
@@ -750,7 +752,10 @@ def merge_reads_in_files(
                 min_overlap_size=min_overlap_size,
                 complete_overlap=True)
 
-            alt_merged_seq = alt_begin_seq + alt_overlap_seq + alt_end_seq
+            if retain_overlap_only or not skip_suffix_trimming:
+                alt_merged_seq = alt_overlap_seq
+            else:
+                alt_merged_seq = alt_begin_seq + alt_overlap_seq + alt_end_seq
 
             # find out about 'p'
             alt_len_overlap = len(alt_overlap_seq)
@@ -810,7 +815,8 @@ def merge_reads_in_files(
                 header_line.replace('_', '-')))
 
         # FAIL CASE ~ max_num_mismatches
-        if max_num_mismatches >= 0 and num_mismatches > max_num_mismatches:
+        if ((max_num_mismatches >= 0 and num_mismatches > max_num_mismatches)
+            or (max_num_mismatches == 0 and p == 1)):
             merge_failed_file.write('>%s\n' % header_line)
             merge_failed_file.write('%s\n' % merged_seq)
             stats.record_num_mismatches(num_mismatches, 'merge failed due to max num mismatches')

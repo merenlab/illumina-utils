@@ -49,7 +49,7 @@ class Progress:
         self.get_terminal_width()
         self.color_prefix = '\033[0;30m\033[46m'
         self.color_postfix = '\033[0m'
-        
+
         self.currently_shown = None
 
 
@@ -74,7 +74,7 @@ class Progress:
 
     def write(self, c):
         surpass = self.terminal_width - len(c)
-        
+
         if surpass < 0:
             c = c[0:-(-surpass + 4)] + ' (...)'
         else:

@@ -880,7 +880,11 @@ if __name__ == '__main__':
     parser.add_argument('--distance-metric', choices = ['hamming', 'levenshtein'], default='hamming')
 
 
-    args = parser.parse_args()
+    args = parser.parse_args(['/Users/sammiller/Documents/work/debug/config.txt',
+                              '--max-num-mismatches', '0',
+                              '--marker-gene-stringent',
+                              '--report-r1-prefix',
+                              '--num-threads', '1'])
 
     user_config = configparser.ConfigParser()
     user_config.read(args.user_config)
