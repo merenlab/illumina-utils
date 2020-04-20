@@ -910,14 +910,17 @@ def print_merging_progress(
         next_percentage.value += 1
         next_percentage.release()
         percent_pairs = num_pairs.value * 100 // num_pairs_total
-        sys.stderr.write(
-            '\r[Merging %d of %d] %.2d%% -- (num pairs processed: %s) POK: %.1f%% :: ZM: %.1f%%'
-            % (dataset_index,
-               total_dataset_count,
-               percent_pairs,
-               big_number_pretty_print(num_pairs.value),
-               passed_prefix_total.value * 100 / num_pairs.value,
-               num_zero_mismatches.value * 100 / num_merged_pairs_passed.value))
+        try:
+            sys.stderr.write(
+                '\r[Merging %d of %d] %.2d%% -- (num pairs processed: %s) POK: %.1f%% :: ZM: %.1f%%'
+                % (dataset_index,
+                total_dataset_count,
+                percent_pairs,
+                big_number_pretty_print(num_pairs.value),
+                passed_prefix_total.value * 100 / num_pairs.value,
+                num_zero_mismatches.value * 100 / num_merged_pairs_passed.value))
+        except ZeroDivisionError:
+            pass
         sys.stderr.flush()
     else:
         next_percentage.release()
