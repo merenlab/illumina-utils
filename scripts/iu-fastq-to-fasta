@@ -20,7 +20,7 @@ import IlluminaUtils.utils.terminal as terminal
 run = terminal.Run()
 progress = terminal.Progress()
 
-def main(input_file_path, output_file_path, number_of_sequences = -1, rev_comp = False, compressed = False):
+def main(input_file_path, output_file_path, number_of_sequences = -1, rev_comp = False, uppercase=False, compressed = False):
     fastq = u.FastQSource(input_file_path, compressed)
     output = u.FileOutput(output_file_path, compressed)
 
@@ -31,8 +31,12 @@ def main(input_file_path, output_file_path, number_of_sequences = -1, rev_comp =
 
         e = fastq.entry
 
-        output.write('>%s\n%s\n' % (e.header_line,
-                                    e.sequence if not rev_comp else reverse_complement(e.sequence)))
+        if uppercase:
+            output.write(">%s\n%s\n" % (e.header_line,
+                                        e.sequence.upper() if not rev_comp else reverse_complement(e.sequence.upper())))
+        else:
+            output.write('>%s\n%s\n' % (e.header_line,
+                                        e.sequence if not rev_comp else reverse_complement(e.sequence)))
         number_of_sequences -= 1
 
     progress.end()
@@ -54,12 +58,15 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--rev-comp', action = 'store_true', default = False,
                             help = 'When set, during the conversion reads will be reverse\
                                     complemented.')
+    parser.add_argument("-u", "--uppercase", action='store_true', default=False,
+                        help=("When set, all nucleotides are converted to uppercase, "
+                              "removing mismatch information from merged sequences."))
     args = parser.parse_args()
 
     input_file_path = args.input
-    
+
     compressed = input_file_path.endswith('.gz')
-    
+
     if args.output:
         if compressed and not args.output.endswith('.gz'):
             output_file_path = args.output + '.gz'
@@ -77,4 +84,4 @@ if __name__ == '__main__':
             else:
                 output_file_path = input_file_path + '-FASTA'
 
-    sys.exit(main(input_file_path, output_file_path, args.number_of_sequences, args.rev_comp, compressed))
+    sys.exit(main(input_file_path, output_file_path, args.number_of_sequences, args.rev_comp, args.uppercase, compressed))
