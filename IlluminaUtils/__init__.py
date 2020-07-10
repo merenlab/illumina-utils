@@ -2,7 +2,7 @@ import os
 import sys
 import pkg_resources
 
-illumina_utils_version = "2.8"
+illumina_utils_version = "2.8-master"
 
 # Make sure the Python environment hasn't changed since the installation (happens more often than you'd think
 # on systems working with multiple Python installations that are managed through modules):
