@@ -18,7 +18,10 @@ if os.environ.get('USER','') == 'vagrant':
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 install_reqs = parse_requirements('requirements.txt', session=uuid.uuid1())
-reqs = [str(ir.req) for ir in install_reqs]
+try:
+    reqs = [str(ir.requirement) for ir in install_reqs]
+except AttributeError:
+    reqs = [str(ir.req) for ir in install_reqs]
 
 setup(
     name = "illumina-utils",
