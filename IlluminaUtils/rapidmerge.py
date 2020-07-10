@@ -244,10 +244,6 @@ class FASTQMerger:
             return
 
         # Prepare multiprocessing.
-        progress = Progress()
-        progress.new(os.getpid())
-        progress.update("Setting up read merging jobs")
-        print()
         # Find positions at which to chunk the input files.
         start_positions, end_positions, end_strings = self.find_fastq_chunk_starts(
             self.input1_path, self.num_cores, self.input1_is_gzipped)
@@ -344,9 +340,6 @@ class FASTQMerger:
         print()
 
         # Delete temp files after combining them.
-        progress.update("Combining temporary files produced by each job")
-        print()
-        progress.end()
         combine_files(temp_merged_paths, self.merged_path)
         [os.remove(temp_merged_path) for temp_merged_path in temp_merged_paths]
         combine_files(temp_merge_failed_paths, self.merge_failed_path)
