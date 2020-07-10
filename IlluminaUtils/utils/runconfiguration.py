@@ -70,6 +70,11 @@ class RunConfiguration:
 
 
     def sanity_check(self, config):
+        if not len(config.sections()):
+            raise RunConfigError('RunConfiguration class is upset, because the config object is empty.\
+                                   Probably your config file is not where you think it is. Please check\
+                                   your paths.')
+
         config_template = {
             'general': {
                         'project_name'    : {'mandatory': True},
@@ -102,11 +107,6 @@ class RunConfiguration:
                                          'required': 'True or False'},
             }
         }
-
-        if not len(config.sections()):
-            raise RunConfigError('RunConfiguration class is upset, because the config object is empty.\
-                                   Probably your config file is not where you think it is. Please check\
-                                   your paths.')
 
         for section in config.sections():
             if section not in config_template:
