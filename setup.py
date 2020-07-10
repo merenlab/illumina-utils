@@ -8,6 +8,10 @@ try: # for pip >= 10
 except ImportError: # for pip <= 9.0.3
     from pip.req import parse_requirements
 
+init_py_path = os.path.normpath(os.path.dirname(os.path.abspath(__file__))) + '/IlluminaUtils/__init__.py'
+version_string = [l.strip() for l in open(init_py_path).readlines() if l.strip().startswith('illumina_utils_version')][0]
+illumina_utils_version = version_string.split('=')[1].strip().strip("'").strip('"')
+
 if os.environ.get('USER','') == 'vagrant':
     del os.link
 
@@ -18,10 +22,10 @@ reqs = [str(ir.req) for ir in install_reqs]
 
 setup(
     name = "illumina-utils",
-    version = open('VERSION').read().strip(),
+    version = illumina_utils_version,
     description = "A library and collection of scripts to work with Illumina paired-end data (for CASAVA 1.8+).",
-    author = u"A. Murat Eren",
-    author_email = "meren@mbl.edu",
+    author = u"Illumina Utils Authors",
+    author_email = "a.murat.eren@gmail.com",
     license = "GPLv3+",
     url = "https://github.com/meren/illumina-utils",
     packages = find_packages(),

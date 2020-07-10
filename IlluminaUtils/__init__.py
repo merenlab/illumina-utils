@@ -2,6 +2,8 @@ import os
 import sys
 import pkg_resources
 
+illumina_utils_version = "2.7-master"
+
 # Make sure the Python environment hasn't changed since the installation (happens more often than you'd think
 # on systems working with multiple Python installations that are managed through modules):
 try:
@@ -11,24 +13,10 @@ try:
 except Exception:
     sys.stderr.write("(illumina-utils failed to learn about your Python version, but it will pretend as if nothing happened)\n\n")
 
-
-def set_version():
-    try:
-        __version__ = pkg_resources.require("illumina-utils")[0].version
-    except:
-        # maybe it is not installed but being run from the codebase dir?
-        try:
-            __version__ = open(os.path.normpath(os.path.dirname(os.path.abspath(__file__))) + '/../VERSION').read().strip()
-        except:
-            __version__ = 'unknown'
-
-    return __version__
-
-
-__version__ = set_version()
+__version__ = illumina_utils_version
 
 def print_version():
-    print("Illumina-utils v%s" % __version__)
+    print("v%s" % illumina_utils_version)
 
 
 if '-v' in sys.argv or '--version' in sys.argv:
