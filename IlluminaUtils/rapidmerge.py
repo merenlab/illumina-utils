@@ -117,8 +117,9 @@ class FASTQMerger:
         fastq_source.close()
         assert len(first_seq1) == len(first_seq2)
         # Assume all reads are of the same length.
-        self.min_seq_len = min(
-            len(first_seq1) - len(r1_prefix_pattern), len(first_seq2) - len(r1_prefix_pattern))
+
+        self.read1_length = len(first_seq1)
+        self.read2_length = len(first_seq2)
 
         output_path_maker = lambda p: os.path.join(output_dir, output_file_name + p)
         self.merged_path = output_path_maker('_MERGED')
@@ -197,7 +198,8 @@ class FASTQMerger:
             self.stats.update(merge_reads_in_files(
                 self.input1_path,
                 self.input2_path,
-                self.min_seq_len,
+                self.read1_length,
+                self.read2_length,
                 merge_method=merge_method,
                 input1_is_gzipped=self.input1_is_gzipped,
                 input2_is_gzipped=self.input2_is_gzipped,
@@ -304,7 +306,8 @@ class FASTQMerger:
                 *(
                     self.input1_path,
                     self.input2_path,
-                    self.min_seq_len),
+                    self.read1_length,
+                    self.read2_length),
                 **{
                     'merge_method': merge_method,
                     'input1_is_gzipped': self.input1_is_gzipped,
@@ -596,7 +599,8 @@ class FASTQMergerStats:
 def merge_reads_in_files(
     input1_path,
     input2_path,
-    min_seq_len,
+    read1_length,
+    read2_length,
     merge_method='hamming',
     progress_info=None,
     input1_is_gzipped=False,
@@ -717,8 +721,16 @@ def merge_reads_in_files(
 
         if r1_prefix_compiled:
             r1_entry.trim(trim_from=r1_prefix_match.end())
+            r1_suffix_length = read1_length - len(r1_prefix_match.group(0))
+        else:
+            r1_suffix_length = read1_length
         if r2_prefix_compiled:
             r2_entry.trim(trim_from=r2_prefix_match.end())
+            r2_suffix_length = read2_length - len(r2_prefix_match.group(0))
+        else:
+            r2_suffix_length = read2_length
+
+        min_seq_len = min(r1_suffix_length, r2_suffix_length)
 
         merging_done_on_complete_overlap = False
         num_mismatches = None
