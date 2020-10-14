@@ -812,7 +812,7 @@ def merge_reads_in_files(
                 elif r2_suffix_length < r1_suffix_length:
                     rc_r1_suffix = reverse_complement(r1_suffix)
                     try:
-                        rc_r1_start = rc_r1_suffix.index(r1_suffix)
+                        rc_r1_start = rc_r1_suffix.index(r2_suffix)
                         begin_seq = rc_r1_suffix[: rc_r1_start]
                         overlap_seq = r2_suffix
                         end_seq = rc_r1_suffix[rc_r1_start + r2_suffix_length: ]
