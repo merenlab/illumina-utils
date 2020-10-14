@@ -429,14 +429,22 @@ class FASTQMerger:
             r2_start_positions = [0]
             fastq_file2 = gzip.open(self.input2_path, 'rt') if self.input2_is_gzipped else open(self.input2_path)
             r1_end_string_iter = iter(r1_end_strings)
-            e = next(r1_end_string_iter).replace(' 1:', ' 2:') + '\n'
+            e = next(r1_end_string_iter)
+            if '1: ' in e:
+                e = e.replace(' 1:', ' 2:') + '\n'
+            else:
+                e = e.replace(' 2:', ' 1:') + '\n'
             line = True
             while line:
                 line = fastq_file2.readline()
                 if line == e:
                     position = fastq_file2.tell() - len(line)
                     r2_start_positions.append(position)
-                    e = next(r1_end_string_iter).replace(' 1:', ' 2:') + '\n'
+                    e = next(r1_end_string_iter)
+                    if '1: ' in e:
+                        e = e.replace(' 1:', ' 2:') + '\n'
+                    else:
+                        e = e.replace(' 2:', ' 1:') + '\n'
             fastq_file2.close()
         else:
             r2_start_positions = r1_start_positions
