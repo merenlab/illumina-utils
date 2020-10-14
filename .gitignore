@@ -1,13 +1,9 @@
-# platform dependent python byte code files.
 *.pyc
-
-# temporary vi files.
+/build/
+/dist/
+/*.egg-info/
 *.sw*
-
-# pyenv local environment
 .python-version
-
-#nonsense
 *.DS_Store
 *ignore*
 *~
