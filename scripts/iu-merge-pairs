@@ -275,11 +275,6 @@ class Merger:
                 elif self.distance_metric == 'levenshtein':
                     count_stats = rapidmerger.run('levenshtein')
 
-                # REMOVE
-                # assert self.stats.passed_prefix_total == (
-                #     self.stats.actual_number_of_pairs
-                #     - self.stats.prefix_failed_in_pair_1_total
-                #     - self.stats.prefix_failed_in_pair_2_total)
                 return
 
 
@@ -785,7 +780,9 @@ if __name__ == '__main__':
                                         help = 'Maximum number of mismatches at the overlapped region to\
                                                 retain the pair. The default behavior relies on `-P`\
                                                 parameter and does not pay attention to the number of\
-                                                mismatches at the overlapped region.')
+                                                mismatches at the overlapped region. \
+                                                As of now, this parameter must be set to 0 \
+                                                for forward and reverse reads of unequal length.')
     parser.add_argument('--min-qual-score', type = int, default = 15, metavar = 'INT',
                                         help = 'Minimum Q-score for a base to overwrite a mismatch\
                                                 at the overlapped region. If there is a mismatch at\

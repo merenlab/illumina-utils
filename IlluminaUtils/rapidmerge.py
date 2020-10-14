@@ -115,8 +115,6 @@ class FASTQMerger:
         fastq_source.next()
         first_seq2 = fastq_source.entry.sequence
         fastq_source.close()
-        assert len(first_seq1) == len(first_seq2)
-        # Assume all reads are of the same length.
 
         self.read1_length = len(first_seq1)
         self.read2_length = len(first_seq2)
@@ -247,8 +245,7 @@ class FASTQMerger:
 
         # Prepare multiprocessing.
         # Find positions at which to chunk the input files.
-        start_positions, end_positions, end_strings = self.find_fastq_chunk_starts(
-            self.input1_path, self.num_cores, self.input1_is_gzipped)
+        r1_start_positions, r1_end_positions, r1_end_strings, r2_start_positions = self.find_fastq_chunk_starts()
         # Create temporary output files.
         time_str = datetime.now().isoformat(timespec='seconds').replace('-', '').replace(':', '')
         temp_merged_paths = [
@@ -286,17 +283,19 @@ class FASTQMerger:
              temp_merge_failed_Q30_path,
              temp_r1_prefix_path,
              temp_r2_prefix_path,
-             start_position,
-             end_position,
-             end_string) in zip(temp_merged_paths,
-                                temp_merge_failed_paths,
-                                temp_merge_failed_with_Ns_paths,
-                                temp_merge_failed_Q30_paths,
-                                temp_r1_prefix_paths,
-                                temp_r2_prefix_paths,
-                                start_positions,
-                                end_positions,
-                                end_strings):
+             r1_start_position,
+             r1_end_position,
+             r1_end_string,
+             r2_start_position) in zip(temp_merged_paths,
+                                       temp_merge_failed_paths,
+                                       temp_merge_failed_with_Ns_paths,
+                                       temp_merge_failed_Q30_paths,
+                                       temp_r1_prefix_paths,
+                                       temp_r2_prefix_paths,
+                                       r1_start_positions,
+                                       r1_end_positions,
+                                       r1_end_strings,
+                                       r2_start_positions):
             mp.run(
                 merge_reads_in_files,
                 *(
@@ -336,30 +335,45 @@ class FASTQMerger:
                     'num_pairs_prefix_passed': num_pairs_prefix_passed,
                     'num_merged_pairs': num_merged_pairs,
                     'num_merged_pairs_zero_mismatches': num_merged_pairs_zero_mismatches,
-                    'start_position': start_position,
-                    'end_position': end_position,
-                    'end_string': end_string})
+                    'r1_start_position': r1_start_position,
+                    'r1_end_position': r1_end_position,
+                    'r1_end_string': r1_end_string,
+                    'r2_start_position': r2_start_position})
         chunk_stats = mp.wait()
         print()
 
         # Delete temp files after combining them.
         combine_files(temp_merged_paths, self.merged_path)
-        [os.remove(temp_merged_path) for temp_merged_path in temp_merged_paths]
+        for path in temp_merged_paths:
+            if os.path.exists(path):
+                os.remove(path)
         combine_files(temp_merge_failed_paths, self.merge_failed_path)
-        [os.remove(path) for path in temp_merge_failed_paths]
+        for path in temp_merge_failed_paths:
+            if os.path.exists(path):
+                os.remove(path)
         combine_files(temp_merge_failed_with_Ns_paths, self.merge_failed_with_Ns_path)
-        [os.remove(path) for path in temp_merge_failed_with_Ns_paths]
+        for path in temp_merge_failed_with_Ns_paths:
+            if os.path.exists(path):
+                os.remove(path)
         if self.merge_failed_Q30_path:
             combine_files(temp_merge_failed_Q30_paths, self.merge_failed_Q30_path)
-            [os.remove(path) for path in temp_merge_failed_Q30_paths]
+            for path in temp_merge_failed_Q30_paths:
+                if os.path.exists(path):
+                    os.remove(path)
         if self.r1_prefix_path:
             combine_files(temp_r1_prefix_paths, self.r1_prefix_path)
-            [os.remove(path) for path in temp_r1_prefix_paths]
+            for path in temp_r1_prefix_paths:
+                if os.path.exists(path):
+                    os.remove(path)
         if self.r2_prefix_path:
             combine_files(temp_r2_prefix_paths, self.r2_prefix_path)
-            [os.remove(path) for path in temp_r2_prefix_paths]
+            for path in temp_r2_prefix_paths:
+                if os.path.exists(path):
+                    os.remove(path)
 
-        [self.stats.update(s) for s in chunk_stats]
+        for s in chunk_stats:
+            if s:
+                self.stats.update(s)
         self.stats.write_stats(
             self.stats_path,
             self.max_p,
@@ -374,43 +388,62 @@ class FASTQMerger:
         return
 
 
-    def find_fastq_chunk_starts(self, path, num_chunks, input_is_gzipped):
-        if input_is_gzipped:
+    def find_fastq_chunk_starts(self):
+
+        if self.input1_is_gzipped:
             # Uncompressed size is stored in the last four digits of a gzip file.
-            with open(path, 'rb') as f:
+            with open(self.input1_path, 'rb') as f:
                 f.seek(0, 2)
                 f.seek(-4, 2)
                 uncompressed_file_size = struct.unpack('I', f.read(4))[0]
         else:
-            uncompressed_file_size = os.stat(path)[stat.ST_SIZE]
-        chunk_size = uncompressed_file_size // num_chunks
+            uncompressed_file_size = os.stat(self.input1_path)[stat.ST_SIZE]
+        chunk_size = uncompressed_file_size // self.num_cores
 
-        fastq_file = gzip.open(path, 'rt') if input_is_gzipped else open(path)
-        start_positions = []
-        end_strings = []
+        fastq_file1 = gzip.open(self.input1_path, 'rt') if self.input1_is_gzipped else open(self.input1_path)
+        r1_start_positions = []
+        r1_end_strings = []
         position = 0
         prev_position = 0
-        for chunk in range(num_chunks):
-            fastq_file.seek(position)
+        for chunk in range(self.num_cores):
+            fastq_file1.seek(position)
             while True:
-                line_end = fastq_file.readline()
+                line_end = fastq_file1.readline()
                 # Checking for empty string must come before checking for '@'
                 if line_end == '':
                     # If EOF, append -1 rather than the last position.
-                    start_positions.append(-1)
+                    r1_start_positions.append(-1)
                     break
                 prev_position = position
-                position = fastq_file.tell()
+                position = fastq_file1.tell()
                 if line_end[0] == '@':
-                    start_positions.append(prev_position)
+                    r1_start_positions.append(prev_position)
                     position += chunk_size
                     break
             if chunk > 0:
-                end_strings.append(line_end.rstrip())
-        end_strings.append('')
-        end_positions = [p for p in start_positions[1:]] + [-1]
-        fastq_file.close()
-        return start_positions, end_positions, end_strings
+                r1_end_strings.append(line_end.rstrip())
+        r1_end_strings.append('')
+        r1_end_positions = [p for p in r1_start_positions[1:]] + [-1]
+
+        if self.read1_length != self.read2_length:
+            r2_start_positions = [0]
+            fastq_file2 = gzip.open(self.input2_path, 'rt') if self.input2_is_gzipped else open(self.input2_path)
+            r1_end_string_iter = iter(r1_end_strings)
+            e = next(r1_end_string_iter).replace(' 1:', ' 2:') + '\n'
+            line = True
+            while line:
+                line = fastq_file2.readline()
+                if line == e:
+                    position = fastq_file2.tell() - len(line)
+                    r2_start_positions.append(position)
+                    e = next(r1_end_string_iter).replace(' 1:', ' 2:') + '\n'
+            fastq_file2.close()
+        else:
+            r2_start_positions = r1_start_positions
+
+        fastq_file1.close()
+
+        return r1_start_positions, r1_end_positions, r1_end_strings, r2_start_positions
 
 
 class FASTQMergerStats:
@@ -626,16 +659,17 @@ def merge_reads_in_files(
     num_pairs_prefix_passed=None,
     num_merged_pairs=None,
     num_merged_pairs_zero_mismatches=None,
-    start_position=0,
-    end_position=-1,
-    end_string=''):
+    r1_start_position=0,
+    r1_end_position=-1,
+    r1_end_string='',
+    r2_start_position=0):
 
     if merge_method == 'hamming':
-        merge_function = functools.partial(merge_by_distance_metric, metric=Levenshtein.hamming)
+        partial_overlap_merge_function = functools.partial(merge_by_distance_metric, metric=Levenshtein.hamming)
     elif merge_method == 'levenshtein':
-        merge_function = functools.partial(merge_by_distance_metric, metric=Levenshtein.distance)
+        partial_overlap_merge_function = functools.partial(merge_by_distance_metric, metric=Levenshtein.distance)
     elif merge_method == 'exact':
-        merge_function = merge_with_zero_mismatches_in_overlap
+        partial_overlap_merge_function = merge_with_zero_mismatches_in_overlap
     else:
         raise ValueError('%s is not a valid merging method.' % merge_method)
 
@@ -645,11 +679,11 @@ def merge_reads_in_files(
     input1_file = gzip.open(input1_path, 'rt') if input1_is_gzipped else open(input1_path)
     input2_file = gzip.open(input2_path, 'rt') if input2_is_gzipped else open(input2_path)
 
-    singlethreaded = True if start_position == 0 and end_position == -1 else False
-    if start_position == -1:
+    singlethreaded = True if r1_start_position == 0 and r1_end_position == -1 else False
+    if r1_start_position == -1:
         return
-    input1_file.seek(start_position)
-    input2_file.seek(start_position)
+    input1_file.seek(r1_start_position)
+    input2_file.seek(r2_start_position)
 
     merged_file = open(merged_path, 'w')
     merge_failed_file = open(merge_failed_path, 'w')
@@ -659,6 +693,7 @@ def merge_reads_in_files(
     r1_prefix_file = open(r1_prefix_path, 'w') if r1_prefix_path else None
     r2_prefix_file = open(r2_prefix_path, 'w') if r2_prefix_path else None
 
+    i = 0
     while True:
         if verbose:
             print_merging_progress(
@@ -672,13 +707,13 @@ def merge_reads_in_files(
                 num_merged_pairs_zero_mismatches)
             with num_items_processed.get_lock():
                 num_items_processed.value += 1
-
+        i += 1
         r1_lines = [input1_file.readline().rstrip() for _ in range(4)]
         r2_lines = [input2_file.readline().rstrip() for _ in range(4)]
 
-        if r1_lines[0] == end_string:
+        if r1_lines[0] == r1_end_string:
             # Defline strings should be unique, but double check the chunk ending position.
-            if input1_file.tell() >= end_position or end_string == '':
+            if input1_file.tell() >= r1_end_position or r1_end_string == '':
                 break
 
         stats.actual_number_of_pairs += 1
@@ -690,7 +725,6 @@ def merge_reads_in_files(
                 r1_prefix_compiled.search(r1_lines[1]) if r1_prefix_compiled else None)
             if not r1_prefix_match:
                 stats.prefix_failed_in_pair_1_total += 1
-                print(r1_lines[1])
                 failed_prefix = True
         if r2_prefix_compiled:
             r2_prefix_match = (
@@ -722,64 +756,127 @@ def merge_reads_in_files(
             r2_suffix_length = read2_length - len(r2_prefix_match.group(0))
         else:
             r2_suffix_length = read2_length
-
         min_seq_len = min(r1_suffix_length, r2_suffix_length)
+        r1_suffix = r1_entry.sequence
+        r2_suffix = r2_entry.sequence
 
-        merging_done_on_complete_overlap = False
-        num_mismatches = None
-        recovery_dict = {}
+        while True:
+            # First, check if equal length suffixes are the same.
+            if r1_suffix_length == r2_suffix_length:
+                if r1_suffix == r2_suffix:
+                    begin_seq = ''
+                    overlap_seq = r1_suffix
+                    end_seq = ''
+                    merged_seq = r1_suffix
+                    num_mismatches = 0
+                    len_overlap = len(overlap_seq)
+                    p = 0
+                    recovery_dict = {'none': 0, 'r1': 0, 'r2': 0}
+                    merging_done_on_complete_overlap = False
+                    break
 
-        # Partial overlap merging
-        (begin_seq, overlap_seq, end_seq), num_mismatches, recovery_dict = merge_reads(
-            merge_function,
-            r1_entry,
-            r2_entry,
-            min_seq_len,
-            min_overlap_size=min_overlap_size)
-        merged_seq = begin_seq + overlap_seq + end_seq if overlap_seq else ''
+            if not partial_overlap_only:
+                # Second, check if unequal length suffixes match.
+                # This means that the read with the longer suffix
+                # goes into the prefix and possibly the adapter of the read with the shorter suffix.
+                if r1_suffix_length < r2_suffix_length:
+                    rc_r2_suffix = reverse_complement(r2_suffix)
+                    try:
+                        rc_r2_start = rc_r2_suffix.index(r1_suffix)
+                        begin_seq = rc_r2_suffix[: rc_r2_start]
+                        overlap_seq = r1_suffix
+                        end_seq = rc_r2_suffix[rc_r2_start + r1_suffix_length: ]
+                        if retain_overlap_only:
+                            merged_seq = overlap_seq
+                        elif skip_suffix_trimming:
+                            merged_seq = rc_r2_suffix
+                        else:
+                            merged_seq = overlap_seq + end_seq
+                        num_mismatches = 0
+                        len_overlap = len(overlap_seq)
+                        p = 0
+                        recovery_dict = {'none': 0, 'r1': 0, 'r2': 0}
+                        merging_done_on_complete_overlap = True
+                        stats.merging_done_on_complete_overlap += 1
+                        break
+                    except ValueError:
+                        pass
+                elif r2_suffix_length < r1_suffix_length:
+                    rc_r1_suffix = reverse_complement(r1_suffix)
+                    try:
+                        rc_r1_start = rc_r1_suffix.index(r1_suffix)
+                        begin_seq = rc_r1_suffix[: rc_r1_start]
+                        overlap_seq = r2_suffix
+                        end_seq = rc_r1_suffix[rc_r1_start + r2_suffix_length: ]
+                        if retain_overlap_only:
+                            merged_seq = overlap_seq
+                        elif skip_suffix_trimming:
+                            merged_seq = rc_r1_suffix
+                        else:
+                            merged_seq = overlap_seq + end_seq
+                        num_mismatches = 0
+                        len_overlap = len(overlap_seq)
+                        p = 0
+                        recovery_dict = {'none': 0, 'r1': 0, 'r2': 0}
+                        merging_done_on_complete_overlap = True
+                        stats.merging_done_on_complete_overlap += 1
+                        break
+                    except ValueError:
+                        pass
 
-        # find out about 'p'
-        len_overlap = len(overlap_seq)
-        if len_overlap == 0:
-            p = 1
-        else:
-            p = num_mismatches / len_overlap
-
-        # Full overlap merging
-        if not partial_overlap_only:
-            ((alt_begin_seq, alt_overlap_seq, alt_end_seq),
-             alt_num_mismatches,
-             alt_recovery_dict) = merge_reads(
-                merge_function,
+            # Third, check for partial overlap of a long insert.
+            (begin_seq, overlap_seq, end_seq), num_mismatches, recovery_dict = merge_reads(
+                partial_overlap_merge_function,
                 r1_entry,
                 r2_entry,
-                min_seq_len,
-                min_overlap_size=min_overlap_size,
-                complete_overlap=True)
+                min_seq_len - 1,
+                min_overlap_size=min_overlap_size)
+            merged_seq = begin_seq + overlap_seq + end_seq if overlap_seq else ''
+            merging_done_on_complete_overlap = False
 
-            if retain_overlap_only or not skip_suffix_trimming:
-                alt_merged_seq = alt_overlap_seq
+            # find out about 'p'
+            len_overlap = len(overlap_seq)
+            if len_overlap == 0:
+                p = 1
             else:
-                alt_merged_seq = alt_begin_seq + alt_overlap_seq + alt_end_seq
+                p = num_mismatches / len_overlap
 
-            # find out about 'p'
-            alt_len_overlap = len(alt_overlap_seq)
-            if alt_len_overlap == 0:
-                alt_p = 1
-            else:
-                alt_p = alt_num_mismatches / alt_len_overlap
+            if not partial_overlap_only:
+                # Fourth, check for "more than complete" (really partial) overlap of a short insert.
+                ((alt_begin_seq, alt_overlap_seq, alt_end_seq),
+                 alt_num_mismatches,
+                 alt_recovery_dict) = merge_reads(
+                    partial_overlap_merge_function,
+                    r1_entry,
+                    r2_entry,
+                    min_seq_len - 1,
+                    min_overlap_size=min_overlap_size,
+                    complete_overlap=True)
 
-            if alt_p < p:
-                begin_seq = alt_begin_seq
-                overlap_seq = alt_overlap_seq
-                end_seq = alt_end_seq
-                num_mismatches = alt_num_mismatches
-                recovery_dict = alt_recovery_dict
-                merged_seq = alt_merged_seq
-                len_overlap = alt_len_overlap
-                p = alt_p
-                merging_done_on_complete_overlap = True
-                stats.merging_done_on_complete_overlap += 1
+                if retain_overlap_only or not skip_suffix_trimming:
+                    alt_merged_seq = alt_overlap_seq
+                else:
+                    alt_merged_seq = alt_begin_seq + alt_overlap_seq + alt_end_seq
+
+                # find out about 'p'
+                alt_len_overlap = len(alt_overlap_seq)
+                if alt_len_overlap == 0:
+                    alt_p = 1
+                else:
+                    alt_p = alt_num_mismatches / alt_len_overlap
+
+                if alt_p < p:
+                    begin_seq = alt_begin_seq
+                    overlap_seq = alt_overlap_seq
+                    end_seq = alt_end_seq
+                    num_mismatches = alt_num_mismatches
+                    recovery_dict = alt_recovery_dict
+                    merged_seq = alt_merged_seq
+                    len_overlap = alt_len_overlap
+                    p = alt_p
+                    merging_done_on_complete_overlap = True
+                    stats.merging_done_on_complete_overlap += 1
+            break
 
         if enforce_Q30_check and not merging_done_on_complete_overlap:
             if not r1_entry.Q_list:
@@ -787,7 +884,7 @@ def merge_reads_in_files(
                 r2_entry.process_Q_list()
 
             r1_passed_Q30, r1_Q30 = passes_minoche_Q30(r1_entry.Q_list[: -len_overlap])
-            r2_passed_Q30, r2_Q30 = passes_minoche_Q30(r2_entry.Q_list[0:-len_overlap])
+            r2_passed_Q30, r2_Q30 = passes_minoche_Q30(r2_entry.Q_list[: -len_overlap])
 
             pair_passed_Q30 = r1_passed_Q30 and r2_passed_Q30
 
@@ -1005,6 +1102,7 @@ def merge_with_zero_mismatches_in_overlap(
         seq1_overlap_start = len(seq1)
         seq2_overlap_end = 0
     return seq1_overlap_start, seq2_overlap_end
+
 
 
 def merge_by_distance_metric(
