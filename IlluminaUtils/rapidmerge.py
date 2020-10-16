@@ -810,18 +810,18 @@ def merge_reads_in_files(
                     except ValueError:
                         pass
                 elif r2_suffix_length < r1_suffix_length:
-                    rc_r1_suffix = reverse_complement(r1_suffix)
+                    rc_r2_suffix = reverse_complement(r2_suffix)
                     try:
-                        rc_r1_start = rc_r1_suffix.index(r2_suffix)
-                        begin_seq = rc_r1_suffix[: rc_r1_start]
-                        overlap_seq = r2_suffix
-                        end_seq = rc_r1_suffix[rc_r1_start + r2_suffix_length: ]
+                        r1_start = r1_suffix.index(rc_r2_suffix)
+                        begin_seq = r1_suffix[: r1_start]
+                        overlap_seq = rc_r2_suffix
+                        end_seq = r1_suffix[r1_start + r2_suffix_length: ]
                         if retain_overlap_only:
                             merged_seq = overlap_seq
                         elif skip_suffix_trimming:
-                            merged_seq = rc_r1_suffix
+                            merged_seq = r1_suffix
                         else:
-                            merged_seq = overlap_seq + end_seq
+                            merged_seq = begin_seq + overlap_seq
                         num_mismatches = 0
                         len_overlap = len(overlap_seq)
                         p = 0
