@@ -13,6 +13,7 @@
 import functools
 import gzip
 import multiprocessing
+import io
 import os
 import re
 import stat
@@ -391,11 +392,8 @@ class FASTQMerger:
     def find_fastq_chunk_starts(self):
 
         if self.input1_is_gzipped:
-            # Uncompressed size is stored in the last four digits of a gzip file.
-            with open(self.input1_path, 'rb') as f:
-                f.seek(0, 2)
-                f.seek(-4, 2)
-                uncompressed_file_size = struct.unpack('I', f.read(4))[0]
+            with gzip.open(self.input1_path, 'rt') as f:
+                uncompressed_file_size = f.seek(0, io.SEEK_END)
         else:
             uncompressed_file_size = os.stat(self.input1_path)[stat.ST_SIZE]
         chunk_size = uncompressed_file_size // self.num_cores
