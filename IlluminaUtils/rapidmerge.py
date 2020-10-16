@@ -10,23 +10,23 @@
 #
 # Please read the COPYING file.
 
-import functools
-import gzip
-import multiprocessing
 import io
 import os
 import re
+import sys
+import gzip
 import stat
 import struct
-import sys
+import functools
+import multiprocessing
 
 from datetime import datetime
 from multiprocessing import Process, Queue, Value
 
-from IlluminaUtils.utils.helperfunctions import (
-    big_number_pretty_print, combine_files, conv_dict, is_file_exists, reverse_complement)
 from IlluminaUtils.utils.terminal import Progress
 from IlluminaUtils.lib.fastqlib import FastQSource, FastQEntry
+from IlluminaUtils.utils.helperfunctions import (
+    big_number_pretty_print, combine_files, conv_dict, is_file_exists, reverse_complement)
 
 try:
     import Levenshtein
