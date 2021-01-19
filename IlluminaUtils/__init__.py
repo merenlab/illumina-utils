@@ -1,6 +1,4 @@
-import os
 import sys
-import pkg_resources
 
 illumina_utils_version = "2.8-master"
 
