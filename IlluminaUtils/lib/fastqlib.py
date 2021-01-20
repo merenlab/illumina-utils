@@ -42,8 +42,7 @@ import gzip
 import numpy
 import textwrap
 
-from IlluminaUtils.utils.helperfunctions import big_number_pretty_print
-from IlluminaUtils.utils.helperfunctions import predict_file_length
+from IlluminaUtils.utils.helperfunctions import big_number_pretty_print, get_num_lines_in_file
 from IlluminaUtils.utils.helperfunctions import remove_spaces
 
 
@@ -220,10 +219,9 @@ class FastQSource:
             # wrap it with TextIOWrapper to prevent gzip.open to return byte\
             # objects.
             self.file_pointer = io.TextIOWrapper(gzip.open(file_path, 'r'))
-            self.file_length = None
         else:
             self.file_pointer = open(file_path, 'rU')
-            self.file_length = predict_file_length(self.file_pointer, file_path)
+
         if lazy_init:
             self.num_reads = None
         else:
@@ -262,8 +260,8 @@ class FastQSource:
 
         if self.pos == 1 or self.pos % self.percent_step == 0:
             self.p_available = True
-            if self.file_length:
-                self.percent_read = self.pos * 100 / self.file_length
+            if self.num_reads:
+                self.percent_read = self.pos * 100 / self.num_reads
             else:
                 self.percent_read = None
 
