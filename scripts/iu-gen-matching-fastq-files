@@ -20,8 +20,8 @@ from IlluminaUtils.utils.helperfunctions import big_number_pretty_print
 
 def get_file_read_objects(r1_path, r2_path):
     try:
-        r1 = u.FastQSource(r1_path, compressed = r1_path.endswith('.gz'))
-        r2 = u.FastQSource(r2_path, compressed = r2_path.endswith('.gz'))
+        r1 = u.FastQSource(r1_path, lazy_init=True)
+        r2 = u.FastQSource(r2_path, lazy_init=True)
     except u.FastQLibError as e:
         print("FastQLib is not happy.\n\n\t", e, "\n")
         sys.exit()

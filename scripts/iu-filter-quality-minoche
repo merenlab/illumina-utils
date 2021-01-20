@@ -148,8 +148,8 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
 
     for index in range(0, len(config.pair_1)):
         try:
-            pair_1 = u.FastQSource(config.pair_1[index], compressed = True if COMPRESSED(config.pair_1[index]) else False)
-            pair_2 = u.FastQSource(config.pair_2[index], compressed = True if COMPRESSED(config.pair_2[index]) else False)
+            pair_1 = u.FastQSource(config.pair_1[index], lazy_init=True)
+            pair_2 = u.FastQSource(config.pair_2[index], lazy_init=True)
 
         except u.FastQLibError as e:
             print("FastQLib is not happy.\n\n\t", e, "\n")

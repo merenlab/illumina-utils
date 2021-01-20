@@ -73,9 +73,9 @@ class Demultiplex:
 
         run.info('Output directory', self.output_dir)
 
-        self.r1 =  u.FastQSource(self.args.r1, compressed = self.args.r1.endswith('.gz'))
-        self.r2 =  u.FastQSource(self.args.r2, compressed = self.args.r2.endswith('.gz'))
-        self.index =  u.FastQSource(self.args.index, compressed = self.args.index.endswith('.gz'))
+        self.r1 =  u.FastQSource(self.args.r1, lazy_init=True)
+        self.r2 =  u.FastQSource(self.args.r2, lazy_init=True)
+        self.index =  u.FastQSource(self.args.index)
 
         progress.new('Reading barcodes')
         progress.update('...')
@@ -119,7 +119,7 @@ class Demultiplex:
 
             if seq not in self.barcode_to_sample:
                 missing_barcode += 1
-                continue 
+                continue
             self.pair_id_to_sample[self.index.entry.header_line.split()[0]] = self.barcode_to_sample[seq]
         progress.end()
         run.info('Index', '%s indexes read, %s of which matched barcodes' % (pp(num_index), pp(num_index - missing_barcode)))
@@ -189,7 +189,7 @@ class Demultiplex:
             sample = self.pair_id_to_sample[pair_id]
             num_reads_resolved += 1
             self.num_reads_per_sample[sample] += 1
-         
+
             if self.r1.pos % 1000 == 0:
                 progress.update('Processed: %d (num reads resolved: %d)' % (self.r1.pos, num_reads_resolved))
 

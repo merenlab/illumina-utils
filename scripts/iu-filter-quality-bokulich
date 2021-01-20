@@ -24,8 +24,8 @@
 #    researcher_email = (your e-mail address)
 #    input_directory = (directory from which the input files will be read from)
 #    output_directory = (directory to store output)
-#    
-#    
+#
+#
 #    [files]
 #    pair_1 = (pair 1 files, comma separated)
 #    pair_2 = (pair 2 files, comma separated. must be ordered based on pair 1 files)
@@ -42,13 +42,13 @@ J = os.path.join
 import IlluminaUtils.lib.fastqlib as u
 from IlluminaUtils.utils.runconfiguration import RunConfiguration
 from IlluminaUtils.utils.runconfiguration import RunConfigError
-from IlluminaUtils.utils.helperfunctions import ReadIDTracker 
+from IlluminaUtils.utils.helperfunctions import ReadIDTracker
 from IlluminaUtils.utils.helperfunctions import QualityScoresHandler
 from IlluminaUtils.utils.helperfunctions import visualize_qual_stats_dict
 
 
 def RepresentsInt(s):
-    try: 
+    try:
         int(s)
         return True
     except ValueError:
@@ -64,14 +64,14 @@ def IsHighQuality(sequence, quality, p, q, r, n):
         if set(bq[offset:offset + r]) == set([False]):
             trim_to = offset
             break
-    
+
     if trim_to is not None:
         if trim_to * 1.0 / len(sequence) < p:
             # Exclude Sequence
             return (False, trim_to, 'FAILED_REASON_P')
         else:
             sequence = sequence[0:trim_to]
-    
+
     if sequence.count('N') > n:
         # Exclude Sequence
         return (False, trim_to, 'FAILED_REASON_N')
@@ -104,14 +104,14 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
     #####################################################################################
     # dealing with output file pointers..
     #####################################################################################
-    
+
     GetFilePath = lambda p: os.path.join(config.output_directory, config.project_name + '-' + p)
-    
+
     errors_fp                 = open(GetFilePath('STATS.txt'), 'w')
     quality_passed_r1         = u.FastQOutput(GetFilePath('QUALITY_PASSED_R1.fastq'))
     quality_passed_r2         = u.FastQOutput(GetFilePath('QUALITY_PASSED_R2.fastq'))
     id_tracker_output_path    = GetFilePath('READ_IDs.cPickle.z')
-    
+
     if visualize_quality_curves:
         qual_dict_output_path = GetFilePath('Q_DICT.cPickle.z')
 
@@ -119,7 +119,7 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
     #####################################################################################
     # some useful variables before we begin..
     #####################################################################################
-   
+
     number_of_pairs = 0
     total_pairs_failed = 0
     total_pairs_passed = 0
@@ -138,12 +138,11 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
     #####################################################################################
     # main loop per file listed in config:
     #####################################################################################
-    COMPRESSED = lambda x: os.path.basename(config.pair_1[index]).endswith('.gz')
-    
+
     for index in range(0, len(config.pair_1)):
         try:
-            pair_1 = u.FastQSource(config.pair_1[index], compressed = True if COMPRESSED(config.pair_1[index]) else False)
-            pair_2 = u.FastQSource(config.pair_2[index], compressed = True if COMPRESSED(config.pair_2[index]) else False)
+            pair_1 = u.FastQSource(config.pair_1[index], lazy_init=True)
+            pair_2 = u.FastQSource(config.pair_2[index], lazy_init=True)
 
         except u.FastQLibError as e:
             print("FastQLib is not happy.\n\n\t", e, "\n")
@@ -153,7 +152,7 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
         #####################################################################################
         # main loop per read:
         #####################################################################################
-       
+
         while pair_1.next(raw = ignore_deflines) and pair_2.next(raw = ignore_deflines):
             number_of_pairs += 1
 
@@ -168,7 +167,7 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
 
             #####################################################################################
             # compare reads
-            #####################################################################################           
+            #####################################################################################
 
             p1_passed_qual, p1_trim_to, p1_fate = IsHighQuality(s1, q1, p, q, r, n)
             p2_passed_qual, p2_trim_to, p2_fate = IsHighQuality(s2, q2, p, q, r, n)
@@ -187,7 +186,7 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
 
                     fate = p2_fate
                 else:
-                    both_pairs_failed_qual += 1 
+                    both_pairs_failed_qual += 1
                     fate = p1_fate
 
                 if store_read_fate:
@@ -198,7 +197,7 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
 
             else:
                 total_pairs_passed += 1
-                
+
                 if p1_trim_to or p2_trim_to:
                     if p1_trim_to:
                         pair_1.entry.trim(trim_to = p1_trim_to)
@@ -212,7 +211,7 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
 
                 if visualize_quality_curves:
                     qual_dict.update(pair_1, pair_2, p1_fate)
-                
+
                 quality_passed_r1.store_entry(pair_1.entry)
                 quality_passed_r2.store_entry(pair_2.entry)
 
@@ -233,7 +232,7 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
     errors_fp.write('  pairs failed due to pair_1  : %d (%%%.2f of all failed pairs)\n' % (only_pair_1_failed_qual, get_percent(only_pair_1_failed_qual, total_pairs_failed)))
     errors_fp.write('  pairs failed due to pair_2  : %d (%%%.2f of all failed pairs)\n' % (only_pair_2_failed_qual, get_percent(only_pair_2_failed_qual, total_pairs_failed)))
     errors_fp.write('  pairs failed due to both    : %d (%%%.2f of all failed pairs)\n' % (both_pairs_failed_qual, get_percent(both_pairs_failed_qual, total_pairs_failed)))
-    
+
     if store_read_fate:
         for fate in [f for f in read_id_tracker.fates if f.startswith('FAILED')]:
             errors_fp.write('  %s%s: %d (%%%.2f of all failed pairs)\n' % (fate,
@@ -241,7 +240,7 @@ def main(config, args = None, visualize_quality_curves = False, ignore_deflines 
                                                                            len(read_id_tracker.ids[fate]),
                                                                            get_percent(len(read_id_tracker.ids[fate]), total_pairs_failed)))
     print()
-    
+
     if store_read_fate:
         sys.stderr.write('\rRead ID tracker dict is being stored ...')
         sys.stderr.flush()
@@ -304,7 +303,7 @@ if __name__ == '__main__':
     user_config = configparser.ConfigParser()
     user_config.read(args.user_config)
 
-    try: 
+    try:
         config = RunConfiguration(user_config)
     except RunConfigError as e:
         print(e)
