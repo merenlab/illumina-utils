@@ -224,6 +224,10 @@ class FastQSource:
         else:
             self.file_pointer = open(file_path, 'rU')
             self.file_length = predict_file_length(self.file_pointer, file_path)
+        if lazy_init:
+            self.num_reads = None
+        else:
+            self.num_reads = int(get_num_lines_in_file(file_path) / 4)
 
         self.percent_step = 1000
         self.percent_read = None
