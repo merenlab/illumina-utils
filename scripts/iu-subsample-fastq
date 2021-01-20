@@ -10,70 +10,102 @@
 # Please read the COPYING file.
 
 import sys
+import random
 
 import IlluminaUtils.lib.fastqlib as u
 import IlluminaUtils.utils.helperfunctions as h
 import IlluminaUtils.utils.terminal as terminal
-import random
 
 run = terminal.Run()
 progress = terminal.Progress()
+pp = terminal.pretty_print
 
 def main(input_file_path_1, input_file_path_2, output_file_path_1, output_file_path_2, num_output_reads):
 
-    input_fastq_1 = u.FastQSource(input_file_path_1)
-    num_input_reads = int(input_fastq_1.file_length)
-
-    if num_output_reads <= 0:
-        raise h.ConfigError("You probably want to change your mind that it's a good idea to subsample {} reads.".format(num_output_reads))
-        sys.exit(-1)
-    if num_output_reads > num_input_reads:
-        raise h.ConfigError("You can't subsample more reads than exist in the FASTQ file ({} reads).".format(num_input_reads))
-        sys.exit(-1)
+    if not input_file_path_1:
+        raise h.ConfigError("You must at least provide an input R1 to subsample from.")
 
     if output_file_path_1 is None:
-        output_file_path_1 = input_file_path_1 + "_{}randomreads".format(num_output_reads)
+        raise h.ConfigError("Please provide an output file path for your subsampled R1.")
+
+    if input_file_path_2 and not output_file_path_2:
+        raise h.ConfigError("Please provide an output file path for your subsampled R2.")
+
+    if num_output_reads <= 0:
+        raise h.ConfigError(f"You probably want to change your mind that it's a good idea to subsample {num_output_reads} reads.")
+        sys.exit(-1)
+
+    progress.new(f"Generating a file handler for R1")
+    progress.update('...')
+    input_fastq_1 = u.FastQSource(input_file_path_1)
+    progress.end()
+
+    if num_output_reads > input_fastq_1.num_reads:
+        raise h.ConfigError(f"You can't subsample more reads than what exists in your FASTQ file, which contains precisely {pp(input_fastq_1.num_reads)} reads.")
+        sys.exit(-1)
+
     output_fastq_1 = u.FastQOutput(output_file_path_1)
 
     ###########################################################################
+
+    progress.new(f"Generating subsample indices...")
+    progress.update('...')
+    subsample_indices = set(random.sample(range(input_fastq_1.num_reads), num_output_reads))
+    progress.end()
 
     if input_file_path_2 is None:
         """If only 1 file path was provided, we are ready to rock and roll"""
 
         i = 0
-        subsample_indices = random.sample(range(num_input_reads), num_output_reads)
+
+        progress.new(f"Subsampling {pp(num_output_reads)} pairs from a total of {pp(input_fastq_1.num_reads)}")
+        progress.update('...')
+
         while input_fastq_1.next(raw=True):
+            if i % 10000 == 0:
+                progress.update('%.2f%% ' % (i * 100 / input_fastq_1.num_reads))
             if i in subsample_indices:
                 output_fastq_1.store_entry(input_fastq_1.entry)
+                subsample_indices.remove(i)
             i += 1
+
         input_fastq_1.close()
         output_fastq_1.close()
-     
+        progress.end()
+
     ###########################################################################
 
     else:
         """If 2 file paths are provided we need to do some more work"""
 
+        progress.new(f"Generating a file handler for R2")
+        progress.update('...')
         input_fastq_2 = u.FastQSource(input_file_path_2)
-        if int(input_fastq_2.file_length) != num_input_reads:
-            raise h.ConfigError("These aren't paired FASTQ files. The length of --r1 is {} but the length of --r2 is {}".\
-                                 format(int(input_fastq_2.file_length), num_input_reads))
+        progress.end()
 
-        if output_file_path_2 is None:
-            output_file_path_2 = input_file_path_2 + "_{}randomreads".format(num_output_reads)
+        if int(input_fastq_2.num_reads) != input_fastq_1.num_reads:
+            raise h.ConfigError(f"These aren't paired FASTQ files. The length of --r1 is {pp(input_fastq_1.num_reads)} but the length of --r2 is {pp(input_fastq_2.num_reads)}")
+
         output_fastq_2 = u.FastQOutput(output_file_path_2)
 
+        progress.new(f"Subsampling {pp(num_output_reads)} pairs from a total of {pp(input_fastq_1.num_reads)}")
+        progress.update('...')
         i = 0
-        subsample_indices = random.sample(range(num_input_reads), num_output_reads)
         while input_fastq_1.next(raw=True) and input_fastq_2.next(raw=True):
+            if i % 10000 == 0:
+                progress.update('%.2f%% ' % (i * 100 / input_fastq_1.num_reads))
             if i in subsample_indices:
                 output_fastq_1.store_entry(input_fastq_1.entry)
                 output_fastq_2.store_entry(input_fastq_2.entry)
+                subsample_indices.remove(i)
             i += 1
+
         input_fastq_1.close()
         input_fastq_2.close()
         output_fastq_1.close()
         output_fastq_2.close()
+
+        progress.end()
 
 
 if __name__ == '__main__':
@@ -117,4 +149,8 @@ if __name__ == '__main__':
     output_file_path_2 = args.output2
     num_output_reads = args.num_reads
 
-    sys.exit(main(input_file_path_1, input_file_path_2, output_file_path_1, output_file_path_2, num_output_reads))
+    try:
+        main(input_file_path_1, input_file_path_2, output_file_path_1, output_file_path_2, num_output_reads)
+    except h.ConfigError as e:
+        print(e)
+        sys.exit()
