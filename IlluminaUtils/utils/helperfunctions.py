@@ -67,6 +67,24 @@ conv_dict = {'A': 'T',
              '.': 'N'}
 
 
+def get_num_lines_in_file(file_path):
+    if os.stat(file_path).st_size == 0:
+        return 0
+
+    def blocks(files, size=65536):
+        while True:
+            b = files.read(size)
+            if not b: break
+            yield b
+
+    if file_path.endswith('.gz'):
+        with gzip.open(file_path, 'rb') as f:
+            return sum(bl.count(b"\n") for bl in blocks(f))
+    else:
+        with open(file_path, "r") as f:
+            return sum(bl.count("\n") for bl in blocks(f))
+
+
 def is_file_exists(file_path):
     if not file_path:
         raise ConfigError("No input file is declared...")
