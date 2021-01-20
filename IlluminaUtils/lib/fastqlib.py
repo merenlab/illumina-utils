@@ -208,14 +208,14 @@ class FastQSource:
         print input.entry.Q_max, input.entry.sequence
     ---------------------------------------------------------
     """
-    def __init__(self, file_path, compressed = False):
+    def __init__(self, file_path, compressed=None, lazy_init=False):
         if not os.path.exists(file_path):
             raise FastQLibError('Missing input file: "%s"' % file_path)
 
         self.pos = 0
         self.forced_raw = False
 
-        self.compressed = compressed
+        self.compressed = compressed or file_path.endswith('.gz')
         if self.compressed:
             # wrap it with TextIOWrapper to prevent gzip.open to return byte\
             # objects.
