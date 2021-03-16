@@ -555,12 +555,13 @@ def visualize_qual_stats_dict(D, dest, title, split_tiles = False, num_columns_t
         for i in range(0, len(tiles)):
             tile = tiles[i]
 
-            subplots[tile] = plt.subplot(next(gs))
+            subplots[tile] = plt.subplot(gs.next())
             plt.grid(True)
 
             plt.subplots_adjust(left=0.02, bottom = 0.03, top = 0.95, right = 0.98)
 
-            plt.xticks(list(range(number_of_cycles / 10, number_of_cycles, number_of_cycles / 10)), rotation=90, size='xx-small')
+            n = int(round(number_of_cycles / 10))
+            plt.xticks(list(range(n, number_of_cycles, n)), rotation=90, size='xx-small')
             plt.ylim(ymin = 0, ymax = 42)
             plt.xlim(xmin = 0, xmax = number_of_cycles - 1)
             plt.yticks(list(range(5, 41, 5)), size='xx-small')
