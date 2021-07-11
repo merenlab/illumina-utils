@@ -16,8 +16,10 @@ import os
 import sys
 import tempfile
 import subprocess
-import configparser
 
+from collections import Counter
+
+import configparser
 
 try:
     import Levenshtein as l
@@ -61,6 +63,7 @@ class MergerStats:
         self.pairs_eliminated_due_to_P = 0
         self.pairs_eliminated_due_to_max_num_mismatches = 0
         self.pairs_eliminated_due_to_Q30 = 0
+        self.pairs_eliminated_due_to_low_diversity = 0
         self.pairs_eliminated_due_to_Min_Overlap = 0
         self.prefix_failed_in_pair_1_total = 0
         self.prefix_failed_in_pair_2_total = 0
@@ -100,6 +103,7 @@ class MergerStats:
         stats.write(self.s_line('Merge discarded due to max num mismatches', '%d' % self.pairs_eliminated_due_to_max_num_mismatches))
         stats.write(self.s_line('Merge discarded due to Ns', '%d' % self.pairs_eliminated_due_to_Ns))
         stats.write(self.s_line('Merge discarded due to Q30', '%d' % self.pairs_eliminated_due_to_Q30))
+        stats.write(self.s_line('Merge discarded due to Low sequence diversity', '%d' % self.pairs_eliminated_due_to_low_diversity))
         stats.write(self.s_line('Pairs discarded due to min expected overlap', '%d' % self.pairs_eliminated_due_to_Min_Overlap))
         stats.write(self.s_line('Num mismatches found in merged reads', '%d' % self.total_number_of_mismatches))
         stats.write(self.s_line('Mismatches recovered from read 1', '%d' % self.num_mismatches_recovered_from_read_1))
@@ -118,6 +122,7 @@ class MergerStats:
         stats.write(self.s_line('Min overlap size', '%s' % merger_object.min_overlap_size))
         stats.write(self.s_line('Min Q-score for mismatches', '%s' % merger_object.min_qual_score))
         stats.write(self.s_line('Ns ignored?', '%s' % merger_object.ignore_Ns))
+        stats.write(self.s_line('Low-diversity sequences excluded?', 'No' if not merger_object.exclude_low_diversity_seqs else f'Yes: {merger_object.exclude_low_diversity_seqs}'))
         stats.write(self.s_line('Q30 enforced?', '%s' % merger_object.enforce_Q30_check))
         stats.write(self.s_line('Run with stringent flag on?', '%s' % merger_object.marker_gene_stringent))
         stats.write(self.s_line('Requested only the overlapping part to be retained?', '%s' % merger_object.retain_only_overlap))
@@ -196,6 +201,7 @@ class Merger:
         self.min_qual_score = 15
         self.debug = False
         self.ignore_Ns = False
+        self.exclude_low_diversity_seqs = None
         self.ignore_deflines = False
         self.enforce_Q30_check = False
         self.retain_only_overlap = False
@@ -448,6 +454,16 @@ class Merger:
                         self.stats.pairs_eliminated_due_to_Q30 += 1
                         continue
 
+                # FAIL CASE LOW DIVERSITY
+                if self.exclude_low_diversity_seqs:
+                    if Counter(merged_sequence).most_common()[0][1] / len(merged_sequence) > self.exclude_low_diversity_seqs:
+                        self.low_diversity_fails.write_id(header_line)
+                        self.low_diversity_fails.write_seq(merged_sequence, split = False)
+                        self.stats.record_num_mismatches(number_of_mismatches, 'merge failed due to low-diversity')
+                        self.stats.merge_failed_total += 1
+                        self.stats.pairs_eliminated_due_to_low_diversity += 1
+                        continue
+
                 # FINALLY
                 self.output.write_id(header_line)
 
@@ -575,6 +591,11 @@ class Merger:
         else:
             self.Q30fails = None
 
+        if self.exclude_low_diversity_seqs:
+            self.low_diversity_fails = P('_LOW_DIVERSITY')
+        else:
+            self.low_diversity_fails = None
+
         self.read1prefixes = P('_MERGED_R1_PREFIX') if self.report_r1_prefix else None
         self.read2prefixes = P('_MERGED_R2_PREFIX') if self.report_r2_prefix else None
 
@@ -584,6 +605,11 @@ class Merger:
                 print("`--num-threads` cannot be used with `--compute-qual-dicts`.")
                 sys.exit(0)
 
+        if self.exclude_low_diversity_seqs:
+            if self.exclude_low_diversity_seqs < 0.5 or self.exclude_low_diversity_seqs > 1.0:
+                print("The parameter for `--exclude-low-diversity-seqs` must be between 0.5 and 1.0. Please read the help menu..")
+                sys.exit(0)
+
 
     def close_output_files(self):
         self.output.close()
@@ -591,6 +617,8 @@ class Merger:
         self.withNs.close()
         if self.enforce_Q30_check:
             self.Q30fails.close()
+        if self.exclude_low_diversity_seqs:
+            self.low_diversity_fails.close()
         if self.report_r1_prefix:
             self.read1prefixes.close()
         if self.report_r2_prefix:
@@ -836,6 +864,11 @@ if __name__ == '__main__':
                                         help = 'Merged sequences are being eliminated if they have\
                                                 any ambiguous bases. If this parameter is set\
                                                 merged pairs with Ns stay in the merged pairs bin.')
+    parser.add_argument('--exclude-low-diversity-seqs', type = float, metavar = 'FLOAT',
+                                        help = 'Removes low-diversity sequences where most of their bases are the same. \
+                                                It takes a value between 0.5 and 1.0, where a value of 1.0 will remove \
+                                                a merged sequence if the most frequent base in it makes 100%% of the \
+                                                sequence.')
     parser.add_argument('--marker-gene-stringent', action = 'store_true', default = False,
                                         help = 'Finds the best merge going beyond expected "partial\
                                                 overlap" case for amplicons. Please read the description\
@@ -893,6 +926,7 @@ if __name__ == '__main__':
     merger.compute_qual_dicts = args.compute_qual_dicts
     merger.debug = args.debug
     merger.ignore_Ns = args.ignore_Ns
+    merger.exclude_low_diversity_seqs = args.exclude_low_diversity_seqs
     merger.ignore_deflines = args.ignore_deflines
     merger.retain_only_overlap = args.retain_only_overlap
     merger.marker_gene_stringent = args.marker_gene_stringent
