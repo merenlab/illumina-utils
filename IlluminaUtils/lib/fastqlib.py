@@ -163,9 +163,9 @@ class FileOutput(object):
     def __init__(self, file_path, compressed = False):
         self.file_path = file_path
 
-        self.compressed = compressed
+        self.compressed_output = compressed
 
-        if self.compressed:
+        if self.compressed_output:
             self.file_pointer = gzip.open(file_path, 'w')
         else:
             self.file_pointer = open(file_path, 'w')
@@ -214,8 +214,8 @@ class FastQSource:
         self.pos = 0
         self.forced_raw = False
 
-        self.compressed = compressed or file_path.endswith('.gz')
-        if self.compressed:
+        self.compressed_input = compressed or file_path.endswith('.gz')
+        if self.compressed_input:
             # wrap it with TextIOWrapper to prevent gzip.open to return byte\
             # objects.
             self.file_pointer = io.TextIOWrapper(gzip.open(file_path, 'r'))
