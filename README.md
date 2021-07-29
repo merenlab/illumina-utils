@@ -16,7 +16,6 @@ _(the table is not automatically updated, so take it as a 'general' guide rather
 - [Installing](#installing)
   - [Standard installation](#standard-installation)
   - [Tracking the development branch](#tracking-the-development-branch)
-    - [Pro setup](#pro-setup)
 - [Demultiplexing](#demultiplexing)
 - [Config File Format](#config-file-format)
   - [[general] section](#general-section)
