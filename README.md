@@ -10,10 +10,12 @@ Feel free to cite [this article](http://journals.plos.org/plosone/article?id=10.
 
 # Contents
 
+_(the table is not automatically updated, so take it as a 'general' guide rather than accurate representation of the content below)_
+
 - [Contents](#contents)
 - [Installing](#installing)
   - [Standard installation](#standard-installation)
-  - [Slightly better setup (with virtualenv)](#slightly-better-setup-with-virtualenv)
+  - [Tracking the development branch](#tracking-the-development-branch)
     - [Pro setup](#pro-setup)
 - [Demultiplexing](#demultiplexing)
 - [Config File Format](#config-file-format)
@@ -46,59 +48,110 @@ The easiest way to install illumina-utils is to do it through pip. You can simpl
 pip install illumina-utils
 ```
 
-Note: Once you have installed illumina-utils, you can type 'iu-' and press your TAB key twice to see all available scripts that are installed on your system.
+**Once you have installed illumina-utils, you can type 'iu-' and press your TAB key twice to see all available scripts that are installed on your system.**
 
-## Slightly better setup (with virtualenv)
+## Tracking the development branch
 
-Alternatively, i.e., if you want to do slightly better, you can first create a Python 3 virtual environment: 
+Instead of installing the latest stable version through pip, you can also setup illumina utils to track the development branch. If you follow these steps, you will have illumina utils setup on your system in such a way, every time you initialize your the conda environment for it you will get **the very final state of the illumina-utils code**.
 
-```
-mkdir -p ~/virtual-envs/
-virtualenv ~/virtual-envs/illumina-utils-v2.7
-source ~/virtual-envs/illumina-utils-v2.7/bin/activate
-python --version
-```
-
-Make sure the output starts with a '3'. Then continue with installation:
+OK. First make sure you are not in any environment by running `conda deactivate`. Then, make sure you don't have an environment called `illumina-utils-dev` (as in *illumina utils development*):
 
 ```
-pip install illumina-utils
+conda env remove --name illumina-utils-dev
 ```
 
-Then you can run this to activate illumina-utils virtualenv very rapidly:
+Now we can continue with setting up the conda environment.
+
+### Setting up the conda environment
+
+First create a new conda environment:
+
+``` bash
+conda create -y --name illumina-utils-dev python=3.6
+```
+
+And activate it:
 
 ```
-echo 'alias illumina-utils-activate-v2.7="source ~/virtual-envs/illumina-utils-v2.7/bin/activate"' >> ~/.bash_profile
+conda activate illumina-utils-dev
 ```
 
-### Pro setup
+Now you are ready for the code :)
 
-If you want to follow the development version, you can create a copy of the codebase and setup a virtual environment the following way:
+### Setting up the local copy of the illumina utils codebase
+
+If you are here, it means you have a conda environment with everything except illumina utils itself. We will make sure this environment _has_ illumina utils by getting a copy of the illumina utils codebase from GitHub.
+
+Here I will suggest `~/github/` as the base directory to keep the code, but you can change if you want to something else (in which case you must remember to apply that change all the following commands, of course). Setup the code directory:
+
+``` bash
+mkdir -p ~/github && cd ~/github/
+```
+
+Get the illumina utils code:
+
+{:.warning}
+If you only plan to follow the development branch you can skip this message. But if you are not an official illumina utils developer but intend to change illumina utils and send us pull requests to reflect those changes in the official repository, you may want to clone illumina utils from your own fork rather than using the following URL. Thank you very much in advance and we are looking forward to seeing your PR!
 
 ```
-# don't forget to change the directory names everywhere
-mkdir -p ~/github
-mkdir -p ~/virtual-envs
-cd ~/github
-git clone git://github.com/meren/illumina-utils.git
-virtualenv ~/virtual-envs/illumina-utils-master
-source ~/virtual-envs/illumina-utils-master/bin/activate
-cd illumina-utils
+git clone --recursive https://github.com/merenlab/illumina-utils.git
+```
+
+Now it is time to install the Python dependencies of illumina utils:
+
+``` bash
+cd ~/github/illumina-utils/
 pip install -r requirements.txt
-
-# now setup environment variables
-echo 'export PYTHONPATH=$PYTHONPATH:~/github/illumina-utils' >> ~/virtual-envs/illumina-utils-master/bin/activate
-echo 'export PATH=$PATH:~/github/illumina-utils/scripts' >> ~/virtual-envs/illumina-utils-master/bin/activate
-echo 'alias illumina-utils-activate-master="source ~/virtual-envs/illumina-utils-master/bin/activate"' >> ~/.bash_profile
-
-# make sure everytime you activate it, it updates itself from the master:
-echo 'cd ~/github/illumina-utils && git pull && cd -' >> ~/virtual-envs/illumina-utils-master/bin/activate
 ```
 
-Done!
+Now all dependencies are in place, and you have the code. One more step.
 
-Now you can run `illumina-utils-activate-master` every time you want to activate it.
+### Linking conda environment and the codebase
 
+Now we have the codebase and we have the conda environment, but they don't know about each other.
+
+Here we will setup your conda environment in such a way that every time you activate it, you will get the very latest updates from the main illumina utils repository. While you are still in illumina utils environment, copy-paste these lines into your terminal:
+
+``` bash
+mkdir -p ${CONDA_PREFIX}/etc/conda/activate.d/
+
+cat <<EOF >${CONDA_PREFIX}/etc/conda/activate.d/illumina-utils.sh
+# creating an activation script for the the conda environment for illumina utils
+# development branch so (1) Python knows where to find illumina utils libraries,
+# (2) the shell knows where to find illumina utils programs, and (3) every time
+# the environment is activated it synchronizes with the latest code from
+# active GitHub repository:
+export PYTHONPATH=\$PYTHONPATH:~/github/illumina-utils/
+export PATH=\$PATH:~/github/illumina-utils/scripts
+echo -e "\033[1;34mUpdating from illumina utils GitHub \033[0;31m(press CTRL+C to cancel)\033[0m ..."
+cd ~/github/illumina-utils && git pull && cd -
+EOF
+```
+
+{:.warning}
+If you are using `zsh` by default these may not work. If you run into a trouble here or especially if you figure out a way to make it work both for `zsh` and `bash`, please let us know.
+
+If everything worked, you should be able to type the following commands in a **new terminal** and see similar outputs:
+
+```
+meren ~ $ conda activate illumina-utils-dev
+Updating from illumina utils GitHub (press CTRL+C to cancel) ...
+
+(illumina-utils-dev) meren ~ $ which iu-trim-fastq
+/Users/meren/github/illumina-utils/scripts/iu-trim-fastq
+```
+
+If that is the case, you're all set.
+
+After this, every change you will make in illumina utils codebase will immediately be reflected when you run illumina utils tools (but if you change the code and do not revert back, git will stop updating your branch from the upstream). 
+
+If you followed these instructions, every time you open a terminal you will have to run the following command to activate your illumina utils environment:
+
+```
+conda activate illumina-utils-dev
+```
+
+Onwards!
 
 # Demultiplexing
 
@@ -363,4 +416,4 @@ If the program is run with `--visualize-quality-curves` option, these files will
 
 # Questions?
 
-Please don't hesitate to get in touch with me via `meren at uchicago dot edu`.
+Please don't hesitate to get in touch with me via `a.murat.eren at gmail dot com`.
