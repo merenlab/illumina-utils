@@ -1,6 +1,6 @@
 import sys
 
-illumina_utils_version = "2.11-dev"
+illumina_utils_version = "2.12"
 
 # Make sure the Python environment hasn't changed since the installation (happens more often than you'd think
 # on systems working with multiple Python installations that are managed through modules):
