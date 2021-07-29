@@ -188,10 +188,16 @@ class FastQOutput(FileOutput):
         super(FastQOutput, self).__init__(file_path, compressed)
 
     def store_entry(self, e):
-        self.file_pointer.write('@' + e.header_line + '\n')
-        self.file_pointer.write(e.sequence + '\n')
-        self.file_pointer.write('+' + e.optional + '\n')
-        self.file_pointer.write(e.qual_scores + '\n')
+        if self.compressed_output:
+            self.file_pointer.write(('@' + e.header_line + '\n').encode())
+            self.file_pointer.write((e.sequence + '\n').encode())
+            self.file_pointer.write(('+' + e.optional + '\n').encode())
+            self.file_pointer.write((e.qual_scores + '\n').encode())
+        else:
+            self.file_pointer.write('@' + e.header_line + '\n')
+            self.file_pointer.write(e.sequence + '\n')
+            self.file_pointer.write('+' + e.optional + '\n')
+            self.file_pointer.write(e.qual_scores + '\n')
 
 
 class FastQSource:
