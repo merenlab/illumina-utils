@@ -167,7 +167,11 @@ class FASTQMerger:
         # cpu available to the process
         # complies with cpuset/affinity
         # see: https://github.com/python/cpython/issues/67718
-        ncpu_avail = len(os.sched_getaffinity(0))
+        try:
+            ncpu_avail = len(os.sched_getaffinity(0))
+        except AttributeError:
+            # os.sched_getaffinity not available on Mac OSX
+            ncpu_avail = multiprocessing.cpu_count() 
         if not 0 < num_cores <= ncpu_avail:
             raise RuntimeError("\"%d\" is not a valid number of cores. "
                                "The number of cores must be between 1 and %d."
