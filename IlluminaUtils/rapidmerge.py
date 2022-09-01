@@ -162,11 +162,20 @@ class FASTQMerger:
         self.dataset_index = dataset_index
         self.total_dataset_count = total_dataset_count
         self.project_name = project_name
-
-        if not 0 < num_cores <= multiprocessing.cpu_count():
+        # when run eg in taskset context, cpuset set or slurm allocation
+        # multiprocessing.cpu_count() mays overcommit available 
+        # cpu available to the process
+        # complies with cpuset/affinity
+        # see: https://github.com/python/cpython/issues/67718
+        try:
+            ncpu_avail = len(os.sched_getaffinity(0))
+        except AttributeError:
+            # os.sched_getaffinity not available on Mac OSX
+            ncpu_avail = multiprocessing.cpu_count() 
+        if not 0 < num_cores <= ncpu_avail:
             raise RuntimeError("\"%d\" is not a valid number of cores. "
                                "The number of cores must be between 1 and %d."
-                               % (num_cores, multiprocessing.cpu_count()))
+                               % (num_cores, ncpu_avail))
         self.num_cores = num_cores
 
         self.stats = FASTQMergerStats()
