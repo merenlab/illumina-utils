@@ -118,12 +118,12 @@ Most scripts that come with illumina-utils require a config file as an input to 
     researcher_email = reasearcher@institute.edu
     input_directory = /full/path/test_input
     output_directory = /full/path/test_output
-    
-    
+
+
     [files]
-    pair_1 = pair_1_aaa, pair_1_aab, pair_1_aac, pair_1_aad, pair_1_aae, pair_1_aaf 
+    pair_1 = pair_1_aaa, pair_1_aab, pair_1_aac, pair_1_aad, pair_1_aae, pair_1_aaf
     pair_2 = pair_2_aaa, pair_2_aab, pair_2_aac, pair_2_aad, pair_2_aae, pair_2_aaf
-    
+
     [prefixes]
     pair_1_prefix = ^....TACGCCCAGCAGC[C,T]GCGGTAA.
     pair_2_prefix = ^CCGTC[A,T]ATT[C,T].TTT[G,A]A.T
@@ -224,9 +224,9 @@ The `project_name_STATS` file that is created in the output directory contains i
     Mismatches recovered from read 1	10360
     Mismatches recovered from read 2	1413
     Mismatches replaced with N      	1328
-    
+
     Mismatches breakdown:
-    
+
     0	372
     1	326
     2	225
@@ -240,8 +240,8 @@ The `project_name_STATS` file that is created in the output directory contains i
     10	11
     11	4
     12	1
-    
-    
+
+
     Command line            	iu-merge-pairs miseq_partial_overlap_config.ini z --enforce --compute
     Work directory              	/path/to/the/working/directory
     "p" value                   	0.300000
