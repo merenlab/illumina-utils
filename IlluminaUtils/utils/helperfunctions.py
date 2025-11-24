@@ -122,7 +122,7 @@ def get_TAB_delimited_file_as_dictionary(file_path, expected_fields = None, dict
     is_file_exists(file_path)
     is_file_tab_delimited(file_path)
 
-    f = open(file_path, 'rU')
+    f = open(file_path, 'r')
 
     if column_names:
         columns = column_names

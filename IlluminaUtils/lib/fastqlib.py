@@ -226,7 +226,7 @@ class FastQSource:
             # objects.
             self.file_pointer = io.TextIOWrapper(gzip.open(file_path, 'r'))
         else:
-            self.file_pointer = open(file_path, 'rU')
+            self.file_pointer = open(file_path, 'r')
 
         if lazy_init:
             self.num_reads = None

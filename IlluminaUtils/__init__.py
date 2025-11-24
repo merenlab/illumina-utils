@@ -1,6 +1,7 @@
 import sys
+from ._version import __version__
 
-illumina_utils_version = "2.13-dev"
+illumina_utils_version = __version__
 
 # Make sure the Python environment hasn't changed since the installation (happens more often than you'd think
 # on systems working with multiple Python installations that are managed through modules):

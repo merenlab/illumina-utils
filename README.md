@@ -1,43 +1,16 @@
-This is a small library and a bunch of clients to perform various operations on FASTQ files (such as demultiplexing raw Illumina files, merging partial or complete overlaps, and/or performing quality filtering). It works with paired-end FASTQ files and has been tested with Illumina runs processed with CASAVA version 1.8.0 or higher.
+# illumina-utils
 
-This program is maintained by [Sam Miller](https://semiller10.github.io/) (samuelmiller at uchicago dot edu) and [Meren](http://meren.org) (meren at uchicago dot edu). Please feel free to send us an e-mail, or better yet visit the anvi'o Slack for your questions.
+This is a small library and a collection of clients to perform various operations on FASTQ files (such as demultiplexing raw Illumina files, merging partial or complete overlaps, and/or performing quality filtering). It works with paired-end FASTQ files and has been tested with Illumina runs processed with CASAVA version 1.8.0 or higher.
 
-### Citation
+This program is maintained by [Sam Miller](https://semiller10.github.io/) and [Meren](http://meren.org). Please feel free to send an e-mail, or better yet visit the anvi'o Slack for your questions.
 
-Feel free to cite [this article](http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0066643) (in which the codebase was first introduced) if you are using this codebase (and if you are happy with it).
+Feel free to cite [Eren et al. 2013](http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0066643) if you are using this codebase.
 
 ![Eren et al. 2013](http://i.imgur.com/JLjBWpJ.png)
 
-# Contents
-
-_(the table is not automatically updated, so take it as a 'general' guide rather than accurate representation of the content below)_
-
-- [Contents](#contents)
-- [Installing](#installing)
-  - [Standard installation](#standard-installation)
-  - [Tracking the development branch](#tracking-the-development-branch)
-- [Demultiplexing](#demultiplexing)
-- [Config File Format](#config-file-format)
-  - [[general] section](#general-section)
-  - [[files] section](#files-section)
-  - [[prefixes] section](#prefixes-section)
-- [Merging Partially Overlapping Illumina Pairs](#merging-partially-overlapping-illumina-pairs)
-  - [Example STATS output](#example-stats-output)
-- [Merging Completely Overlapping Illumina Pairs](#merging-completely-overlapping-illumina-pairs)
-- [Rapid Multithreaded Merging by Exact Overlap](#rapid-multithreaded-merging-by-exact-overlap)
-- [Quality Filtering](#quality-filtering)
-  - [Minoche et al.](#minoche-et-al)
-    - [Example STATS output](#example-stats-output-1)
-    - [Example PNG files](#example-png-files)
-  - [Bokulich et al.](#bokulich-et-al)
-    - [Example STATS output:](#example-stats-output-2)
-    - [Example PNG files](#example-png-files-1)
-- [Questions?](#questions)
-
-
 # Installing
 
-Here are a couple of ways to install illumina-utilities.
+Here are the two ways to install `illumina-utils`.
 
 ## Standard installation
 
@@ -51,102 +24,48 @@ pip install illumina-utils
 
 ## Tracking the development branch
 
-Instead of installing the latest stable version through pip, you can also setup illumina utils to track the development branch. If you follow these steps, you will have illumina utils setup on your system in such a way, every time you initialize your the conda environment for it you will get **the very final state of the illumina-utils code**.
+If you want to work directly with the latest development version of illumina-utils, or if you plan to contribute changes, you can set up a clean and modern development environment using a standard editable installation.
 
-OK. First make sure you are not in any environment by running `conda deactivate`. Then, make sure you don't have an environment called `illumina-utils-dev` (as in *illumina utils development*):
+### Create a development environment
 
-```
-conda env remove --name illumina-utils-dev
-```
-
-Now we can continue with setting up the conda environment.
-
-### Setting up the conda environment
-
-First create a new conda environment:
-
-``` bash
-conda create -y --name illumina-utils-dev python=3.6
-```
-
-And activate it:
-
-```
+```bash
+conda create -y --name illumina-utils-dev
 conda activate illumina-utils-dev
 ```
 
-Now you are ready for the code :)
+### Clone the repository
 
-### Setting up the local copy of the illumina utils codebase
-
-If you are here, it means you have a conda environment with everything except illumina utils itself. We will make sure this environment _has_ illumina utils by getting a copy of the illumina utils codebase from GitHub.
-
-Here I will suggest `~/github/` as the base directory to keep the code, but you can change if you want to something else (in which case you must remember to apply that change all the following commands, of course). Setup the code directory:
-
-``` bash
-mkdir -p ~/github && cd ~/github/
+```bash
+mkdir -p ~/github
+cd ~/github
+git clone https://github.com/merenlab/illumina-utils.git
+cd illumina-utils
 ```
 
-Get the illumina utils code:
+### Install in editable mode
 
-{:.warning}
-If you only plan to follow the development branch you can skip this message. But if you are not an official illumina utils developer but intend to change illumina utils and send us pull requests to reflect those changes in the official repository, you may want to clone illumina utils from your own fork rather than using the following URL. Thank you very much in advance and we are looking forward to seeing your PR!
-
-```
-git clone --recursive https://github.com/merenlab/illumina-utils.git
+```bash
+pip install -e .
 ```
 
-Now it is time to install the Python dependencies of illumina utils:
+If you are here, you are done. You can quickly test a few things and make sure you are not getting any errors:
 
-``` bash
-cd ~/github/illumina-utils/
-pip install -r requirements.txt
+```bash
+cd
+which iu-trim-fastq
+python -c "import IlluminaUtils as iu; print(iu.__version__)"
 ```
 
-Now all dependencies are in place, and you have the code. One more step.
+To update your development copy:
 
-### Linking conda environment and the codebase
-
-Now we have the codebase and we have the conda environment, but they don't know about each other.
-
-Here we will setup your conda environment in such a way that every time you activate it, you will get the very latest updates from the main illumina utils repository. While you are still in illumina utils environment, copy-paste these lines into your terminal:
-
-``` bash
-mkdir -p ${CONDA_PREFIX}/etc/conda/activate.d/
-
-cat <<EOF >${CONDA_PREFIX}/etc/conda/activate.d/illumina-utils.sh
-# creating an activation script for the the conda environment for illumina utils
-# development branch so (1) Python knows where to find illumina utils libraries,
-# (2) the shell knows where to find illumina utils programs, and (3) every time
-# the environment is activated it synchronizes with the latest code from
-# active GitHub repository:
-export PYTHONPATH=\$PYTHONPATH:~/github/illumina-utils/
-export PATH=\$PATH:~/github/illumina-utils/scripts
-echo -e "\033[1;34mUpdating from illumina utils GitHub \033[0;31m(press CTRL+C to cancel)\033[0m ..."
-cd ~/github/illumina-utils && git pull && cd -
-EOF
+```bash
+cd ~/github/illumina-utils
+git pull
 ```
 
-{:.warning}
-If you are using `zsh` by default these may not work. If you run into a trouble here or especially if you figure out a way to make it work both for `zsh` and `bash`, please let us know.
+To activate `illumina-utils` when you open a new terminal:
 
-If everything worked, you should be able to type the following commands in a **new terminal** and see similar outputs:
-
-```
-meren ~ $ conda activate illumina-utils-dev
-Updating from illumina utils GitHub (press CTRL+C to cancel) ...
-
-(illumina-utils-dev) meren ~ $ which iu-trim-fastq
-/Users/meren/github/illumina-utils/scripts/iu-trim-fastq
-```
-
-If that is the case, you're all set.
-
-After this, every change you will make in illumina utils codebase will immediately be reflected when you run illumina utils tools (but if you change the code and do not revert back, git will stop updating your branch from the upstream). 
-
-If you followed these instructions, every time you open a terminal you will have to run the following command to activate your illumina utils environment:
-
-```
+```bash
 conda activate illumina-utils-dev
 ```
 
@@ -171,12 +90,12 @@ Most scripts that come with illumina-utils require a config file as an input to 
     researcher_email = reasearcher@institute.edu
     input_directory = /full/path/test_input
     output_directory = /full/path/test_output
-    
-    
+
+
     [files]
-    pair_1 = pair_1_aaa, pair_1_aab, pair_1_aac, pair_1_aad, pair_1_aae, pair_1_aaf 
+    pair_1 = pair_1_aaa, pair_1_aab, pair_1_aac, pair_1_aad, pair_1_aae, pair_1_aaf
     pair_2 = pair_2_aaa, pair_2_aab, pair_2_aac, pair_2_aad, pair_2_aae, pair_2_aaf
-    
+
     [prefixes]
     pair_1_prefix = ^....TACGCCCAGCAGC[C,T]GCGGTAA.
     pair_2_prefix = ^CCGTC[A,T]ATT[C,T].TTT[G,A]A.T
@@ -277,9 +196,9 @@ The `project_name_STATS` file that is created in the output directory contains i
     Mismatches recovered from read 1	10360
     Mismatches recovered from read 2	1413
     Mismatches replaced with N      	1328
-    
+
     Mismatches breakdown:
-    
+
     0	372
     1	326
     2	225
@@ -293,8 +212,8 @@ The `project_name_STATS` file that is created in the output directory contains i
     10	11
     11	4
     12	1
-    
-    
+
+
     Command line            	iu-merge-pairs miseq_partial_overlap_config.ini z --enforce --compute
     Work directory              	/path/to/the/working/directory
     "p" value                   	0.300000
