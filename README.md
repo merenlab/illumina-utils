@@ -4,42 +4,13 @@ This is a small library and a collection of clients to perform various operation
 
 This program is maintained by [Sam Miller](https://semiller10.github.io/) and [Meren](http://meren.org). Please feel free to send an e-mail, or better yet visit the anvi'o Slack for your questions.
 
-### Citation
-
 Feel free to cite [Eren et al. 2013](http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0066643) if you are using this codebase.
 
 ![Eren et al. 2013](http://i.imgur.com/JLjBWpJ.png)
 
-# Contents
-
-_(the table is not automatically updated, so take it as a 'general' guide rather than accurate representation of the content below)_
-
-- [Contents](#contents)
-- [Installing](#installing)
-  - [Standard installation](#standard-installation)
-  - [Tracking the development branch](#tracking-the-development-branch)
-- [Demultiplexing](#demultiplexing)
-- [Config File Format](#config-file-format)
-  - [[general] section](#general-section)
-  - [[files] section](#files-section)
-  - [[prefixes] section](#prefixes-section)
-- [Merging Partially Overlapping Illumina Pairs](#merging-partially-overlapping-illumina-pairs)
-  - [Example STATS output](#example-stats-output)
-- [Merging Completely Overlapping Illumina Pairs](#merging-completely-overlapping-illumina-pairs)
-- [Rapid Multithreaded Merging by Exact Overlap](#rapid-multithreaded-merging-by-exact-overlap)
-- [Quality Filtering](#quality-filtering)
-  - [Minoche et al.](#minoche-et-al)
-    - [Example STATS output](#example-stats-output-1)
-    - [Example PNG files](#example-png-files)
-  - [Bokulich et al.](#bokulich-et-al)
-    - [Example STATS output:](#example-stats-output-2)
-    - [Example PNG files](#example-png-files-1)
-- [Questions?](#questions)
-
-
 # Installing
 
-Here are a couple of ways to install illumina-utilities.
+Here are the two ways to install `illumina-utils`.
 
 ## Standard installation
 
@@ -55,14 +26,14 @@ pip install illumina-utils
 
 If you want to work directly with the latest development version of illumina-utils, or if you plan to contribute changes, you can set up a clean and modern development environment using a standard editable installation.
 
-### 1. Create a development environment
+### Create a development environment
 
 ```bash
-conda create -y --name illumina-utils-dev python=3.12
+conda create -y --name illumina-utils-dev
 conda activate illumina-utils-dev
 ```
 
-### 2. Clone the repository
+### Clone the repository
 
 ```bash
 mkdir -p ~/github
@@ -71,15 +42,16 @@ git clone https://github.com/merenlab/illumina-utils.git
 cd illumina-utils
 ```
 
-### 3. Install in editable mode
+### Install in editable mode
 
 ```bash
 pip install -e .
 ```
 
-Now it is time to install the Python dependencies of illumina utils:
+If you are here, you are done. You can quickly test a few things and make sure you are not getting any errors:
 
 ```bash
+cd
 which iu-trim-fastq
 python -c "import IlluminaUtils as iu; print(iu.__version__)"
 ```
@@ -91,7 +63,7 @@ cd ~/github/illumina-utils
 git pull
 ```
 
-Activate anytime:
+To activate `illumina-utils` when you open a new terminal:
 
 ```bash
 conda activate illumina-utils-dev
