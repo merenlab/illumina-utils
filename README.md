@@ -1,10 +1,12 @@
-This is a small library and a bunch of clients to perform various operations on FASTQ files (such as demultiplexing raw Illumina files, merging partial or complete overlaps, and/or performing quality filtering). It works with paired-end FASTQ files and has been tested with Illumina runs processed with CASAVA version 1.8.0 or higher.
+# illumina-utils
 
-This program is maintained by [Sam Miller](https://semiller10.github.io/) (samuelmiller at uchicago dot edu) and [Meren](http://meren.org) (meren at uchicago dot edu). Please feel free to send us an e-mail, or better yet visit the anvi'o Slack for your questions.
+This is a small library and a collection of clients to perform various operations on FASTQ files (such as demultiplexing raw Illumina files, merging partial or complete overlaps, and/or performing quality filtering). It works with paired-end FASTQ files and has been tested with Illumina runs processed with CASAVA version 1.8.0 or higher.
+
+This program is maintained by [Sam Miller](https://semiller10.github.io/) and [Meren](http://meren.org). Please feel free to send an e-mail, or better yet visit the anvi'o Slack for your questions.
 
 ### Citation
 
-Feel free to cite [this article](http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0066643) (in which the codebase was first introduced) if you are using this codebase (and if you are happy with it).
+Feel free to cite [Eren et al. 2013](http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0066643) if you are using this codebase.
 
 ![Eren et al. 2013](http://i.imgur.com/JLjBWpJ.png)
 
