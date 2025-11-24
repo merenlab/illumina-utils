@@ -51,102 +51,47 @@ pip install illumina-utils
 
 ## Tracking the development branch
 
-Instead of installing the latest stable version through pip, you can also setup illumina utils to track the development branch. If you follow these steps, you will have illumina utils setup on your system in such a way, every time you initialize your the conda environment for it you will get **the very final state of the illumina-utils code**.
+If you want to work directly with the latest development version of illumina-utils, or if you plan to contribute changes, you can set up a clean and modern development environment using a standard editable installation.
 
-OK. First make sure you are not in any environment by running `conda deactivate`. Then, make sure you don't have an environment called `illumina-utils-dev` (as in *illumina utils development*):
+### 1. Create a development environment
 
-```
-conda env remove --name illumina-utils-dev
-```
-
-Now we can continue with setting up the conda environment.
-
-### Setting up the conda environment
-
-First create a new conda environment:
-
-``` bash
-conda create -y --name illumina-utils-dev python=3.6
-```
-
-And activate it:
-
-```
+```bash
+conda create -y --name illumina-utils-dev python=3.12
 conda activate illumina-utils-dev
 ```
 
-Now you are ready for the code :)
+### 2. Clone the repository
 
-### Setting up the local copy of the illumina utils codebase
-
-If you are here, it means you have a conda environment with everything except illumina utils itself. We will make sure this environment _has_ illumina utils by getting a copy of the illumina utils codebase from GitHub.
-
-Here I will suggest `~/github/` as the base directory to keep the code, but you can change if you want to something else (in which case you must remember to apply that change all the following commands, of course). Setup the code directory:
-
-``` bash
-mkdir -p ~/github && cd ~/github/
+```bash
+mkdir -p ~/github
+cd ~/github
+git clone https://github.com/merenlab/illumina-utils.git
+cd illumina-utils
 ```
 
-Get the illumina utils code:
+### 3. Install in editable mode
 
-{:.warning}
-If you only plan to follow the development branch you can skip this message. But if you are not an official illumina utils developer but intend to change illumina utils and send us pull requests to reflect those changes in the official repository, you may want to clone illumina utils from your own fork rather than using the following URL. Thank you very much in advance and we are looking forward to seeing your PR!
-
-```
-git clone --recursive https://github.com/merenlab/illumina-utils.git
+```bash
+pip install -e .
 ```
 
 Now it is time to install the Python dependencies of illumina utils:
 
-``` bash
-cd ~/github/illumina-utils/
-pip install -r requirements.txt
+```bash
+which iu-trim-fastq
+python -c "import IlluminaUtils as iu; print(iu.__version__)"
 ```
 
-Now all dependencies are in place, and you have the code. One more step.
+To update your development copy:
 
-### Linking conda environment and the codebase
-
-Now we have the codebase and we have the conda environment, but they don't know about each other.
-
-Here we will setup your conda environment in such a way that every time you activate it, you will get the very latest updates from the main illumina utils repository. While you are still in illumina utils environment, copy-paste these lines into your terminal:
-
-``` bash
-mkdir -p ${CONDA_PREFIX}/etc/conda/activate.d/
-
-cat <<EOF >${CONDA_PREFIX}/etc/conda/activate.d/illumina-utils.sh
-# creating an activation script for the the conda environment for illumina utils
-# development branch so (1) Python knows where to find illumina utils libraries,
-# (2) the shell knows where to find illumina utils programs, and (3) every time
-# the environment is activated it synchronizes with the latest code from
-# active GitHub repository:
-export PYTHONPATH=\$PYTHONPATH:~/github/illumina-utils/
-export PATH=\$PATH:~/github/illumina-utils/scripts
-echo -e "\033[1;34mUpdating from illumina utils GitHub \033[0;31m(press CTRL+C to cancel)\033[0m ..."
-cd ~/github/illumina-utils && git pull && cd -
-EOF
+```bash
+cd ~/github/illumina-utils
+git pull
 ```
 
-{:.warning}
-If you are using `zsh` by default these may not work. If you run into a trouble here or especially if you figure out a way to make it work both for `zsh` and `bash`, please let us know.
+Activate anytime:
 
-If everything worked, you should be able to type the following commands in a **new terminal** and see similar outputs:
-
-```
-meren ~ $ conda activate illumina-utils-dev
-Updating from illumina utils GitHub (press CTRL+C to cancel) ...
-
-(illumina-utils-dev) meren ~ $ which iu-trim-fastq
-/Users/meren/github/illumina-utils/scripts/iu-trim-fastq
-```
-
-If that is the case, you're all set.
-
-After this, every change you will make in illumina utils codebase will immediately be reflected when you run illumina utils tools (but if you change the code and do not revert back, git will stop updating your branch from the upstream). 
-
-If you followed these instructions, every time you open a terminal you will have to run the following command to activate your illumina utils environment:
-
-```
+```bash
 conda activate illumina-utils-dev
 ```
 
